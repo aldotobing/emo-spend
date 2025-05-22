@@ -49,8 +49,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "EmoSpend - Track Your Emotional Spending",
-    description: "Your emotional finance tracker.",
-    creator: "@aldotobing", // Ganti kalau punya
+    description: "Track your spending and uncover the emotions behind every purchase — with smart AI insights to help you understand, reflect, and grow.",
+    creator: "@aldo_tobing", 
     images: ["https://spend.aldotobing.online/logo.png"],
   },
 };
@@ -73,7 +73,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/site.webmanifest" />
-        <link rel="canonical" href="https://spend.aldotobing.online" />
+        <link rel="canonical" href="https://aldotobing.online" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="EmoSpend" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
