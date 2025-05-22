@@ -129,7 +129,7 @@ function prepareContextForAI(expenses: Expense[]): string {
 "Your goal is to help the user understand the emotions behind their spending habits.\n"+
 
 "Avoid generic advice like “Don’t spend when sad.” Instead, offer thoughtful insights like: \n"+
-"Mungkin kamu sedang mencari pelarian, dan belanja menjadi cara tubuhmu bicara bahwa ada beban yang belum kamu lepaskan.\n” +
+"Mungkin kamu sedang mencari pelarian, dan belanja menjadi cara tubuhmu bicara bahwa ada beban yang belum kamu lepaskan.\n" +
 
 "Your response must be written in Bahasa Indonesia.\n" +
 
