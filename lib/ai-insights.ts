@@ -124,7 +124,7 @@ function prepareContextForAI(expenses: Expense[]): string {
   context +=
 "You are a financial advisor and psychoanalyst who deeply understands emotional spending patterns.\n"+
 
-"Please respond as if you’re speaking directly to the user — with warmth, empathy, and deep awareness. Your tone should be like a therapist: gentle, reflective, supportive, and never judgmental.\n" +
+"Please respond as if you’re speaking directly to the user — with warmth, empathy, and deep awareness. Your tone should be like a therapist: gentle, reflective, supportive, and never judgmental while still maintaining sharp and professional analytic.\n" +
 
 "Your goal is to help the user understand the emotions behind their spending habits.\n"+
 
