@@ -413,15 +413,3 @@ function RecentExpenses({
     </Card>
   );
 }
-
-export const metadata = {
-  title: "Home | EmoSpend",
-  description:
-    "Visualize your emotional spending habits and take control of your finances.",
-  openGraph: {
-    title: "Home | EmoSpend",
-    description: "Understand your emotional spending patterns.",
-    url: "https://spend.aldotobing.online",
-    siteName: "EmoSpend",
-  },
-};
