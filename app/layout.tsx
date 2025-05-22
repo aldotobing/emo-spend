@@ -73,7 +73,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="manifest" href="/site.webmanifest" />
-        <link rel="canonical" href="https://aldotobing.online" />
+        <link rel="canonical" href="https://spend.aldotobing.online" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="EmoSpend" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -98,7 +98,7 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="ligth"
+            defaultTheme="light"
             enableSystem
             disableTransitionOnChange
           >
