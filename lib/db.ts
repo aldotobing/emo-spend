@@ -1,16 +1,7 @@
-// /lib/db.ts
-console.log(
-  "--- [DB Module Top Level] --- File /lib/db.ts is being evaluated by Next.js (server/build or client import)..."
-);
-
 import Dexie, { type Table } from "dexie";
 import type { Expense as AppExpense, MoodType } from "@/types/expense"; // Pastikan tipe MoodType diimpor jika digunakan
 import { getSupabaseBrowserClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
-
-console.log(
-  "--- [DB Module Imports] --- Dexie, types, supabaseClient, User imported."
-);
 
 export interface SyncedExpense extends AppExpense {
   synced: boolean;

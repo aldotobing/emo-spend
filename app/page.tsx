@@ -123,12 +123,15 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
-              <TabsList className="grid grid-cols-4 gap-1 rounded-2xl bg-muted/30 p-1.5 w-full backdrop-blur-sm border border-border/50">
+              {/* MODIFIED: Added h-10 for consistent height */}
+              <TabsList className="flex sm:grid sm:grid-cols-4 gap-1 rounded-2xl bg-muted/30 p-1.5 w-full backdrop-blur-sm border border-border/50 min-h-[42px] sm:h-10">
+                {" "}
                 {periods.map((p, index) => (
                   <TabsTrigger
                     key={p}
                     value={p}
-                    className="text-xs sm:text-sm font-medium rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border/20 transition-all duration-300 relative overflow-hidden"
+                    // MODIFIED: Added px-3 py-1.5 for better padding/touch targets
+                    className="text-xs sm:text-sm font-medium rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border/20 transition-all duration-300 relative overflow-hidden px-3 py-1.5"
                   >
                     <motion.span
                       whileHover={{ scale: 1.05 }}
