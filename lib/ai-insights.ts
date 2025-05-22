@@ -144,7 +144,7 @@ function prepareContextForAI(expenses: Expense[]): string {
     // "2. Focus on the connection between their emotions and spending behavior. \n" +
     // "3. Keep your insights concise, actionable, and psychologically grounded. \n" +
     // "4. At the end, provide a clear bottom line or advice that the user can apply to better manage their emotional spending.\n" +
-    "Return only response!";
+    "Return only response without unecessary talk!";
   return context;
 }
 
