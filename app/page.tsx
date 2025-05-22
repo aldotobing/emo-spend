@@ -175,14 +175,14 @@ export default function Dashboard() {
                           isLoading={isLoading}
                           expenses={expenses}
                         />
-                        <div className="grid gap-6 lg:grid-cols-3">
+                        <div className="grid gap-6 lg:grid-cols-4">
                           <div className="lg:col-span-2">
                             <RecentExpenses
                               isLoading={isLoading}
                               expenses={expenses}
                             />
                           </div>
-                          <div className="lg:col-span-1">
+                          <div className="lg:col-span-2">
                             <Gamification className="h-full" />
                           </div>
                         </div>

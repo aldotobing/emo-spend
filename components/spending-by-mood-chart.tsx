@@ -1,60 +1,72 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import type { Expense } from "@/types/expense"
-import { moods } from "@/data/moods"
-import { formatCurrency } from "@/lib/utils"
+import { useState, useEffect } from "react";
+import type { Expense } from "@/types/expense";
+import { moods } from "@/data/moods";
+import { formatCurrency } from "@/lib/utils";
 
 interface SpendingByMoodChartProps {
-  expenses: Expense[]
+  expenses: Expense[];
 }
 
 export function SpendingByMoodChart({ expenses }: SpendingByMoodChartProps) {
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
-    return <div className="h-full flex items-center justify-center">Loading chart...</div>
+    return (
+      <div className="h-full flex items-center justify-center">
+        Loading chart...
+      </div>
+    );
   }
 
   // Group expenses by mood
   const expensesByMood = moods
     .map((mood) => {
-      const moodExpenses = expenses.filter((expense) => expense.mood === mood.id)
-      const total = moodExpenses.reduce((sum, expense) => sum + expense.amount, 0)
+      const moodExpenses = expenses.filter(
+        (expense) => expense.mood === mood.id
+      );
+      const total = moodExpenses.reduce(
+        (sum, expense) => sum + expense.amount,
+        0
+      );
       return {
         id: mood.id,
         name: mood.label,
         emoji: mood.emoji,
         value: total,
         color: mood.color,
-      }
+      };
     })
     .filter((item) => item.value > 0)
-    .sort((a, b) => b.value - a.value)
+    .sort((a, b) => b.value - a.value);
 
   if (expensesByMood.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-muted-foreground">No data to display</p>
       </div>
-    )
+    );
   }
 
   // Calculate total for percentages
-  const total = expensesByMood.reduce((sum, item) => sum + item.value, 0)
+  const total = expensesByMood.reduce((sum, item) => sum + item.value, 0);
 
   return (
-    <div className="h-full flex flex-col justify-center">
+    <div className="h-full flex flex-col justify-center overflow-auto p-4 pt-6 pb-6">
       <div className="space-y-4">
-        {expensesByMood.map((item) => {
-          const percentage = (item.value / total) * 100
+        {expensesByMood.map((item, index) => {
+          const percentage = (item.value / total) * 100;
 
           return (
-            <div key={item.id} className="space-y-1">
+            <div
+              key={item.id}
+              className={`space-y-1 ${index === 0 ? "mt-2" : ""}`}
+            >
               <div className="flex justify-between items-center">
                 <div className="flex items-center">
                   <span className="mr-2">{item.emoji}</span>
@@ -74,9 +86,9 @@ export function SpendingByMoodChart({ expenses }: SpendingByMoodChartProps) {
                 ></div>
               </div>
             </div>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

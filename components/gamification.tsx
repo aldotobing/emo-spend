@@ -100,9 +100,7 @@ export function Gamification({ className }: GamificationProps) {
     }
 
     loadData();
-  }, []); // Dependency array kosong, jadi hanya jalan sekali saat mount
-
-  // ... sisa JSX komponen Gamification (return (...)) tetap sama ...
+  }, []);
   return (
     <Card className={className}>
       <CardHeader>
@@ -179,7 +177,6 @@ export function Gamification({ className }: GamificationProps) {
     </Card>
   );
 }
-// ... fungsi calculateStreak dan calculateBadges (dengan null check) tetap sama ...
 function calculateStreak(expenses: Expense[]): number {
   if (!expenses) return 0;
   return Math.floor(Math.random() * 7) + 1;
