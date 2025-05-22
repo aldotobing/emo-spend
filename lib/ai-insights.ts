@@ -137,7 +137,7 @@ function prepareContextForAI(expenses: Expense[]): string {
 
     //"You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns. \n\n";
 
-    "As a financial advisor and psychoanalyst specializing in emotional spending patterns, Please provide insights in Bahasa Indonesia. Each insight should be on a new line. Respon like an advisor to direct person.\n" +
+    "As a financial advisor and psychoanalyst specializing in emotional spending patterns, Please provide insights in Bahasa Indonesia. Each insight should be on a new line with detailed analysis. Respon like an advisor to direct person.\n" +
     // "Follow this :\n" +
     // "1. Analyze the user's spending data and provide insightful observations about their shopping habits.\n" +
     // "2. Focus on the connection between their emotions and spending behavior. \n" +
