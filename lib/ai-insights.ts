@@ -122,7 +122,7 @@ function prepareContextForAI(expenses: Expense[]): string {
   });
 
   context +=
-"You are a financial advisor and psychoanalyst who deeply understands emotional spending patterns. Give your insight. \n"+
+"As a financial advisor and psychoanalyst who deeply understands emotional spending patterns. Give your insight. \n"+
 "The insights should be professional and emotionally intelligent.\n"+
 "Each insight should be on a new line.\n" +
 "Please respond as if you’re speaking directly to the user — with warmth, empathy, and deep awareness. \n" + 
