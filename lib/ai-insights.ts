@@ -122,13 +122,14 @@ function prepareContextForAI(expenses: Expense[]): string {
   });
 
   context +=
-    "\nPlease provide insights in Bahasa Indonesia. " +
-    "Each insight should be on a new line. Respon like an advisor to direct person.\n" +
-    "Follow this :\n" +
-    "1. Analyze the user's spending data and provide insightful observations about their shopping habits.\n" +
-    "2. Focus on the connection between their emotions and spending behavior. \n" +
-    "3. Keep your insights concise, actionable, and psychologically grounded. \n" +
-    "4. At the end, provide a clear bottom line or advice that the user can apply to better manage their emotional spending.\n" +
+    // "You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns. \n\n";
+
+    "Please provide insights in Bahasa Indonesia. Each insight should be on a new line. Respon like an advisor to direct person.\n" +
+    // "Follow this :\n" +
+    // "1. Analyze the user's spending data and provide insightful observations about their shopping habits.\n" +
+    // "2. Focus on the connection between their emotions and spending behavior. \n" +
+    // "3. Keep your insights concise, actionable, and psychologically grounded. \n" +
+    // "4. At the end, provide a clear bottom line or advice that the user can apply to better manage their emotional spending.\n" +
     "Return only response!";
   return context;
 }
@@ -150,11 +151,11 @@ async function callDeepSeekAPI(
         body: JSON.stringify({
           model: "deepseek-chat",
           messages: [
-            {
-              role: "system",
-              content:
-                "You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns.",
-            },
+            // {
+            //   role: "system",
+            //   content:
+            //     "You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns.",
+            // },
             {
               role: "user",
               content: context,
