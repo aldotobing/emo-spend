@@ -1,7 +1,7 @@
 "use client"
 
-import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import type { ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import type { Session, User } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase"
@@ -18,34 +18,34 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
   const router = useRouter()
   const supabase = getSupabaseBrowserClient()
 
-  useEffect(() => {
-    const fetchSession = async () => {
-      try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession()
+  const fetchSession = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await supabase.auth.getSession()
 
-        if (error) {
-          console.error("Error fetching session:", error)
-        }
-
-        setSession(session)
-        setUser(session?.user ?? null)
-      } catch (error) {
-        console.error("Unexpected error during session fetch:", error)
-      } finally {
-        setIsLoading(false)
+      if (error) {
+        console.error("Error fetching session:", error)
+        return
       }
-    }
 
+      setSession(data.session)
+      setUser(data.session?.user ?? null)
+    } catch (err) {
+      console.error("Unexpected error during session fetch:", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [supabase])
+
+  useEffect(() => {
     fetchSession()
 
     const {
@@ -56,25 +56,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
     })
 
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [supabase.auth])
+    return () => subscription.unsubscribe()
+  }, [fetchSession, supabase.auth])
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-      if (error) {
-        throw error
-      }
+      if (error) throw error
+      await fetchSession()
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [fetchSession, supabase.auth])
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string) => {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.signUp({
@@ -84,31 +80,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-
-      if (error) {
-        throw error
-      }
+      if (error) throw error
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [supabase.auth])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.signOut()
-
-      if (error) {
-        throw error
-      }
-
+      if (error) throw error
+      setUser(null)
+      setSession(null)
       router.push("/auth/login")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [supabase.auth, router])
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -120,18 +111,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         },
       })
-
-      if (error) {
-        throw error
-      }
+      if (error) throw error
     } catch (error) {
-      console.error("Error signing in with Google:", error)
+      console.error("Google sign-in error:", error)
       throw error
     }
-  }
+  }, [supabase.auth])
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut, signInWithGoogle }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        isLoading,
+        signIn,
+        signUp,
+        signOut,
+        signInWithGoogle,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )
@@ -139,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context
