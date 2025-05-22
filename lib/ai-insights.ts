@@ -133,7 +133,7 @@ function prepareContextForAI(expenses: Expense[]): string {
 
 "Your response must be written in Bahasa Indonesia.\n" +
 
-"The insights should be philosophical, emotionally intelligent, and encourage the user to reflect on their own behavior and emotions with compassion.\n"+
+"The insights should be emotionally intelligent, and encourage the user to reflect on their own behavior and emotions.\n"+
 
 "Each insight should be on a new line.\n" +
     // "You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns. \n\n";
