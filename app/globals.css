@@ -65,3 +65,188 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Enhanced backdrop blur support */
+.backdrop-blur-xl {
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* Safe area padding for devices with notches/home indicators */
+.h-safe-area-inset-bottom {
+  height: env(safe-area-inset-bottom, 0px);
+  min-height: 4px; /* Fallback for older devices */
+}
+
+/* Smooth scroll behavior for mobile */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Prevent overscroll bounce on mobile */
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Enhanced touch targets for mobile */
+@media (max-width: 640px) {
+  /* Minimum touch target size */
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Improve tap highlights */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Better mobile scrolling */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overflow-scrolling: touch;
+  }
+}
+
+/* Animation performance optimizations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Prevent layout shift during animations */
+.prevent-layout-shift {
+  contain: layout style paint;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+
+/* Bottom navigation specific styles */
+.bottom-nav-blur {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: hsla(var(--background) / 0.95);
+}
+
+/* Floating action button glow effect */
+.fab-glow {
+  box-shadow: 0 0 20px hsla(var(--primary) / 0.3),
+    0 8px 32px hsla(var(--primary) / 0.15), 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+/* Ripple effect animation */
+@keyframes ripple {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.ripple-animation {
+  animation: ripple 1.5s infinite;
+}
+
+/* Shimmer effect for active states */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(100%) skewX(-12deg);
+  }
+}
+
+.shimmer-effect {
+  animation: shimmer 2s infinite;
+}
+
+/* Pulse effect for loading states */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+/* Mobile-specific card hover effects */
+@media (max-width: 640px) {
+  .mobile-card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .mobile-card-hover:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Gradient text support */
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary)),
+    hsl(var(--primary) / 0.8)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .bottom-nav-blur {
+    background: hsla(var(--background) / 0.9);
+    border-color: hsla(var(--border) / 0.3);
+  }
+
+  .fab-glow {
+    box-shadow: 0 0 24px hsla(var(--primary) / 0.4),
+      0 8px 32px hsla(var(--primary) / 0.2), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .bottom-nav-blur {
+    background: hsl(var(--background));
+    border: 2px solid hsl(var(--border));
+  }
+
+  .fab-glow {
+    box-shadow: none;
+    border: 2px solid hsl(var(--primary));
+  }
+}

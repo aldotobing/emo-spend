@@ -133,7 +133,7 @@ console.log("--- [DB Module Func Def] --- getCurrentUser function defined.");
 export async function addExpense(
   expenseData: Omit<AppExpense, "id" | "createdAt">
 ): Promise<string | null> {
-  console.log("[DB] addExpense called."); // Kurangi data log jika terlalu besar
+  console.log("[DB] addExpense called.");
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const id = crypto.randomUUID();

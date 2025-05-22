@@ -1,26 +1,28 @@
-import type React from "react"
-import "./globals.css"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
-import Navbar from "@/components/navbar"
-import { Toaster } from "@/components/ui/toaster"
-import { SyncProvider } from "./providers"
-import { AuthProvider } from "@/context/auth-context"
-import { AuthGuard } from "@/components/auth-guard"
+import type React from "react";
+import "./globals.css";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider";
+import Navbar from "@/components/navbar";
+import { Toaster } from "@/components/ui/toaster";
+import { SyncProvider } from "./providers";
+import { AuthProvider } from "@/context/auth-context";
+import { AuthGuard } from "@/components/auth-guard";
+import { BottomNavigation } from "@/components/bottom-navigation";
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "EmoSpend - Track Your Emotional Spending",
-  description: "Track your expenses and understand your emotional spending patterns",
-    generator: 'v0.dev'
-}
+  description:
+    "Track your expenses and understand your emotional spending patterns",
+  generator: "v0.dev",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -36,12 +38,20 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="ligth"
+            enableSystem
+            disableTransitionOnChange
+          >
             <SyncProvider>
               <AuthGuard>
                 <div className="flex min-h-screen flex-col">
                   <Navbar />
-                  <main className="flex-1 container mx-auto px-4 py-6">{children}</main>
+                  <main className="flex-1 container mx-auto px-4 py-6">
+                    {children}
+                  </main>
+                  <BottomNavigation />
                 </div>
               </AuthGuard>
               <Toaster />
@@ -50,5 +60,5 @@ export default function RootLayout({
         </AuthProvider>
       </body>
     </html>
-  )
+  );
 }
