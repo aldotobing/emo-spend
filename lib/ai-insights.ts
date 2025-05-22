@@ -122,10 +122,10 @@ function prepareContextForAI(expenses: Expense[]): string {
   });
 
   context +=
-"As a financial advisor and psychoanalyst who deeply understands emotional spending patterns. Give your insight. \n"+
-"The insights should be professional and emotionally intelligent.\n"+
-"Each insight should be on a new line.\n" +
-"Please respond as if you’re speaking directly to the user — with warmth, empathy, and deep awareness. \n" + 
+//"As a financial advisor and psychoanalyst who deeply understands emotional spending patterns. Give your insight. \n"+
+//"The insights should be professional and emotionally intelligent.\n"+
+//"Each insight should be on a new line.\n" +
+//"Please respond as if you’re speaking directly to the user — with warmth, empathy, and deep awareness. \n" + 
 //"Your tone should be like a therapist: gentle, reflective, supportive, and never judgmental while still maintaining sharp and professional analytic.\n" +
 
 "Your goal is to help the user understand the emotions behind their spending habits.\n"+
@@ -135,9 +135,9 @@ function prepareContextForAI(expenses: Expense[]): string {
 
 "Your response must be written in Bahasa Indonesia.\n" +
 
-    // "You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns. \n\n";
+    //"You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns. \n\n";
 
-    //"As a financial advisor and psychoanalyst specializing in emotional spending patterns, Please provide insights in Bahasa Indonesia. Each insight should be on a new line. Respon like an advisor to direct person.\n" +
+    "As a financial advisor and psychoanalyst specializing in emotional spending patterns, Please provide insights in Bahasa Indonesia. Each insight should be on a new line. Respon like an advisor to direct person.\n" +
     // "Follow this :\n" +
     // "1. Analyze the user's spending data and provide insightful observations about their shopping habits.\n" +
     // "2. Focus on the connection between their emotions and spending behavior. \n" +
