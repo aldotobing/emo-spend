@@ -94,29 +94,57 @@ export default function LoginPage() {
     }
   }
 
-  async function handleGoogleSignIn() {
-    setIsGoogleLoading(true);
-    try {
-      await signInWithGoogle();
+  
+async function handleGoogleSignIn() {
+  setIsGoogleLoading(true);
+  try {
+    // Mulai proses login via Google (akan redirect balik ke app)
+    await signInWithGoogle();
 
-      // For Google OAuth, we need to handle the redirect differently
-      // The OAuth flow will redirect automatically, but we want to ensure sync happens
-      // We'll use a slight delay to ensure the auth state is properly set
-      setTimeout(async () => {
-        await performPostLoginSync();
-        window.location.href = "/";
-      }, 1000);
-    } catch (error) {
-      console.error("Google sign-in error:", error);
-      toast({
-        title: "Google sign-in failed",
-        description:
-          "An error occurred during Google sign-in. Please try again.",
-        variant: "destructive",
-      });
-      setIsGoogleLoading(false);
+    // Polling sampai session siap (max 10x percobaan dengan delay 300ms)
+    const maxRetries = 10;
+    let retries = 0;
+    let sessionReady = false;
+
+    while (retries < maxRetries) {
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      if (sessionData.session) {
+        sessionReady = true;
+        break;
+      }
+
+      retries++;
+      await new Promise((res) => setTimeout(res, 300));
     }
+
+    if (!sessionReady) {
+      throw new Error("Gagal mendapatkan session dari Supabase");
+    }
+
+    // Kalau session udah siap, lanjut sync
+    toast({
+      title: "Welcome back! 🎉",
+      description: "Syncing your latest data...",
+      variant: "default",
+    });
+
+    await performPostLoginSync();
+    window.location.href = "/"; // hard reload biar semua state reset
+
+  } catch (error) {
+    console.error("Google sign-in error:", error);
+    toast({
+      title: "Google sign-in failed",
+      description:
+        "An error occurred during Google sign-in. Please try again.",
+      variant: "destructive",
+    });
+  } finally {
+    setIsGoogleLoading(false);
   }
+}
+
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-b from-background to-primary/5">
