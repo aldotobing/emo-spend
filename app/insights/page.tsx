@@ -31,9 +31,10 @@ import {
 import { moods } from "@/data/moods";
 import { CalendarHeatmap } from "@/components/calendar-heatmap";
 import { Gamification } from "@/components/gamification";
-import { generateAIInsights } from "@/lib/ai-insights"; // Direct import
+import { generateAIInsights } from "@/lib/ai-insights";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { renderFormattedResponse } from "@/lib/text-formatter";
 
 export default function InsightsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -47,6 +48,7 @@ export default function InsightsPage() {
   // and will be visible to anyone inspecting your site's code or network traffic.
   const deepSeekApiKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
 
+  // --- Effects -----------------------------------------------------------------
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
@@ -77,8 +79,9 @@ export default function InsightsPage() {
     }
 
     loadData();
-  }, [period, deepSeekApiKey]); // Add deepSeekApiKey to dependency array if its availability might change (unlikely for env var)
+  }, [period, deepSeekApiKey]);
 
+  // --- Handlers ----------------------------------------------------------------
   const handleGenerateInsights = async () => {
     if (!deepSeekApiKey) {
       setInsights([
@@ -101,53 +104,66 @@ export default function InsightsPage() {
     }
   };
 
+  // --- Render ------------------------------------------------------------------
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 pb-10 lg:pb-12 xl:pb-16">
+      {/* Heading */}
+      <header className="flex flex-col gap-1">
         <h1 className="text-3xl font-bold tracking-tight">Wawasan Emosional</h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground max-w-lg">
           Pahami pola pengeluaranmu berdasarkan suasana hati
         </p>
-      </div>
+      </header>
 
-      <Tabs defaultValue="insights" className="space-y-4">
-        <TabsList>
+      {/* Main Tabs */}
+      <Tabs defaultValue="insights" className="space-y-6">
+        {/* --- Tabs Header ------------------------------------------------------ */}
+        <TabsList className="overflow-x-auto rounded-lg shadow-sm">
           <TabsTrigger value="insights">
-            <Lightbulb className="h-4 w-4 mr-2" />
+            <Lightbulb className="h-4 w-4 mr-2 shrink-0" />
             Wawasan
           </TabsTrigger>
           <TabsTrigger value="calendar">
-            <Calendar className="h-4 w-4 mr-2" />
-            Tampilan Kalender
+            <Calendar className="h-4 w-4 mr-2 shrink-0" />
+            Kalender
           </TabsTrigger>
           <TabsTrigger value="gamification">
-            <Sparkles className="h-4 w-4 mr-2" />
+            <Sparkles className="h-4 w-4 mr-2 shrink-0" />
             Pencapaian
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="insights" className="space-y-4">
-          <div className="flex justify-between items-center">
+        {/* --- Insights Tab ------------------------------------------------------ */}
+        <TabsContent value="insights" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Period Switcher */}
             <Tabs
               defaultValue={period}
               onValueChange={(value) =>
                 setPeriod(value as "week" | "month" | "year")
               }
-              className="w-auto"
+              className="w-full sm:w-auto"
             >
-              <TabsList>
-                <TabsTrigger value="week">Minggu Ini</TabsTrigger>
-                <TabsTrigger value="month">Bulan Ini</TabsTrigger>
-                <TabsTrigger value="year">Tahun Ini</TabsTrigger>
+              <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="week" className="flex-1 sm:flex-none">
+                  Minggu Ini
+                </TabsTrigger>
+                <TabsTrigger value="month" className="flex-1 sm:flex-none">
+                  Bulan Ini
+                </TabsTrigger>
+                <TabsTrigger value="year" className="flex-1 sm:flex-none">
+                  Tahun Ini
+                </TabsTrigger>
               </TabsList>
             </Tabs>
 
+            {/* AI Button */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleGenerateInsights}
               disabled={isGeneratingInsights || isLoading || !deepSeekApiKey}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border-primary/20 hover:border-primary/50 focus-visible:ring-primary/60"
             >
               {isGeneratingInsights ? (
                 <motion.div
@@ -167,22 +183,26 @@ export default function InsightsPage() {
             </Button>
           </div>
 
+          {/* AI Insight Cards */}
           <AIInsightCards
             isLoading={isLoading || isGeneratingInsights}
             insights={insights}
           />
         </TabsContent>
 
+        {/* --- Calendar Tab ------------------------------------------------------ */}
         <TabsContent value="calendar" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Kalender Pengeluaran</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <h2 className="text-xl font-semibold shrink-0">
+              Kalender Pengeluaran
+            </h2>
             <Select
               value={selectedMood}
               onValueChange={(value) =>
                 setSelectedMood(value as MoodType | "all")
               }
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-56">
                 <SelectValue placeholder="Filter berdasarkan mood" />
               </SelectTrigger>
               <SelectContent>
@@ -198,7 +218,7 @@ export default function InsightsPage() {
               </SelectContent>
             </Select>
           </div>
-          {/* Assuming CalendarHeatmap might also use expenses and loading state */}
+
           <CalendarHeatmap
             selectedMood={selectedMood === "all" ? undefined : selectedMood}
             expenses={expenses}
@@ -206,6 +226,7 @@ export default function InsightsPage() {
           />
         </TabsContent>
 
+        {/* --- Gamification Tab -------------------------------------------------- */}
         <TabsContent value="gamification">
           <Gamification />
         </TabsContent>
@@ -214,6 +235,9 @@ export default function InsightsPage() {
   );
 }
 
+// =============================================================================
+// AIInsightCards Component
+// =============================================================================
 function AIInsightCards({
   isLoading,
   insights,
@@ -223,16 +247,17 @@ function AIInsightCards({
 }) {
   const icons = [Lightbulb, TrendingUp, AlertTriangle, Brain, Sparkles];
 
+  // --- Loading Skeleton -------------------------------------------------------
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
-          <Card key={i}>
+          <Card key={i} className="animate-pulse">
             <CardHeader className="pb-2">
               <Skeleton className="h-5 w-20" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-24 w-full" />
             </CardContent>
           </Card>
         ))}
@@ -240,18 +265,19 @@ function AIInsightCards({
     );
   }
 
+  // --- Empty / Error State ----------------------------------------------------
   if (
     insights.length === 0 ||
-    insights.some(
-      (insight) =>
-        insight.toLowerCase().includes("gagal") ||
-        insight.toLowerCase().includes("error") ||
-        insight.toLowerCase().includes("tidak dikonfigurasi")
+    insights.some((insight) =>
+      ["gagal", "error", "tidak dikonfigurasi"].some((kw) =>
+        insight.toLowerCase().includes(kw)
+      )
     )
   ) {
     let title = "Belum Ada Wawasan";
     let description =
       "Tambahkan lebih banyak pengeluaran atau coba analisis AI untuk mendapatkan wawasan tentang pola belanjamu.";
+
     if (insights.length > 0) {
       title = "Informasi Wawasan";
       description = insights.join(" ");
@@ -261,22 +287,24 @@ function AIInsightCards({
         )
       ) {
         title = "Konfigurasi Diperlukan";
-        description =
-          "Kunci API untuk layanan AI tidak dikonfigurasi. Silakan periksa pengaturan aplikasi.";
       }
     }
+
     return (
-      <Card>
+      <Card className="border-dashed border-2 border-primary/20">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <CardDescription className="prose-sm dark:prose-invert">
+            {renderFormattedResponse(description)}
+          </CardDescription>
         </CardHeader>
       </Card>
     );
   }
 
+  // --- Insight Cards ----------------------------------------------------------
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {insights.map((insight, index) => {
         const Icon = icons[index % icons.length];
         return (
@@ -284,19 +312,22 @@ function AIInsightCards({
             key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: index * 0.05 }}
+            className="h-full"
           >
-            <Card className="h-full border-primary/10 hover:border-primary/30 transition-colors">
+            <Card className="h-full flex flex-col border-primary/10 hover:border-primary/30 hover:shadow-lg transition-all duration-300">
               <CardHeader className="pb-2">
                 <div className="flex items-center space-x-2">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
                     <Icon className="h-4 w-4 text-primary" />
-                  </div>
+                  </span>
                   <CardTitle className="text-lg">Wawasan AI</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p>{insight}</p>
+              <CardContent className="grow flex flex-col">
+                <div className="prose prose-sm dark:prose-invert max-w-none space-y-2">
+                  {renderFormattedResponse(insight)}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
