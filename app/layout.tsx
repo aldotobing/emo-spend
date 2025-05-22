@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     siteName: "EmoSpend",
     images: [
       {
-        url: "https://spend.aldotobing.online/logo.jpg",
+        url: "https://spend.aldotobing.online/logo.png",
         width: 1200,
         height: 630,
         alt: "EmoSpend App Preview",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     title: "EmoSpend - Track Your Emotional Spending",
     description: "Your emotional finance tracker.",
     creator: "@aldotobing", // Ganti kalau punya
-    images: ["https://spend.aldotobing.online/logo.jpg"],
+    images: ["https://spend.aldotobing.online/logo.png"],
   },
 };
 
