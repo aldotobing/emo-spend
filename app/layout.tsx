@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "EmoSpend - Track Your Emotional Spending",
-    description: "Track your spending and uncover the emotions behind every purchase — with smart AI insights to help you understand, reflect, and grow.",
+    description: "Track your expenses and understand your emotional spending patterns — with smart AI insights to help you understand, reflect, and grow.",
     creator: "@aldo_tobing", 
     images: ["https://spend.aldotobing.online/logo.png"],
   },
