@@ -82,7 +82,7 @@ export default function AddExpensePage() {
       toast({
         title: "Pengeluaran ditambahkan! 🎉",
         description: "Pengeluaranmu berhasil dicatat.",
-        variant: "success",
+        variant: "default",
       });
 
       router.push("/");

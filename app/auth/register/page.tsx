@@ -1,36 +1,47 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/context/auth-context"
-import { motion } from "framer-motion"
-import { Sparkles, UserPlus, ArrowRight } from "lucide-react"
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/auth-context";
+import { motion } from "framer-motion";
+import { Sparkles, UserPlus, ArrowRight } from "lucide-react";
 
 const formSchema = z
   .object({
     email: z.string().email({ message: "Please enter a valid email address" }),
-    password: z.string().min(6, { message: "Password must be at least 6 characters" }),
-    confirmPassword: z.string().min(6, { message: "Password must be at least 6 characters" }),
+    password: z
+      .string()
+      .min(6, { message: "Password must be at least 6 characters" }),
+    confirmPassword: z
+      .string()
+      .min(6, { message: "Password must be at least 6 characters" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
-  })
+  });
 
 export default function RegisterPage() {
-  const { signUp, signInWithGoogle } = useAuth()
-  const { toast } = useToast()
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const { signUp, signInWithGoogle } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,43 +50,44 @@ export default function RegisterPage() {
       password: "",
       confirmPassword: "",
     },
-  })
+  });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await signUp(values.email, values.password)
+      await signUp(values.email, values.password);
       toast({
         title: "Registration successful! 🎉",
         description: "Please check your email to verify your account.",
-        variant: "success",
-      })
-      router.push("/auth/verify")
+        variant: "default",
+      });
+      router.push("/auth/verify");
     } catch (error) {
-      console.error("Registration error:", error)
+      console.error("Registration error:", error);
       toast({
         title: "Oops! Registration failed 😕",
         description: "An error occurred during registration. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   async function handleGoogleSignIn() {
-    setIsGoogleLoading(true)
+    setIsGoogleLoading(true);
     try {
-      await signInWithGoogle()
+      await signInWithGoogle();
       // No need for toast or redirect here as the OAuth flow will handle it
     } catch (error) {
-      console.error("Google sign-in error:", error)
+      console.error("Google sign-in error:", error);
       toast({
         title: "Google sign-in failed",
-        description: "An error occurred during Google sign-in. Please try again.",
+        description:
+          "An error occurred during Google sign-in. Please try again.",
         variant: "destructive",
-      })
-      setIsGoogleLoading(false)
+      });
+      setIsGoogleLoading(false);
     }
   }
 
@@ -108,12 +120,18 @@ export default function RegisterPage() {
             </motion.div>
 
             <h1 className="text-2xl font-bold mb-1">Join EmoSpend!</h1>
-            <p className="text-muted-foreground">Create an account to start tracking your emotional spending</p>
+            <p className="text-muted-foreground">
+              Create an account to start tracking your emotional spending
+            </p>
           </div>
 
           <div className="p-6">
             {/* Google Sign-in Button */}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mb-6">
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="mb-6"
+            >
               <Button
                 type="button"
                 variant="outline"
@@ -124,7 +142,11 @@ export default function RegisterPage() {
                 {isGoogleLoading ? (
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                    transition={{
+                      duration: 1,
+                      repeat: Number.POSITIVE_INFINITY,
+                      ease: "linear",
+                    }}
                     className="mr-2"
                   >
                     <Sparkles className="h-5 w-5" />
@@ -158,18 +180,25 @@ export default function RegisterPage() {
                 <span className="w-full border-t border-primary/10" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or register with email</span>
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or register with email
+                </span>
               </div>
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">Email</FormLabel>
+                      <FormLabel className="text-foreground/80">
+                        Email
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="your.email@example.com"
@@ -186,7 +215,9 @@ export default function RegisterPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">Password</FormLabel>
+                      <FormLabel className="text-foreground/80">
+                        Password
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -204,7 +235,9 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">Confirm Password</FormLabel>
+                      <FormLabel className="text-foreground/80">
+                        Confirm Password
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -218,7 +251,11 @@ export default function RegisterPage() {
                   )}
                 />
 
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="pt-2">
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="pt-2"
+                >
                   <Button
                     type="submit"
                     className="w-full rounded-xl py-6 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
@@ -227,7 +264,11 @@ export default function RegisterPage() {
                     {isLoading ? (
                       <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                        transition={{
+                          duration: 1,
+                          repeat: Number.POSITIVE_INFINITY,
+                          ease: "linear",
+                        }}
                         className="mr-2"
                       >
                         <Sparkles className="h-5 w-5" />
@@ -244,7 +285,10 @@ export default function RegisterPage() {
             <div className="mt-6 text-center">
               <p className="text-muted-foreground">
                 Already have an account?{" "}
-                <Link href="/auth/login" className="text-primary hover:underline font-medium">
+                <Link
+                  href="/auth/login"
+                  className="text-primary hover:underline font-medium"
+                >
                   Sign in
                 </Link>
               </p>
@@ -253,5 +297,5 @@ export default function RegisterPage() {
         </div>
       </motion.div>
     </div>
-  )
+  );
 }

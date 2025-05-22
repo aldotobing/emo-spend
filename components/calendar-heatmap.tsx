@@ -17,6 +17,8 @@ import {
 
 interface CalendarHeatmapProps {
   selectedMood?: string;
+  expenses: Expense[];
+  isLoading: boolean;
 }
 
 export function CalendarHeatmap({ selectedMood }: CalendarHeatmapProps) {
