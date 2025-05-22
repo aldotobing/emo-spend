@@ -15,7 +15,7 @@ const inter = Inter({ subsets: ["latin"], display: "swap" });
 export const metadata: Metadata = {
   title: "EmoSpend - Track Your Emotional Spending",
   description:
-    "Track your expenses and understand your emotional spending patterns.",
+    "Track your spending and uncover the emotions behind every purchase — with smart AI insights to help you understand, reflect, and grow.",
   generator: "v0.dev",
   applicationName: "EmoSpend",
   keywords: [
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "EmoSpend - Track Your Emotional Spending",
     description:
-      "Visualize your expenses and understand emotional triggers that lead to spending.",
+      "Track your spending and uncover the emotions behind every purchase — with smart AI insights to help you understand, reflect, and grow.",
     url: "https://spend.aldotobing.online",
     siteName: "EmoSpend",
     images: [
