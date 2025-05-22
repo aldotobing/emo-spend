@@ -36,7 +36,7 @@ import {
 import { FunMoodSelector } from "@/components/fun-mood-selector";
 import { categories } from "@/data/categories";
 import { cn } from "@/lib/utils";
-import { addExpense } from "@/lib/db";
+import { addExpense, pullExpensesFromSupabase, syncExpenses } from "@/lib/db";
 import { useToast } from "@/components/ui/use-toast";
 import type { MoodType } from "@/types/expense";
 
@@ -53,7 +53,6 @@ export default function AddExpensePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -67,10 +66,29 @@ export default function AddExpensePage() {
     },
   });
 
+  // Helper function to sync data after successful expense addition
+  async function performPostSubmitSync() {
+    try {
+      console.log("[AddExpense] Starting post-submit data sync...");
+
+      // Pull latest data from Supabase to ensure we have all updates
+      await pullExpensesFromSupabase();
+
+      // Sync any pending local changes
+      await syncExpenses();
+
+      console.log("[AddExpense] Post-submit sync completed successfully");
+    } catch (error) {
+      console.error("[AddExpense] Error during post-submit sync:", error);
+      // Don't throw error as the expense was already saved successfully
+    }
+  }
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
     try {
-      await addExpense({
+      // Add the expense
+      const expenseId = await addExpense({
         amount: values.amount,
         category: values.category,
         mood: values.mood as MoodType,
@@ -79,13 +97,22 @@ export default function AddExpensePage() {
         notes: values.notes,
       });
 
+      if (!expenseId) {
+        throw new Error("Failed to add expense");
+      }
+
       toast({
         title: "Pengeluaran ditambahkan! 🎉",
-        description: "Pengeluaranmu berhasil dicatat.",
+        description:
+          "Pengeluaranmu berhasil dicatat dan sedang disinkronisasi.",
         variant: "default",
       });
 
-      router.push("/");
+      // Perform data sync to ensure consistency
+      await performPostSubmitSync();
+
+      // Use window.location for a hard refresh to ensure dashboard shows updated data
+      window.location.href = "/";
     } catch (error) {
       console.error("Error adding expense:", error);
       toast({
@@ -161,6 +188,8 @@ export default function AddExpensePage() {
                               {...field}
                               className="pl-10 rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50"
                               type="number"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               step="1000"
                             />
                           </div>
@@ -327,7 +356,7 @@ export default function AddExpensePage() {
                     className="w-full rounded-xl py-6 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
                     disabled={isSubmitting}
                   >
-                    {isLoading ? (
+                    {isSubmitting ? (
                       <motion.div
                         animate={{ rotate: 360 }}
                         transition={{

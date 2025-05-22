@@ -122,7 +122,14 @@ function prepareContextForAI(expenses: Expense[]): string {
   });
 
   context +=
-    "\nPlease provide insights in Bahasa Indonesia. Each insight should be on a new line.";
+    "\nPlease provide insights in Bahasa Indonesia. " +
+    "Each insight should be on a new line. Respon like an advisor to direct person.\n" +
+    "Follow this :\n" +
+    "1. Analyze the user's spending data and provide insightful observations about their shopping habits.\n" +
+    "2. Focus on the connection between their emotions and spending behavior. \n" +
+    "3. Keep your insights concise, actionable, and psychologically grounded. \n" +
+    "4. At the end, provide a clear bottom line or advice that the user can apply to better manage their emotional spending.\n" +
+    "Return only response!";
   return context;
 }
 
@@ -146,7 +153,7 @@ async function callDeepSeekAPI(
             {
               role: "system",
               content:
-                "Anda adalah penasihat keuangan AI yang menganalisis pola pengeluaran emosional. Berikan 3-5 observasi mendalam tentang kebiasaan belanja pengguna berdasarkan data yang diberikan. Fokus pada hubungan antara emosi dan pola pengeluaran. Jaga agar wawasan tetap ringkas, mudah ditindaklanjuti, dan dalam Bahasa Indonesia. Setiap wawasan harus dalam baris baru.",
+                "You are an AI financial advisor and psychoanalyst specializing in emotional spending patterns.",
             },
             {
               role: "user",

@@ -10,13 +10,49 @@ import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { BottomNavigation } from "@/components/bottom-navigation";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "EmoSpend - Track Your Emotional Spending",
   description:
-    "Track your expenses and understand your emotional spending patterns",
+    "Track your expenses and understand your emotional spending patterns.",
   generator: "v0.dev",
+  applicationName: "EmoSpend",
+  keywords: [
+    "EmoSpend",
+    "emotional spending",
+    "expense tracker",
+    "money habits",
+    "finance tracker",
+  ],
+  authors: [{ name: "Aldo Tobing", url: "https://spend.aldotobing.online" }],
+  creator: "Aldo Tobing",
+  publisher: "Aldo Tobing",
+  metadataBase: new URL("https://spend.aldotobing.online"),
+  openGraph: {
+    title: "EmoSpend - Track Your Emotional Spending",
+    description:
+      "Visualize your expenses and understand emotional triggers that lead to spending.",
+    url: "https://spend.aldotobing.online",
+    siteName: "EmoSpend",
+    images: [
+      {
+        url: "https://spend.aldotobing.online/logo.jpg",
+        width: 1200,
+        height: 630,
+        alt: "EmoSpend App Preview",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "EmoSpend - Track Your Emotional Spending",
+    description: "Your emotional finance tracker.",
+    creator: "@aldotobing", // Ganti kalau punya
+    images: ["https://spend.aldotobing.online/logo.jpg"],
+  },
 };
 
 export default function RootLayout({
@@ -35,6 +71,28 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#6366f1" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="canonical" href="https://spend.aldotobing.online" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="EmoSpend" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              name: "EmoSpend",
+              url: "https://spend.aldotobing.online",
+              description:
+                "Track your expenses and understand your emotional spending patterns.",
+              applicationCategory: "FinanceApplication",
+              operatingSystem: "All",
+            }),
+          }}
+        ></script>
       </head>
       <body className={inter.className}>
         <AuthProvider>

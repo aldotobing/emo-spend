@@ -1,30 +1,40 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Input } from "@/components/ui/input"
-import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/context/auth-context"
-import { motion } from "framer-motion"
-import { Sparkles, Smile, ArrowRight } from "lucide-react"
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/context/auth-context";
+import { motion } from "framer-motion";
+import { Sparkles, Smile, ArrowRight } from "lucide-react";
+import { pullExpensesFromSupabase, syncExpenses } from "@/lib/db";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
-})
+  password: z
+    .string()
+    .min(6, { message: "Password must be at least 6 characters" }),
+});
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle } = useAuth()
-  const { toast } = useToast()
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const { signIn, signInWithGoogle } = useAuth();
+  const { toast } = useToast();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -32,43 +42,79 @@ export default function LoginPage() {
       email: "",
       password: "",
     },
-  })
+  });
+
+  // Helper function to sync data after successful login
+  async function performPostLoginSync() {
+    try {
+      console.log("[Login] Starting post-login data sync...");
+
+      // Pull latest data from Supabase
+      await pullExpensesFromSupabase();
+
+      // Sync any pending local changes
+      await syncExpenses();
+
+      console.log("[Login] Post-login sync completed successfully");
+    } catch (error) {
+      console.error("[Login] Error during post-login sync:", error);
+      // Don't show error to user as login was successful
+    }
+  }
+
+  // Helper function to handle successful login
+  async function handleSuccessfulLogin() {
+    toast({
+      title: "Welcome back! 🎉",
+      description: "Syncing your latest data...",
+      variant: "default",
+    });
+
+    // Perform data sync
+    await performPostLoginSync();
+
+    // Use window.location for a hard refresh to ensure all components re-initialize
+    window.location.href = "/";
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      await signIn(values.email, values.password)
-      toast({
-        title: "Welcome back! 🎉",
-        description: "Ready to track your emotional spending?",
-        variant: "success",
-      })
-      router.push("/")
+      await signIn(values.email, values.password);
+      await handleSuccessfulLogin();
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("Login error:", error);
       toast({
         title: "Oops! Login failed 😕",
         description: "Please check your credentials and try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   async function handleGoogleSignIn() {
-    setIsGoogleLoading(true)
+    setIsGoogleLoading(true);
     try {
-      await signInWithGoogle()
-      // No need for toast or redirect here as the OAuth flow will handle it
+      await signInWithGoogle();
+
+      // For Google OAuth, we need to handle the redirect differently
+      // The OAuth flow will redirect automatically, but we want to ensure sync happens
+      // We'll use a slight delay to ensure the auth state is properly set
+      setTimeout(async () => {
+        await performPostLoginSync();
+        window.location.href = "/";
+      }, 1000);
     } catch (error) {
-      console.error("Google sign-in error:", error)
+      console.error("Google sign-in error:", error);
       toast({
         title: "Google sign-in failed",
-        description: "An error occurred during Google sign-in. Please try again.",
+        description:
+          "An error occurred during Google sign-in. Please try again.",
         variant: "destructive",
-      })
-      setIsGoogleLoading(false)
+      });
+      setIsGoogleLoading(false);
     }
   }
 
@@ -101,12 +147,18 @@ export default function LoginPage() {
             </motion.div>
 
             <h1 className="text-2xl font-bold mb-1">Welcome Back!</h1>
-            <p className="text-muted-foreground">Sign in to continue your emotional spending journey</p>
+            <p className="text-muted-foreground">
+              Sign in to continue your emotional spending journey
+            </p>
           </div>
 
           <div className="p-6">
             {/* Google Sign-in Button */}
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mb-6">
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="mb-6"
+            >
               <Button
                 type="button"
                 variant="outline"
@@ -117,7 +169,11 @@ export default function LoginPage() {
                 {isGoogleLoading ? (
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                    transition={{
+                      duration: 1,
+                      repeat: Number.POSITIVE_INFINITY,
+                      ease: "linear",
+                    }}
                     className="mr-2"
                   >
                     <Sparkles className="h-5 w-5" />
@@ -151,18 +207,25 @@ export default function LoginPage() {
                 <span className="w-full border-t border-primary/10" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with email</span>
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or continue with email
+                </span>
               </div>
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-5"
+              >
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">Email</FormLabel>
+                      <FormLabel className="text-foreground/80">
+                        Email
+                      </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="your.email@example.com"
@@ -179,7 +242,9 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">Password</FormLabel>
+                      <FormLabel className="text-foreground/80">
+                        Password
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="password"
@@ -193,7 +258,10 @@ export default function LoginPage() {
                   )}
                 />
 
-                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <motion.div
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
                   <Button
                     type="submit"
                     className="w-full rounded-xl py-6 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
@@ -202,7 +270,11 @@ export default function LoginPage() {
                     {isLoading ? (
                       <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
+                        transition={{
+                          duration: 1,
+                          repeat: Number.POSITIVE_INFINITY,
+                          ease: "linear",
+                        }}
                         className="mr-2"
                       >
                         <Sparkles className="h-5 w-5" />
@@ -219,7 +291,10 @@ export default function LoginPage() {
             <div className="mt-6 text-center">
               <p className="text-muted-foreground">
                 Don&apos;t have an account?{" "}
-                <Link href="/auth/register" className="text-primary hover:underline font-medium">
+                <Link
+                  href="/auth/register"
+                  className="text-primary hover:underline font-medium"
+                >
                   Sign up
                 </Link>
               </p>
@@ -228,5 +303,5 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
-  )
+  );
 }
