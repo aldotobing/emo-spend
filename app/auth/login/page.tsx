@@ -21,6 +21,7 @@ import { useAuth } from "@/context/auth-context";
 import { motion } from "framer-motion";
 import { Sparkles, Smile, ArrowRight } from "lucide-react";
 import { pullExpensesFromSupabase, syncExpenses } from "@/lib/db";
+import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -30,6 +31,7 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
+  const supabase = getSupabaseBrowserClient();
   const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -94,57 +96,54 @@ export default function LoginPage() {
     }
   }
 
-  
-async function handleGoogleSignIn() {
-  setIsGoogleLoading(true);
-  try {
-    // Mulai proses login via Google (akan redirect balik ke app)
-    await signInWithGoogle();
+  async function handleGoogleSignIn() {
+    setIsGoogleLoading(true);
+    try {
+      // Mulai proses login via Google (akan redirect balik ke app)
+      await signInWithGoogle();
 
-    // Polling sampai session siap (max 10x percobaan dengan delay 300ms)
-    const maxRetries = 10;
-    let retries = 0;
-    let sessionReady = false;
+      // Polling sampai session siap (max 10x percobaan dengan delay 300ms)
+      const maxRetries = 10;
+      let retries = 0;
+      let sessionReady = false;
 
-    while (retries < maxRetries) {
-      const { data: sessionData } = await supabase.auth.getSession();
+      while (retries < maxRetries) {
+        const { data: sessionData } = await supabase.auth.getSession();
 
-      if (sessionData.session) {
-        sessionReady = true;
-        break;
+        if (sessionData.session) {
+          sessionReady = true;
+          break;
+        }
+
+        retries++;
+        await new Promise((res) => setTimeout(res, 300));
       }
 
-      retries++;
-      await new Promise((res) => setTimeout(res, 300));
+      if (!sessionReady) {
+        throw new Error("Gagal mendapatkan session dari Supabase");
+      }
+
+      // Kalau session udah siap, lanjut sync
+      toast({
+        title: "Welcome back! 🎉",
+        description: "Syncing your latest data...",
+        variant: "default",
+      });
+
+      await performPostLoginSync();
+      window.location.href = "/"; // hard reload biar semua state reset
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      toast({
+        title: "Google sign-in failed",
+        description:
+          "An error occurred during Google sign-in. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGoogleLoading(false);
     }
-
-    if (!sessionReady) {
-      throw new Error("Gagal mendapatkan session dari Supabase");
-    }
-
-    // Kalau session udah siap, lanjut sync
-    toast({
-      title: "Welcome back! 🎉",
-      description: "Syncing your latest data...",
-      variant: "default",
-    });
-
-    await performPostLoginSync();
-    window.location.href = "/"; // hard reload biar semua state reset
-
-  } catch (error) {
-    console.error("Google sign-in error:", error);
-    toast({
-      title: "Google sign-in failed",
-      description:
-        "An error occurred during Google sign-in. Please try again.",
-      variant: "destructive",
-    });
-  } finally {
-    setIsGoogleLoading(false);
   }
-}
-
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-b from-background to-primary/5">

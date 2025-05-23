@@ -1,144 +1,214 @@
-"use client"
+"use client"; // <--- ESSENTIAL: This must be at the very top
 
-import type { ReactNode } from "react"
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import type { Session, User } from "@supabase/supabase-js"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import { useRouter } from "next/navigation"; // <-- HOOK: This call MUST be here
+import { useToast } from "@/components/ui/use-toast"; // <-- HOOK: This call MUST be here
+import { getSupabaseBrowserClient } from "@/lib/supabase";
+import { User, Session } from "@supabase/supabase-js";
+import {
+  clearLocalUserData,
+  pullExpensesFromSupabase,
+  syncExpenses,
+} from "@/lib/db";
 
-type AuthContextType = {
-  user: User | null
-  session: Session | null
-  isLoading: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string) => Promise<void>
-  signOut: () => Promise<void>
-  signInWithGoogle: () => Promise<void>
+interface AuthContextType {
+  user: User | null;
+  session: Session | null;
+  isLoading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const router = useRouter()
-  const supabase = getSupabaseBrowserClient()
-
-  const fetchSession = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const { data, error } = await supabase.auth.getSession()
-
-      if (error) {
-        console.error("Error fetching session:", error)
-        return
-      }
-
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
-    } catch (err) {
-      console.error("Unexpected error during session fetch:", err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [supabase])
+  // VVVV IMPORTANT: HOOKS MUST BE CALLED HERE, AT THE TOP LEVEL OF THIS FUNCTION COMPONENT (AuthProvider) VVVV
+  const router = useRouter(); // Correct place for useRouter
+  const { toast } = useToast(); // Correct place for useToast
+  const supabase = getSupabaseBrowserClient(); // Can also be called here or within functions, but here is fine
 
   useEffect(() => {
-    fetchSession()
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      setIsLoading(false)
-    })
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+      if (event === "SIGNED_IN") {
+        console.log("[AuthContext] User signed in:", session?.user?.id);
+        // You might trigger a data sync here as well, if needed
+        // For Google SSO, the redirect handles this after login, so it's already in the login flow.
+      } else if (event === "SIGNED_OUT") {
+        console.log(
+          "[AuthContext] User signed out. Local data should be cleared."
+        );
+        // Optionally, add a safety net clear here if `signOut` is not always called directly.
+        // await clearLocalUserData();
+      }
+    });
 
-    return () => subscription.unsubscribe()
-  }, [fetchSession, supabase.auth])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
 
-  const signIn = useCallback(async (email: string, password: string) => {
-    setIsLoading(true)
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase]); // Depend on supabase to ensure correct instance if it changes
+
+  const performPostLoginSync = useCallback(async () => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) throw error
-      await fetchSession()
-    } finally {
-      setIsLoading(false)
+      console.log("[Login] Starting post-login data sync...");
+      await pullExpensesFromSupabase();
+      await syncExpenses();
+      console.log("[Login] Post-login sync completed successfully");
+    } catch (error) {
+      console.error("[Login] Error during post-login sync:", error);
     }
-  }, [fetchSession, supabase.auth])
+  }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (error) throw error
-    } finally {
-      setIsLoading(false)
-    }
-  }, [supabase.auth])
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      setIsLoading(true);
+      try {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-  const signOut = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      setUser(null)
-      setSession(null)
-      router.push("/auth/login")
-    } finally {
-      setIsLoading(false)
-    }
-  }, [supabase.auth, router])
+        if (error) throw error;
+
+        toast({
+          title: "Welcome back! 🎉",
+          description: "Syncing your latest data...",
+          variant: "default",
+        });
+        await performPostLoginSync();
+        window.location.href = "/";
+      } catch (error: any) {
+        console.error("Sign-in error:", error.message);
+        toast({
+          title: "Oops! Login failed 😕",
+          description:
+            error.message || "Please check your credentials and try again.",
+          variant: "destructive",
+        });
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [toast, performPostLoginSync, supabase]
+  );
 
   const signInWithGoogle = useCallback(async () => {
+    setIsLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
         },
-      })
-      if (error) throw error
-    } catch (error) {
-      console.error("Google sign-in error:", error)
-      throw error
-    }
-  }, [supabase.auth])
+      });
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        isLoading,
-        signIn,
-        signUp,
-        signOut,
-        signInWithGoogle,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+      if (error) throw error;
+      // After redirect, the onAuthStateChange listener will handle the session.
+      // The post-login sync should be triggered by the "SIGNED_IN" event or similar.
+    } catch (error: any) {
+      console.error("Google sign-in error:", error.message);
+      toast({
+        title: "Google sign-in failed",
+        description:
+          error.message ||
+          "An error occurred during Google sign-in. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast, supabase]);
+
+  const signOut = useCallback(async () => {
+    // Router and toast are now variables in the scope of AuthProvider,
+    // so they are accessible here without calling hooks again.
+    try {
+      console.log("[Logout] Clearing local user data...");
+      await clearLocalUserData(); // Use the imported function
+      console.log("[Logout] Local user data cleared.");
+
+      console.log("[Logout] Signing out from Supabase...");
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error("[Logout] Supabase sign out error:", error.message);
+        toast({
+          // <-- This is using the `toast` variable from above
+          title: "Logout Warning",
+          description:
+            "Failed to sign out from Supabase. You might still be logged in remotely.",
+          variant: "destructive",
+        });
+      } else {
+        console.log("[Logout] Successfully signed out from Supabase.");
+        toast({
+          // <-- This is using the `toast` variable from above
+          title: "Logged Out",
+          description: "You have been successfully logged out.",
+          variant: "default",
+        });
+      }
+
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
+    } catch (error: any) {
+      console.error(
+        "[Logout] Unexpected error during logout process:",
+        error.message,
+        error.stack
+      );
+      toast({
+        // <-- This is using the `toast` variable from above
+        title: "Logout Failed",
+        description: `An unexpected error occurred during logout: ${error.message}`,
+        variant: "destructive",
+      });
+    }
+  }, [toast, supabase]); // Ensure `toast` and `supabase` are in dependencies
+
+  const value = useMemo(
+    () => ({
+      user,
+      session,
+      isLoading,
+      signIn,
+      signInWithGoogle,
+      signOut,
+    }),
+    [user, session, isLoading, signIn, signInWithGoogle, signOut]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider")
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

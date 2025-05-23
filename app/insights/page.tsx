@@ -27,51 +27,77 @@ import {
   Calendar,
   Sparkles,
   Brain,
+  SearchCheck, // For detailed analysis button
+  MessageSquareText, // For model used
 } from "lucide-react";
 import { moods } from "@/data/moods";
 import { CalendarHeatmap } from "@/components/calendar-heatmap";
 import { Gamification } from "@/components/gamification";
-import { generateAIInsights } from "@/lib/ai-insights";
+import {
+  generateAIInsights,
+  generateDetailedAnalysis,
+} from "@/lib/ai-insights";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { renderFormattedResponse } from "@/lib/text-formatter";
+import type { AIInsightResponse, AIDetailedAnalysisResponse } from "@/types/ai";
 
 export default function InsightsPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<"week" | "month" | "year">("month");
   const [selectedMood, setSelectedMood] = useState<MoodType | "all">("all");
-  const [insights, setInsights] = useState<string[]>([]);
+
+  const [aiInsightResult, setAiInsightResult] = useState<AIInsightResponse>({
+    insights: [],
+    modelUsed: "",
+  });
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
 
-  // IMPORTANT: This API key will be bundled with your client-side JavaScript
-  // and will be visible to anyone inspecting your site's code or network traffic.
+  const [detailedAnalysisResult, setDetailedAnalysisResult] =
+    useState<AIDetailedAnalysisResponse | null>(null);
+  const [isGeneratingDetailed, setIsGeneratingDetailed] = useState(false);
+
+  const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   const deepSeekApiKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
+
+  const noApiKeysConfigured = !geminiApiKey && !deepSeekApiKey;
 
   // --- Effects -----------------------------------------------------------------
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
       setIsGeneratingInsights(true);
+      setDetailedAnalysisResult(null); // Reset detailed analysis on period change
+
       try {
         const { start, end } = getDateRangeForPeriod(period);
         const expenseData = await getExpensesByDateRange(start, end);
         setExpenses(expenseData);
 
-        if (!deepSeekApiKey) {
+        if (noApiKeysConfigured) {
           console.warn(
-            "DeepSeek API Key is not configured. AI insights will be limited."
+            "No AI API Keys are configured. AI insights will be limited."
           );
-          setInsights([
-            "Kunci API untuk wawasan AI tidak dikonfigurasi. Fitur ini mungkin tidak berfungsi.",
-          ]);
+          setAiInsightResult({
+            insights: ["Kunci API untuk wawasan AI tidak dikonfigurasi."],
+            modelUsed: "None",
+            error: "No API Keys",
+          });
         } else {
-          const initialInsights = await generateAIInsights(deepSeekApiKey);
-          setInsights(initialInsights);
+          const initialResult = await generateAIInsights(
+            geminiApiKey,
+            deepSeekApiKey
+          );
+          setAiInsightResult(initialResult);
         }
       } catch (error) {
         console.error("Failed to load data:", error);
-        setInsights(["Gagal memuat wawasan. Periksa koneksi Anda."]);
+        setAiInsightResult({
+          insights: ["Gagal memuat wawasan. Periksa koneksi Anda."],
+          modelUsed: "None (Error)",
+          error: (error as Error).message,
+        });
       } finally {
         setIsLoading(false);
         setIsGeneratingInsights(false);
@@ -79,28 +105,68 @@ export default function InsightsPage() {
     }
 
     loadData();
-  }, [period, deepSeekApiKey]);
+  }, [period, geminiApiKey, deepSeekApiKey]); // Add API keys to dependency array if they could change (e.g. dynamic env)
 
   // --- Handlers ----------------------------------------------------------------
   const handleGenerateInsights = async () => {
-    if (!deepSeekApiKey) {
-      setInsights([
-        "Kunci API untuk wawasan AI tidak dikonfigurasi. Tidak dapat membuat wawasan baru.",
-      ]);
-      console.warn(
-        "DeepSeek API Key is not configured. Cannot generate new AI insights."
-      );
+    if (noApiKeysConfigured) {
+      setAiInsightResult({
+        insights: [
+          "Kunci API untuk wawasan AI tidak dikonfigurasi. Tidak dapat membuat wawasan baru.",
+        ],
+        modelUsed: "None",
+        error: "No API Keys",
+      });
       return;
     }
     setIsGeneratingInsights(true);
+    setDetailedAnalysisResult(null); // Reset detailed analysis
     try {
-      const newInsights = await generateAIInsights(deepSeekApiKey);
-      setInsights(newInsights);
+      const newResult = await generateAIInsights(geminiApiKey, deepSeekApiKey);
+      setAiInsightResult(newResult);
     } catch (error) {
       console.error("Failed to generate insights:", error);
-      setInsights(["Gagal membuat wawasan baru. Periksa koneksi Anda."]);
+      setAiInsightResult({
+        insights: ["Gagal membuat wawasan baru. Periksa koneksi Anda."],
+        modelUsed: "None (Error)",
+        error: (error as Error).message,
+      });
     } finally {
       setIsGeneratingInsights(false);
+    }
+  };
+
+  const handleGenerateDetailedAnalysis = async () => {
+    if (
+      noApiKeysConfigured ||
+      aiInsightResult.insights.length === 0 ||
+      aiInsightResult.error
+    ) {
+      setDetailedAnalysisResult({
+        analysis:
+          "Analisis mendalam tidak dapat dibuat. Pastikan wawasan awal berhasil dibuat dan API Key telah dikonfigurasi.",
+        modelUsed: "None",
+        error: "Prerequisites not met",
+      });
+      return;
+    }
+    setIsGeneratingDetailed(true);
+    try {
+      const analysisResult = await generateDetailedAnalysis(
+        geminiApiKey,
+        deepSeekApiKey,
+        aiInsightResult.insights
+      );
+      setDetailedAnalysisResult(analysisResult);
+    } catch (error) {
+      console.error("Failed to generate detailed analysis:", error);
+      setDetailedAnalysisResult({
+        analysis: "Gagal membuat analisis mendalam. Periksa koneksi Anda.",
+        modelUsed: "None (Error)",
+        error: (error as Error).message,
+      });
+    } finally {
+      setIsGeneratingDetailed(false);
     }
   };
 
@@ -117,7 +183,6 @@ export default function InsightsPage() {
 
       {/* Main Tabs */}
       <Tabs defaultValue="insights" className="space-y-6">
-        {/* --- Tabs Header ------------------------------------------------------ */}
         <TabsList className="overflow-x-auto rounded-lg shadow-sm">
           <TabsTrigger value="insights">
             <Lightbulb className="h-4 w-4 mr-2 shrink-0" />
@@ -133,10 +198,8 @@ export default function InsightsPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* --- Insights Tab ------------------------------------------------------ */}
         <TabsContent value="insights" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Period Switcher */}
             <Tabs
               defaultValue={period}
               onValueChange={(value) =>
@@ -157,12 +220,13 @@ export default function InsightsPage() {
               </TabsList>
             </Tabs>
 
-            {/* AI Button */}
             <Button
               variant="outline"
               size="sm"
               onClick={handleGenerateInsights}
-              disabled={isGeneratingInsights || isLoading || !deepSeekApiKey}
+              disabled={
+                isGeneratingInsights || isLoading || noApiKeysConfigured
+              }
               className="flex items-center gap-2 border-primary/20 hover:border-primary/50 focus-visible:ring-primary/60"
             >
               {isGeneratingInsights ? (
@@ -179,19 +243,129 @@ export default function InsightsPage() {
               ) : (
                 <Brain className="h-4 w-4" />
               )}
-              {isGeneratingInsights ? "Menganalisis..." : "Analisis AI"}
+              {isGeneratingInsights ? "Menganalisis..." : "Analisis Ulang AI"}
             </Button>
           </div>
 
-          {/* AI Insight Cards */}
+          {aiInsightResult.modelUsed &&
+            aiInsightResult.modelUsed !== "None" &&
+            !aiInsightResult.modelUsed.includes("(Error)") && (
+              <div className="flex items-center justify-start text-xs text-muted-foreground mb-1 mt-[-10px]">
+                <MessageSquareText className="h-3 w-3 mr-1.5" />
+                Wawasan utama dihasilkan oleh:{" "}
+                {aiInsightResult.modelUsed.replace(/\s*\(Error\)\s*/, "")}
+              </div>
+            )}
+
           <AIInsightCards
             isLoading={isLoading || isGeneratingInsights}
-            insights={insights}
+            insights={aiInsightResult.insights}
+            error={aiInsightResult.error}
           />
+
+          {/* Detailed Analysis Section */}
+          {aiInsightResult.insights &&
+            aiInsightResult.insights.length > 0 &&
+            !aiInsightResult.error && (
+              <div className="mt-8 space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Analisis Perilaku Mendalam</CardTitle>
+                    <CardDescription>
+                      Dapatkan pemahaman yang lebih dalam tentang kebiasaan
+                      belanja emosional Anda.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {detailedAnalysisResult && !isGeneratingDetailed && (
+                      <>
+                        {detailedAnalysisResult.modelUsed &&
+                          detailedAnalysisResult.modelUsed !== "None" &&
+                          !detailedAnalysisResult.modelUsed.includes(
+                            "(Error)"
+                          ) && (
+                            <div className="flex items-center text-xs text-muted-foreground mb-3">
+                              <MessageSquareText className="h-3 w-3 mr-1.5" />
+                              Analisis mendalam oleh:{" "}
+                              {detailedAnalysisResult.modelUsed.replace(
+                                /\s*\(Error\)\s*/,
+                                ""
+                              )}
+                            </div>
+                          )}
+                        <div className="prose prose-sm dark:prose-invert max-w-none space-y-2">
+                          {renderFormattedResponse(
+                            detailedAnalysisResult.analysis
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {isGeneratingDetailed && (
+                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </motion.div>
+                        <span>Menganalisis lebih dalam...</span>
+                      </div>
+                    )}
+                    {!detailedAnalysisResult && !isGeneratingDetailed && (
+                      <p className="text-sm text-muted-foreground">
+                        Klik tombol di bawah untuk mendapatkan analisis yang
+                        lebih detail.
+                      </p>
+                    )}
+                    {detailedAnalysisResult?.error && !isGeneratingDetailed && (
+                      <p className="text-sm text-destructive">
+                        {detailedAnalysisResult.analysis}
+                      </p>
+                    )}
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleGenerateDetailedAnalysis}
+                      disabled={
+                        isGeneratingDetailed ||
+                        isLoading ||
+                        isGeneratingInsights ||
+                        noApiKeysConfigured ||
+                        !!aiInsightResult.error
+                      }
+                      className="mt-4 flex items-center gap-2"
+                    >
+                      {isGeneratingDetailed ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear",
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                        </motion.div>
+                      ) : (
+                        <SearchCheck className="h-4 w-4" />
+                      )}
+                      {detailedAnalysisResult && !detailedAnalysisResult.error
+                        ? "Analisis Ulang Mendalam"
+                        : "Analisis Mendalam"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
         </TabsContent>
 
-        {/* --- Calendar Tab ------------------------------------------------------ */}
+        {/* Calendar Tab */}
         <TabsContent value="calendar" className="space-y-4">
+          {/* ... (content remains the same) ... */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
             <h2 className="text-xl font-semibold shrink-0">
               Kalender Pengeluaran
@@ -226,7 +400,7 @@ export default function InsightsPage() {
           />
         </TabsContent>
 
-        {/* --- Gamification Tab -------------------------------------------------- */}
+        {/* Gamification Tab */}
         <TabsContent value="gamification">
           <Gamification />
         </TabsContent>
@@ -235,20 +409,20 @@ export default function InsightsPage() {
   );
 }
 
-// =============================================================================
-// AIInsightCards Component
-// =============================================================================
+// Update AIInsightCards to accept an optional error prop
 function AIInsightCards({
   isLoading,
   insights,
+  error, // Add error prop
 }: {
   isLoading: boolean;
   insights: string[];
+  error?: string; // Optional error from AIInsightResponse
 }) {
   const icons = [Lightbulb, TrendingUp, AlertTriangle, Brain, Sparkles];
 
-  // --- Loading Skeleton -------------------------------------------------------
   if (isLoading) {
+    // ... (skeleton remains the same) ...
     return (
       <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
@@ -265,33 +439,47 @@ function AIInsightCards({
     );
   }
 
-  // --- Empty / Error State ----------------------------------------------------
-  if (
-    insights.length === 0 ||
+  // Check for errors first, then empty insights
+  const hasError =
+    !!error ||
     insights.some((insight) =>
-      ["gagal", "error", "tidak dikonfigurasi"].some((kw) =>
-        insight.toLowerCase().includes(kw)
-      )
-    )
-  ) {
+      [
+        "gagal",
+        "error",
+        "tidak dikonfigurasi",
+        "tidak ditemukan",
+        "tidak lengkap",
+      ].some((kw) => insight.toLowerCase().includes(kw))
+    );
+
+  if (insights.length === 0 || hasError) {
     let title = "Belum Ada Wawasan";
     let description =
       "Tambahkan lebih banyak pengeluaran atau coba analisis AI untuk mendapatkan wawasan tentang pola belanjamu.";
 
     if (insights.length > 0) {
+      // Even if there's an error, display the insights (which might be error messages)
       title = "Informasi Wawasan";
-      description = insights.join(" ");
+      description = insights.join("\n"); // Use newline for potentially multiple error messages
       if (
-        insights.some((insight) =>
-          insight.toLowerCase().includes("tidak dikonfigurasi")
-        )
+        error?.toLowerCase().includes("no api keys") ||
+        insights.some((i) => i.toLowerCase().includes("tidak dikonfigurasi"))
       ) {
         title = "Konfigurasi Diperlukan";
+      } else if (error?.toLowerCase().includes("not enough data")) {
+        title = "Data Tidak Cukup";
+      } else if (hasError) {
+        title = "Gagal Mendapatkan Wawasan";
       }
+    } else if (error) {
+      // No insights, but there is an error string
+      title = "Gagal Mendapatkan Wawasan";
+      description =
+        "Terjadi kesalahan. Silakan coba lagi nanti atau periksa konfigurasi.";
     }
 
     return (
-      <Card className="border-dashed border-2 border-primary/20">
+      <Card className="border-dashed border-2 border-destructive/30">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardDescription className="prose-sm dark:prose-invert">
@@ -302,7 +490,7 @@ function AIInsightCards({
     );
   }
 
-  // --- Insight Cards ----------------------------------------------------------
+  // ... (Insight Cards rendering remains similar) ...
   return (
     <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {insights.map((insight, index) => {

@@ -73,9 +73,6 @@ export const renderFormattedResponse = (text: string) => {
     );
   };
 
-  let inCodeBlock = false;
-  let codeBuffer: string[] = [];
-  let codeBlockLang = "";
   const rendered: React.ReactNode[] = [];
   let listBuffer: string[] = [];
 

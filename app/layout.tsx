@@ -10,17 +10,17 @@ import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { BottomNavigation } from "@/components/bottom-navigation";
 
-const inter = Inter({ 
-  subsets: ["latin"], 
+const inter = Inter({
+  subsets: ["latin"],
   display: "swap",
   preload: true,
-  variable: '--font-inter'
+  variable: "--font-inter",
 });
 
 export const metadata: Metadata = {
   title: {
     default: "EmoSpend - Track Your Emotional Spending & Money Habits with AI",
-    template: "%s | EmoSpend - Emotional Spending Tracker"
+    template: "%s | EmoSpend - Emotional Spending Tracker",
   },
   description:
     "Track your spending and uncover the emotions behind every purchase with AI-powered insights. Understand your money habits, improve financial wellness, and make smarter spending decisions. Free expense tracker with emotional intelligence.",
@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     "expense tracker app",
     "money habits tracker",
     "financial wellness",
-    "AI spending insights", 
+    "AI spending insights",
     "emotional finance",
     "spending psychology",
     "mindful spending",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     "EmoSpend",
     "smart expense tracker",
     "financial mindfulness",
-    "spending analytics"
+    "spending analytics",
   ],
   authors: [{ name: "Aldo Tobing", url: "https://spend.aldotobing.online" }],
   creator: "Aldo Tobing",
@@ -99,16 +99,17 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "EmoSpend - Track Your Emotional Spending & Money Habits with AI",
-    description: "Track your expenses and understand your emotional spending patterns with AI-powered insights. Improve your financial wellness and make smarter money decisions.",
+    description:
+      "Track your expenses and understand your emotional spending patterns with AI-powered insights. Improve your financial wellness and make smarter money decisions.",
     creator: "@aldo_tobing",
-    site: "@aldo_tobing", 
+    site: "@aldo_tobing",
     images: [
       {
         url: "https://spend.aldotobing.online/logo.png",
         width: 1200,
         height: 630,
         alt: "EmoSpend - Emotional Spending Tracker App",
-      }
+      },
     ],
   },
   appleWebApp: {
@@ -118,11 +119,13 @@ export const metadata: Metadata = {
     startupImage: [
       {
         url: "/icons/apple-splash-2048-2732.jpg",
-        media: "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+        media:
+          "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
       },
       {
-        url: "/icons/apple-splash-1668-2224.jpg", 
-        media: "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
+        url: "/icons/apple-splash-1668-2224.jpg",
+        media:
+          "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
       },
     ],
   },
@@ -144,21 +147,28 @@ export default function RootLayout({
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover"
+        />
         <meta name="theme-color" content="#6366f1" />
         <meta name="msapplication-TileColor" content="#6366f1" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
-        
+
         {/* Icons and PWA */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
-        
+
         {/* Preconnect for performance */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+
         {/* Enhanced JSON-LD Structured Data */}
         <script
           type="application/ld+json"
@@ -166,51 +176,52 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebApplication",
-              "name": "EmoSpend",
-              "alternateName": "Emotional Spending Tracker",
-              "url": "https://spend.aldotobing.online",
-              "description": "Track your spending and uncover the emotions behind every purchase with AI-powered insights. Understand your money habits, improve financial wellness, and make smarter spending decisions.",
-              "applicationCategory": "FinanceApplication",
-              "operatingSystem": "Web Browser",
-              "browserRequirements": "Requires JavaScript. Requires HTML5.",
-              "softwareVersion": "1.0",
-              "datePublished": "2024-01-01",
-              "dateModified": new Date().toISOString().split('T')[0],
-              "inLanguage": "en",
-              "isAccessibleForFree": true,
-              "offers": {
+              name: "EmoSpend",
+              alternateName: "Emotional Spending Tracker",
+              url: "https://spend.aldotobing.online",
+              description:
+                "Track your spending and uncover the emotions behind every purchase with AI-powered insights. Understand your money habits, improve financial wellness, and make smarter spending decisions.",
+              applicationCategory: "FinanceApplication",
+              operatingSystem: "Web Browser",
+              browserRequirements: "Requires JavaScript. Requires HTML5.",
+              softwareVersion: "1.0",
+              datePublished: "2024-01-01",
+              dateModified: new Date().toISOString().split("T")[0],
+              inLanguage: "en",
+              isAccessibleForFree: true,
+              offers: {
                 "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD",
-                "availability": "https://schema.org/InStock"
+                price: "0",
+                priceCurrency: "USD",
+                availability: "https://schema.org/InStock",
               },
-              "featureList": [
+              featureList: [
                 "Emotional spending tracking",
-                "AI-powered spending insights", 
+                "AI-powered spending insights",
                 "Expense categorization",
                 "Financial behavior analysis",
                 "Spending pattern recognition",
                 "Budget management",
-                "Financial wellness tracking"
+                "Financial wellness tracking",
               ],
-              "screenshot": "https://spend.aldotobing.online/logo.png",
-              "author": {
+              screenshot: "https://spend.aldotobing.online/logo.png",
+              author: {
                 "@type": "Person",
-                "name": "Aldo Tobing",
-                "url": "https://aldotobing.online"
+                name: "Aldo Tobing",
+                url: "https://aldotobing.online",
               },
-              "publisher": {
-                "@type": "Person", 
-                "name": "Aldo Tobing"
-              },
-              "maintainer": {
+              publisher: {
                 "@type": "Person",
-                "name": "Aldo Tobing"
-              }
-            })
+                name: "Aldo Tobing",
+              },
+              maintainer: {
+                "@type": "Person",
+                name: "Aldo Tobing",
+              },
+            }),
           }}
         />
-        
+
         {/* Organization Schema */}
         <script
           type="application/ld+json"
@@ -218,23 +229,21 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "Organization",
-              "name": "EmoSpend",
-              "url": "https://spend.aldotobing.online",
-              "logo": "https://spend.aldotobing.online/logo.png",
-              "description": "Emotional spending tracker app with AI insights",
-              "founder": {
+              name: "EmoSpend",
+              url: "https://spend.aldotobing.online",
+              logo: "https://spend.aldotobing.online/logo.png",
+              description: "Emotional spending tracker app with AI insights",
+              founder: {
                 "@type": "Person",
-                "name": "Aldo Tobing"
+                name: "Aldo Tobing",
               },
-              "sameAs": [
-                "https://twitter.com/aldo_tobing"
-              ],
-              "contactPoint": {
+              sameAs: ["https://twitter.com/aldo_tobing"],
+              contactPoint: {
                 "@type": "ContactPoint",
-                "contactType": "customer service",
-                "url": "https://spend.aldotobing.online/contact"
-              }
-            })
+                contactType: "customer service",
+                url: "https://spend.aldotobing.online/contact",
+              },
+            }),
           }}
         />
 
@@ -245,20 +254,20 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              "name": "EmoSpend",
-              "operatingSystem": "Web",
-              "applicationCategory": "FinanceApplication",
-              "aggregateRating": {
+              name: "EmoSpend",
+              operatingSystem: "Web",
+              applicationCategory: "FinanceApplication",
+              aggregateRating: {
                 "@type": "AggregateRating",
-                "ratingValue": "4.8",
-                "ratingCount": "127"
+                ratingValue: "4.8",
+                ratingCount: "127",
               },
-              "offers": {
+              offers: {
                 "@type": "Offer",
-                "price": "0.00",
-                "priceCurrency": "USD"
-              }
-            })
+                price: "0.00",
+                priceCurrency: "USD",
+              },
+            }),
           }}
         />
       </head>
@@ -274,16 +283,19 @@ export default function RootLayout({
               <AuthGuard>
                 <div className="flex min-h-screen flex-col">
                   <Navbar />
-                  <main className="flex-1 container mx-auto px-4 py-6" role="main">
+                  <main
+                    className="flex-1 container mx-auto px-4 py-6"
+                    role="main"
+                  >
                     {children}
                   </main>
                   <BottomNavigation />
                 </div>
               </AuthGuard>
-              <Toaster />
             </SyncProvider>
           </ThemeProvider>
         </AuthProvider>
+        <Toaster />
       </body>
     </html>
   );
