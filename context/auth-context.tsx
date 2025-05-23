@@ -47,13 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       setIsLoading(false);
       if (event === "SIGNED_IN") {
-        console.log("[AuthContext] User signed in:", session?.user?.id);
         // You might trigger a data sync here as well, if needed
         // For Google SSO, the redirect handles this after login, so it's already in the login flow.
       } else if (event === "SIGNED_OUT") {
-        console.log(
-          "[AuthContext] User signed out. Local data should be cleared."
-        );
         // Optionally, add a safety net clear here if `signOut` is not always called directly.
         // await clearLocalUserData();
       }
@@ -72,10 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const performPostLoginSync = useCallback(async () => {
     try {
-      console.log("[Login] Starting post-login data sync...");
       await pullExpensesFromSupabase();
       await syncExpenses();
-      console.log("[Login] Post-login sync completed successfully");
     } catch (error) {
       console.error("[Login] Error during post-login sync:", error);
     }
@@ -146,11 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Router and toast are now variables in the scope of AuthProvider,
     // so they are accessible here without calling hooks again.
     try {
-      console.log("[Logout] Clearing local user data...");
       await clearLocalUserData(); // Use the imported function
-      console.log("[Logout] Local user data cleared.");
 
-      console.log("[Logout] Signing out from Supabase...");
       const { error } = await supabase.auth.signOut();
 
       if (error) {
@@ -163,7 +154,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           variant: "destructive",
         });
       } else {
-        console.log("[Logout] Successfully signed out from Supabase.");
         toast({
           // <-- This is using the `toast` variable from above
           title: "Logged Out",

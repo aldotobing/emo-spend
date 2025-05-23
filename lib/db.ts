@@ -12,9 +12,6 @@ export interface SyncStatusEntry {
   synced: boolean;
   lastAttempt?: string;
 }
-console.log(
-  "--- [DB Module Interfaces] --- SyncedExpense, SyncStatusEntry defined."
-);
 
 export class EmoSpendDatabase extends Dexie {
   expenses!: Table<SyncedExpense, string>;
@@ -22,9 +19,7 @@ export class EmoSpendDatabase extends Dexie {
 
   constructor() {
     super("emoSpendDb");
-    console.log(
-      "--- [DB Constructor Log] --- EmoSpendDatabase constructor: super('emoSpendDb') called."
-    );
+
     try {
       this.version(5)
         .stores({
@@ -32,9 +27,6 @@ export class EmoSpendDatabase extends Dexie {
           syncStatus: "id, synced, lastAttempt",
         })
         .upgrade(async (tx) => {
-          console.log(
-            `--- [DB Constructor Log] --- Upgrading database to version ${tx.verno}...`
-          );
           if (tx.verno < 5 && tx.table("expenses")) {
             await tx
               .table<SyncedExpense>("expenses")
@@ -51,13 +43,7 @@ export class EmoSpendDatabase extends Dexie {
                 )
               );
           }
-          console.log(
-            `--- [DB Constructor Log] --- Database upgrade to version ${tx.verno} complete.`
-          );
         });
-      console.log(
-        "--- [DB Constructor Log] --- EmoSpendDatabase constructor: versioning and stores configured."
-      );
     } catch (e: any) {
       console.error(
         "--- [DB Constructor Log ERROR] --- Error during EmoSpendDatabase construction (version/stores):",
@@ -66,25 +52,14 @@ export class EmoSpendDatabase extends Dexie {
       );
       throw e;
     }
-    console.log(
-      "--- [DB Constructor Log] --- EmoSpendDatabase constructor finished."
-    );
   }
 }
-console.log("--- [DB Module Class Def] --- EmoSpendDatabase class defined.");
 
 let dbInstance: EmoSpendDatabase | null = null;
 export function getDb(): EmoSpendDatabase {
-  console.log("--- [DB getDb()] --- getDb function called.");
   if (!dbInstance) {
-    console.log(
-      "--- [DB getDb()] --- No dbInstance, creating new EmoSpendDatabase()."
-    );
     try {
       dbInstance = new EmoSpendDatabase();
-      console.log(
-        "--- [DB getDb()] --- EmoSpendDatabase instance created and assigned to dbInstance."
-      );
     } catch (e: any) {
       console.error(
         "--- [DB getDb() ERROR] --- Error creating EmoSpendDatabase instance in getDb():",
@@ -98,7 +73,6 @@ export function getDb(): EmoSpendDatabase {
   }
   return dbInstance;
 }
-console.log("--- [DB Module Func Def] --- getDb function defined.");
 
 async function getCurrentUser(): Promise<User | null> {
   const supabase = getSupabaseBrowserClient();
@@ -116,12 +90,10 @@ async function getCurrentUser(): Promise<User | null> {
     return null;
   }
 }
-console.log("--- [DB Module Func Def] --- getCurrentUser function defined.");
 
 export async function addExpense(
   expenseData: Omit<AppExpense, "id" | "createdAt">
 ): Promise<string | null> {
-  console.log("[DB] addExpense called.");
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const id = crypto.randomUUID();
@@ -148,11 +120,9 @@ export async function addExpense(
         lastAttempt: new Date().toISOString(),
       });
     });
-    console.log(`[DB] Expense ${id} added locally.`);
 
     const user = await getCurrentUser();
     if (user && navigator.onLine) {
-      console.log(`[DB] Attempting immediate sync for new expense ${id}...`);
       const { synced, category, mood, moodReason, createdAt, ...baseData } =
         localExpense;
       const expenseToSync = {
@@ -183,7 +153,6 @@ export async function addExpense(
             lastAttempt: new Date().toISOString(),
           });
         });
-        console.log(`[DB] New expense ${id} synced to Supabase immediately.`);
       }
     } else {
       console.warn(
@@ -206,12 +175,8 @@ export async function addExpense(
     return null;
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- addExpense function defined and exported."
-);
 
 export async function getExpenses(): Promise<SyncedExpense[]> {
-  console.log("--- [DB getExpenses()] --- getExpenses function called.");
   const db = getDb();
   try {
     return await db.expenses.orderBy("date").reverse().toArray();
@@ -224,18 +189,11 @@ export async function getExpenses(): Promise<SyncedExpense[]> {
     return [];
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- getExpenses function defined and exported."
-);
 
 export async function getExpensesByDateRange(
   startDate: string,
   endDate: string
 ): Promise<SyncedExpense[]> {
-  console.log("--- [DB getExpensesByDateRange()] --- Called with:", {
-    startDate,
-    endDate,
-  });
   const db = getDb();
   try {
     return await db.expenses
@@ -251,14 +209,10 @@ export async function getExpensesByDateRange(
     return [];
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- getExpensesByDateRange function defined and exported."
-);
 
 export async function getExpensesByMood(
   mood: MoodType | string
 ): Promise<SyncedExpense[]> {
-  console.log("--- [DB getExpensesByMood()] --- Called with mood ID:", mood);
   const db = getDb();
   try {
     return await db.expenses
@@ -274,14 +228,8 @@ export async function getExpensesByMood(
     return [];
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- getExpensesByMood function defined and exported."
-);
 
 export async function deleteExpense(id: string): Promise<boolean> {
-  console.log(
-    `--- [DB deleteExpense()] --- deleteExpense called for ID: ${id}`
-  );
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   if (typeof id !== "string" || id.trim() === "") {
@@ -293,7 +241,6 @@ export async function deleteExpense(id: string): Promise<boolean> {
       await db.expenses.delete(id);
       await db.syncStatus.delete(id);
     });
-    console.log(`[DB] Expense ${id} deleted locally.`);
 
     const user = await getCurrentUser();
     if (user && navigator.onLine) {
@@ -309,7 +256,6 @@ export async function deleteExpense(id: string): Promise<boolean> {
         );
         return false;
       } else {
-        console.log(`[DB] Expense ${id} deleted from Supabase.`);
       }
     } else {
       console.warn(
@@ -324,15 +270,11 @@ export async function deleteExpense(id: string): Promise<boolean> {
     return false;
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- deleteExpense function defined and exported."
-);
 
 // This function is good for clearing local data on logout.
 // We should ensure it only clears local data for the *current user* if multiple users might use the same browser,
 // but clearing all local data for this specific app is generally fine for a single-user app.
 export async function clearLocalUserData(): Promise<void> {
-  console.log("--- [DB clearLocalUserData()] --- clearLocalUserData called.");
   const db = getDb();
   try {
     // Clear the expenses and syncStatus tables for the current user's data
@@ -343,24 +285,15 @@ export async function clearLocalUserData(): Promise<void> {
       await db.expenses.clear(); // Clears all expenses
       await db.syncStatus.clear(); // Clears all sync statuses
     });
-    console.log(
-      "[DB] All local user-related data (expenses, syncStatus) cleared."
-    );
   } catch (error: any) {
     console.error("[DB] Error clearing local user data:", error.message);
     // Important: Do not re-throw here. We want logout to proceed even if local clear fails.
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- clearLocalUserData function defined and exported."
-);
 
 // Renaming the old clearAllData to emphasize it's for ALL data and includes remote
 // This might be used for a "reset app" function, not just logout.
 export async function clearAllLocalAndRemoteData(): Promise<void> {
-  console.log(
-    "--- [DB clearAllLocalAndRemoteData()] --- clearAllLocalAndRemoteData called."
-  );
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   try {
@@ -381,28 +314,21 @@ export async function clearAllLocalAndRemoteData(): Promise<void> {
       await db.expenses.clear();
       await db.syncStatus.clear();
     });
-    console.log("[DB] All local and potentially remote data cleared.");
   } catch (error: any) {
     console.error("[DB] Error clearing data:", error.message);
     throw error; // Re-throw if this is a "hard reset" function
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- clearAllLocalAndRemoteData function defined and exported."
-);
 
 export async function syncExpenses(): Promise<void> {
-  console.log("[Sync] Attempting to sync local changes to Supabase...");
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
   if (!user) {
-    console.log("[Sync] Failed (to Supabase): User not logged in.");
     return;
   }
   if (!navigator.onLine) {
-    console.log("[Sync] Failed (to Supabase): Offline.");
     return;
   }
 
@@ -427,7 +353,6 @@ export async function syncExpenses(): Promise<void> {
   }
 
   if (unsyncedStatusEntries.length === 0) {
-    console.log("[Sync] No local changes to sync.");
     return;
   }
 
@@ -476,12 +401,8 @@ export async function syncExpenses(): Promise<void> {
   }
 
   if (localExpensesToSync.length === 0) {
-    console.log("[Sync] No actual expenses need syncing after filtering.");
     return;
   }
-  console.log(
-    `[Sync] Sending ${localExpensesToSync.length} expenses to Supabase.`
-  );
 
   const supabasePayload = localExpensesToSync.map((exp) => {
     const { synced, category, mood, moodReason, createdAt, ...rest } = exp;
@@ -534,22 +455,16 @@ export async function syncExpenses(): Promise<void> {
     }
   });
 }
-console.log(
-  "--- [DB Module Func Def] --- syncExpenses function defined and exported."
-);
 
 export async function pullExpensesFromSupabase(): Promise<void> {
-  console.log("[Sync] Attempting to pull from Supabase...");
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
   if (!user) {
-    console.log("[Sync] Pull failed: No user.");
     return;
   }
   if (!navigator.onLine) {
-    console.log("[Sync] Pull failed: Offline.");
     return;
   }
 
@@ -574,13 +489,11 @@ export async function pullExpensesFromSupabase(): Promise<void> {
     return;
   }
   if (!supabaseData || supabaseData.length === 0) {
-    console.log("[Sync] No expenses to pull.");
     // If no data to pull, it's good to ensure local data is also empty for THIS user.
     // If you have a multi-user setup, this would need to be user-specific.
     // await db.expenses.clear(); // Only if you are SURE this user has no expenses.
     return;
   }
-  console.log(`[Sync] Pulled ${supabaseData.length} expenses.`);
 
   const expensesToStore: SyncedExpense[] = [];
   const syncTimestamp = new Date().toISOString();
@@ -619,20 +532,14 @@ export async function pullExpensesFromSupabase(): Promise<void> {
             lastAttempt: syncTimestamp,
           });
       });
-      console.log("[Sync] Local DB updated with pulled expenses.");
     } catch (error: any) {
       console.error("[Sync] Error storing pulled expenses:", error.message);
     }
   }
 }
-console.log(
-  "--- [DB Module Func Def] --- pullExpensesFromSupabase function defined and exported."
-);
 
 export function setupSync(): void {
-  console.log("--- [DB setupSync()] --- setupSync function called.");
   if (typeof window === "undefined") {
-    console.log("[SyncSetup] Not in browser, skipping.");
     return;
   }
   const supabase = getSupabaseBrowserClient();
@@ -640,11 +547,9 @@ export function setupSync(): void {
 
   const performFullSync = async (reason: string) => {
     if (isSyncing) {
-      console.log(`[SyncSetup] Sync in progress. Skipped: ${reason}`);
       return;
     }
     isSyncing = true;
-    console.log(`[SyncSetup] Performing full sync: ${reason}`);
     try {
       await pullExpensesFromSupabase();
       await syncExpenses();
@@ -655,7 +560,6 @@ export function setupSync(): void {
       );
     } finally {
       isSyncing = false;
-      console.log(`[SyncSetup] Full sync completed: ${reason}`);
     }
   };
 
@@ -674,5 +578,4 @@ export function setupSync(): void {
       // await clearLocalUserData(); // Optional: Add this here for robustness
     }
   });
-  console.log("[SyncSetup] Sync listeners configured.");
 }

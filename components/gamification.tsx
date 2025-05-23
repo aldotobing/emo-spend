@@ -11,23 +11,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Flame, Award, Star, TrendingUp, Calendar, Check } from "lucide-react";
-// Menggunakan impor namespace untuk diagnosis
 import * as db from "@/lib/db";
 import type { Expense } from "@/types/expense";
-
-console.log(
-  "--- [Gamification Module Top Level] --- File gamification.tsx is being evaluated..."
-);
-console.log("--- [Gamification Module Imports] --- Imported db object:", db); // Log db object saat modul dievaluasi
+// Log db object saat modul dievaluasi
 
 interface GamificationProps {
   className?: string;
 }
 
 export function Gamification({ className }: GamificationProps) {
-  console.log(
-    "--- [Gamification Component] --- Gamification component rendering/rendered."
-  );
   const [streak, setStreak] = useState(0);
   const [badges, setBadges] = useState<
     {
@@ -41,33 +33,11 @@ export function Gamification({ className }: GamificationProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log("--- [Gamification useEffect] --- useEffect triggered.");
     async function loadData() {
-      console.log("--- [Gamification loadData] --- loadData function started.");
       setIsLoading(true);
       try {
-        console.log(
-          "--- [Gamification loadData] --- Imported 'db' object (inside loadData):",
-          db
-        );
-        console.log(
-          "--- [Gamification loadData] --- Keys in 'db' object (inside loadData):",
-          db ? Object.keys(db) : "db is null/undefined"
-        );
-        console.log(
-          "--- [Gamification loadData] --- typeof db.getExpenses (inside loadData):",
-          db ? typeof db.getExpenses : "db is null/undefined"
-        );
-
         if (db && typeof db.getExpenses === "function") {
-          console.log(
-            "--- [Gamification loadData] --- Attempting to call db.getExpenses()..."
-          );
           const expenses = await db.getExpenses();
-          console.log(
-            "--- [Gamification loadData] --- db.getExpenses() call finished. Received expenses:",
-            expenses ? expenses.length : "null/undefined"
-          );
 
           const calculatedStreak = calculateStreak(expenses || []); // Pastikan expenses tidak null/undefined
           setStreak(calculatedStreak);
@@ -81,9 +51,6 @@ export function Gamification({ className }: GamificationProps) {
             "--- [Gamification loadData] --- Streak and badges calculated."
           );
         } else {
-          console.error(
-            "--- [Gamification loadData ERROR] --- db.getExpenses is NOT a function or db object is problematic!"
-          );
           // Jika ini terjadi, periksa log dari /lib/db.ts di terminal server
         }
       } catch (error) {
@@ -93,9 +60,6 @@ export function Gamification({ className }: GamificationProps) {
         );
       } finally {
         setIsLoading(false);
-        console.log(
-          "--- [Gamification loadData] --- loadData function finished."
-        );
       }
     }
 
@@ -237,7 +201,3 @@ function calculateBadges(
     },
   ];
 }
-
-console.log(
-  "--- [Gamification Module End] --- File gamification.tsx evaluation finished."
-);
