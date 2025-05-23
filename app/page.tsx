@@ -22,6 +22,7 @@ import { ExpenseList } from "@/components/expense-list";
 import { SpendingByMoodChart } from "@/components/spending-by-mood-chart";
 import { SpendingByCategory } from "@/components/spending-by-category";
 import { SpendingOverTime } from "@/components/spending-over-time";
+import { SpendingByDay } from "@/components/spending-by-day";
 import { Gamification } from "@/components/gamification";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -355,28 +356,57 @@ function DashboardCharts({
         ))}
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-      >
-        <Card className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="text-sm sm:text-base">
-              Pengeluaran Seiring Waktu
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-[250px] sm:h-[300px]">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Skeleton className="h-[200px] sm:h-[250px] w-full" />
-              </div>
-            ) : (
-              <SpendingOverTime expenses={expenses} />
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="h-full"
+        >
+          <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-sm sm:text-base">
+                Rata-rata Pengeluaran Harian
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[250px] sm:h-[300px]">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-[200px] sm:h-[250px] w-full" />
+                </div>
+              ) : (
+                <SpendingByDay expenses={expenses} />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="h-full"
+        >
+          <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-sm sm:text-base">
+                Pengeluaran Seiring Waktu
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[250px] sm:h-[300px]">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-[200px] sm:h-[250px] w-full" />
+                </div>
+              ) : (
+                <SpendingOverTime expenses={expenses} />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        
+      </div>
     </div>
   );
 }
