@@ -19,7 +19,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "EmoSpend - Track Your Emotional Spending & Money Habits with AI",
+    default: "EmoSpend - Track your spending and uncover the emotions behind every purchase with AI-powered insights.",
     template: "%s | EmoSpend - Emotional Spending Tracker",
   },
   description:
