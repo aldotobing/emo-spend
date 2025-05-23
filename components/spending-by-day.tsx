@@ -44,7 +44,6 @@ export function SpendingByDay({ expenses }: SpendingByDayProps) {
           if (isNaN(date.getTime())) return;
           
           const dayOfWeek = date.getDay(); // 0 (Sunday) to 6 (Saturday)
-          console.log('Processing expense:', { date, dayOfWeek, amount: expense.amount });
           
           // Find the day in our dayData array (should always find a match)
           const dayItem = dayData.find(d => d.id === dayOfWeek);
@@ -70,7 +69,6 @@ export function SpendingByDay({ expenses }: SpendingByDayProps) {
       const total = sortedDayData.reduce((sum, day) => sum + day.total, 0);
       const avgPerDay = total / 7;
 
-      console.log('Processed day data:', sortedDayData);
       return { dayData: sortedDayData, total, avgPerDay };
     } catch (error) {
       console.error('Error processing day data:', error);
