@@ -181,6 +181,12 @@ export default function Dashboard() {
                             <RecentExpenses
                               isLoading={isLoading}
                               expenses={expenses}
+                              onExpenseDeleted={async () => {
+                                // Refresh the dashboard data when an expense is deleted
+                                const { start, end } = getDateRangeForPeriod(period);
+                                const data = await getExpensesByDateRange(start, end);
+                                setExpenses(data);
+                              }}
                             />
                           </div>
                           <div className="lg:col-span-2">
@@ -414,13 +420,29 @@ function DashboardCharts({
 function RecentExpenses({
   isLoading,
   expenses,
+  onExpenseDeleted,
 }: {
   isLoading: boolean;
   expenses: Expense[];
+  onExpenseDeleted?: () => void;
 }) {
   const recent = [...expenses]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
+
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      const { deleteExpense } = await import('@/lib/db');
+      const success = await deleteExpense(id);
+      if (success && onExpenseDeleted) {
+        onExpenseDeleted();
+      }
+      return success;
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      return false;
+    }
+  };
 
   return (
     <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
@@ -437,7 +459,10 @@ function RecentExpenses({
             ))}
           </div>
         ) : (
-          <ExpenseList expenses={recent} />
+          <ExpenseList 
+            expenses={recent} 
+            onDelete={handleDeleteExpense} 
+          />
         )}
       </CardContent>
     </Card>

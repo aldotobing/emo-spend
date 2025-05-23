@@ -111,7 +111,7 @@ export function SpendingOverTime({ expenses }: SpendingOverTimeProps) {
   const { dailyData, maxValue, totalSpending, avgSpending } = chartData;
 
   return (
-    <div className="h-full w-full flex flex-col">
+    <div className="h-full w-full flex flex-col overflow-visible">
       {/* Stats Header - Compact for mobile with fade-in animation */}
       <div className={`flex-shrink-0 mb-3 sm:mb-4 transition-all duration-500 ${
         animated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
@@ -145,7 +145,7 @@ export function SpendingOverTime({ expenses }: SpendingOverTimeProps) {
       </div>
 
       {/* Chart Area - Takes remaining height */}
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 justify-between pb-2">
         {/* Bars Container - Fixed height and flex issues */}
         <div className="flex-1 flex items-end justify-center px-1 sm:px-2 mb-2 relative min-h-[120px]">
           <div className="flex items-end justify-center gap-px sm:gap-1 w-full max-w-full overflow-hidden h-full">
@@ -207,19 +207,19 @@ export function SpendingOverTime({ expenses }: SpendingOverTimeProps) {
 
         {/* Date Labels - Only for shorter periods */}
         {dailyData.length <= 15 && (
-          <div className="flex-shrink-0">
-            <div className="flex justify-center gap-px sm:gap-1 px-1 sm:px-2">
+          <div className="flex-shrink-0 px-1 sm:px-2">
+            <div className="flex justify-center gap-px sm:gap-1 w-full">
               {dailyData.map((day, index) => (
                 <div
                   key={index}
-                  className="text-center"
+                  className="text-center flex flex-col items-center"
                   style={{ 
                     flex: '1 1 0%',
-                    minWidth: '3px',
-                    maxWidth: dailyData.length > 10 ? '12px' : '24px'
+                    minWidth: dailyData.length > 20 ? '3px' : '6px',
+                    maxWidth: dailyData.length > 20 ? '12px' : '24px'
                   }}
                 >
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground w-full">
                     <div className="hidden sm:block text-xs">{day.dayName}</div>
                     <div className="text-xs font-medium">{day.shortDate}</div>
                   </div>
@@ -230,7 +230,7 @@ export function SpendingOverTime({ expenses }: SpendingOverTimeProps) {
         )}
 
         {/* Legend */}
-        <div className="flex-shrink-0 mt-2 sm:mt-3">
+        {/* <div className="flex-shrink-0 mt-1 sm:mt-1 pb-8 sm:pb-8">
           <div className="flex justify-center gap-3 sm:gap-4 text-xs">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 bg-red-500 rounded-sm"></div>
@@ -245,7 +245,7 @@ export function SpendingOverTime({ expenses }: SpendingOverTimeProps) {
               <span className="text-muted-foreground">Normal</span>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );
