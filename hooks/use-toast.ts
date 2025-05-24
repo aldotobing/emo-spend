@@ -8,14 +8,15 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 5
+const TOAST_REMOVE_DELAY = 5000 // 5 seconds
 
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  duration?: number
 }
 
 const actionTypes = {
@@ -144,25 +145,44 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
+  console.log('Creating toast with ID:', id, props)
 
-  const update = (props: ToasterToast) =>
+  const update = (props: ToasterToast) => {
+    console.log('Updating toast:', id, props)
     dispatch({
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
+  }
 
+  const dismiss = () => {
+    console.log('Dismissing toast:', id)
+    dispatch({ type: "DISMISS_TOAST", toastId: id })
+  }
+
+  const toastData = {
+    ...props,
+    id,
+    open: true,
+    onOpenChange: (open: boolean) => {
+      if (!open) dismiss()
+    },
+  }
+
+  console.log('Dispatching ADD_TOAST with data:', toastData)
   dispatch({
     type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
-    },
+    toast: toastData,
   })
+
+  // Auto-dismiss after duration if provided
+  if (props.duration) {
+    setTimeout(() => dismiss(), props.duration)
+  } else if (props.duration !== 0) {
+    // Default duration if not specified
+    setTimeout(() => dismiss(), TOAST_REMOVE_DELAY)
+  }
+
 
   return {
     id: id,
@@ -174,20 +194,42 @@ function toast({ ...props }: Toast) {
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
+  // Keep track of mounted state to prevent memory leaks
+  const isMounted = React.useRef(true)
+
   React.useEffect(() => {
+    isMounted.current = true
+    
+    // Add state setter to listeners
     listeners.push(setState)
+    
+    // Update local state with current memory state
+    if (isMounted.current) {
+      setState(memoryState)
+    }
+    
+    // Cleanup function
     return () => {
+      isMounted.current = false
       const index = listeners.indexOf(setState)
       if (index > -1) {
         listeners.splice(index, 1)
       }
     }
+  }, [])
+
+  // Debug state changes
+  React.useEffect(() => {
+    console.log('Toast state updated:', state)
   }, [state])
 
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: (toastId?: string) => {
+      console.log('Dismissing toast from useToast:', toastId)
+      dispatch({ type: "DISMISS_TOAST", toastId })
+    },
   }
 }
 

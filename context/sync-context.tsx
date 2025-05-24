@@ -1,13 +1,20 @@
+// Update sync-context.tsx
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
+type SyncOperation = 'push' | 'pull' | 'background' | 'gamification' | null;
+
 type SyncContextType = {
   isSyncing: boolean;
+  currentOperation: SyncOperation;
+  lastSyncTime: Date | null;
 };
 
 const SyncContext = createContext<SyncContextType>({
   isSyncing: false,
+  currentOperation: null,
+  lastSyncTime: null,
 });
 
 export function useSyncStatus() {
@@ -20,24 +27,34 @@ export function SyncStatusProvider({
   children: React.ReactNode;
 }) {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [currentOperation, setCurrentOperation] = useState<SyncOperation>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
-  // Create a custom event for sync status changes
   useEffect(() => {
-    const handleSyncStart = () => setIsSyncing(true);
-    const handleSyncEnd = () => setIsSyncing(false);
+    const handleSyncStart = (e: CustomEvent<{ operation: SyncOperation }>) => {
+      setIsSyncing(true);
+      setCurrentOperation(e.detail.operation);
+    };
 
-    // Add event listeners
+    const handleSyncEnd = () => {
+      setIsSyncing(false);
+      setCurrentOperation(null);
+      setLastSyncTime(new Date());
+    };
+
+    // @ts-ignore - Custom event with detail
     window.addEventListener("sync:start", handleSyncStart);
     window.addEventListener("sync:end", handleSyncEnd);
 
     return () => {
+      // @ts-ignore
       window.removeEventListener("sync:start", handleSyncStart);
       window.removeEventListener("sync:end", handleSyncEnd);
     };
   }, []);
 
   return (
-    <SyncContext.Provider value={{ isSyncing }}>
+    <SyncContext.Provider value={{ isSyncing, currentOperation, lastSyncTime }}>
       {children}
     </SyncContext.Provider>
   );

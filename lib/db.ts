@@ -99,6 +99,9 @@ export async function addExpense(
   const supabase = getSupabaseBrowserClient();
   const id = crypto.randomUUID();
   const createdAtDate = new Date();
+  
+  // Dispatch sync start event for push operation
+  dispatchSyncEvent('push');
 
   if (typeof id !== "string" || id.trim() === "") {
     console.error("[DB] Generated ID for addExpense is invalid:", id);
@@ -170,12 +173,19 @@ export async function addExpense(
     }
     return id;
   } catch (error: any) {
-    console.error(`[DB] Error adding expense ${id}:`, error.message);
-  } finally {
-    // Dispatch sync end event if in browser
+    console.error(`[SYNC] Error during sync:`, error.message);
+    // Dispatch sync error event
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("sync:end"));
+      window.dispatchEvent(new CustomEvent("sync:error", { 
+        detail: { 
+          message: error.message,
+          operation: 'background'
+        } 
+      }));
     }
+  } finally {
+    // Dispatch sync end event
+    dispatchSyncEvent(null);
   }
   return null;
 }
@@ -329,16 +339,12 @@ export async function syncExpenses(): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
-  // Dispatch sync start event if in browser
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("sync:start"));
-  }
+  // Dispatch sync start event
+  dispatchSyncEvent('background');
 
   if (!user || !navigator.onLine) {
-    // Dispatch sync end event if in browser
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("sync:end"));
-    }
+    // Dispatch sync end event
+    dispatchSyncEvent(null);
     return;
   }
   if (!navigator.onLine) {
@@ -440,6 +446,14 @@ export async function syncExpenses(): Promise<void> {
       supabaseError.message,
       supabaseError.details
     );
+    // Dispatch sync error event
+    window.dispatchEvent(new CustomEvent("sync:error", { 
+      detail: { 
+        operation: 'background',
+        error: supabaseError 
+      } 
+    }));
+    
     await db.transaction("rw", db.syncStatus, async () => {
       for (const expense of localExpensesToSync) {
         const statusEntry = await db.syncStatus.get(expense.id);
@@ -474,16 +488,12 @@ export async function pullExpensesFromSupabase(): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
-  // Dispatch sync start event if in browser
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("sync:start"));
-  }
+  // Dispatch sync start event with pull operation
+  dispatchSyncEvent('pull');
 
   if (!user || !navigator.onLine) {
-    // Dispatch sync end event if in browser
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("sync:end"));
-    }
+    // Dispatch sync end event
+    dispatchSyncEvent(null);
     return;
   }
   if (!navigator.onLine) {
@@ -508,12 +518,19 @@ export async function pullExpensesFromSupabase(): Promise<void> {
 
   if (supabaseError) {
     console.error("[Sync] Error pulling from Supabase:", supabaseError.message);
+    // Dispatch sync error event
+    window.dispatchEvent(new CustomEvent("sync:error", { 
+      detail: { 
+        operation: 'pull',
+        error: supabaseError 
+      } 
+    }));
+    dispatchSyncEvent(null);
     return;
   }
   if (!supabaseData || supabaseData.length === 0) {
-    // If no data to pull, it's good to ensure local data is also empty for THIS user.
-    // If you have a multi-user setup, this would need to be user-specific.
-    // await db.expenses.clear(); // Only if you are SURE this user has no expenses.
+    // If no data to pull, ensure we still dispatch sync end event
+    dispatchSyncEvent(null);
     return;
   }
 
@@ -556,28 +573,56 @@ export async function pullExpensesFromSupabase(): Promise<void> {
       });
     } catch (error: any) {
       console.error("[Sync] Error storing pulled expenses:", error.message);
+      // Dispatch sync error event
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("sync:error", { 
+          detail: { 
+            message: error.message,
+            operation: 'pull'
+          } 
+        }));
+      }
+    } finally {
+      // Ensure we always dispatch sync end event, even if there was an error
+      if (expensesToStore.length === 0) {
+        dispatchSyncEvent(null);
+      }
     }
   }
 }
 
-export function setupSync(): void {
+export type SyncOperation = 'push' | 'pull' | 'background' | 'gamification' | null;
+
+function dispatchSyncEvent(operation: SyncOperation) {
+  if (typeof window === "undefined") return;
+  
+  if (operation) {
+    window.dispatchEvent(new CustomEvent("sync:start", { 
+      detail: { operation } 
+    }));
+  } else {
+    window.dispatchEvent(new CustomEvent("sync:end", { 
+      detail: { operation: null } 
+    }));
+  }
+}
+
+export async function setupSync(): Promise<void> {
   if (typeof window === "undefined") {
     return;
   }
   const supabase = getSupabaseBrowserClient();
   let isSyncing = false;
 
-  // Create custom events for sync status
-  const syncStartEvent = new Event("sync:start");
-  const syncEndEvent = new Event("sync:end");
+  // No need for custom events, using dispatchSyncEvent instead
 
   const performFullSync = async (reason: string) => {
     if (isSyncing) {
       return;
     }
     
-    // Dispatch sync start event
-    window.dispatchEvent(syncStartEvent);
+    // Dispatch sync start event with background operation
+    dispatchSyncEvent('background');
     isSyncing = true;
     
     try {
@@ -592,7 +637,7 @@ export function setupSync(): void {
     } finally {
       isSyncing = false;
       // Dispatch sync end event
-      window.dispatchEvent(syncEndEvent);
+      dispatchSyncEvent(null);
     }
   };
 
@@ -671,12 +716,17 @@ export async function fixStreakBadge(): Promise<void> {
 
 // Function to sync gamification data
 export async function syncGamificationData(): Promise<void> {
+  const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
-  if (!user || !navigator.onLine) {
+  if (!user) {
+    console.warn("[GAMIFICATION] Cannot sync: No authenticated user");
     return;
   }
+  
+  // Dispatch sync start event for gamification operation
+  dispatchSyncEvent('gamification');
 
   try {
     // Get local expenses for streak calculation
@@ -740,7 +790,19 @@ export async function syncGamificationData(): Promise<void> {
       }
     }
   } catch (error: any) {
-    console.error("[Gamification] Error syncing gamification data:", error.message);
+    console.error("[GAMIFICATION] Error syncing gamification data:", error.message);
+    // Dispatch sync error event
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("sync:error", { 
+        detail: { 
+          message: error.message,
+          operation: 'gamification'
+        } 
+      }));
+    }
+  } finally {
+    // Dispatch sync end event
+    dispatchSyncEvent(null);
   }
 }
 

@@ -3,13 +3,13 @@
 import React, {
   createContext,
   useContext,
-  useEffect,
   useState,
+  useEffect,
   useCallback,
   useMemo,
 } from "react";
-import { useRouter } from "next/navigation"; // <-- HOOK: This call MUST be here
-import { useToast } from "@/components/ui/use-toast"; // <-- HOOK: This call MUST be here
+import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/use-toast";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 import { User, Session } from "@supabase/supabase-js";
 import {
@@ -36,7 +36,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // VVVV IMPORTANT: HOOKS MUST BE CALLED HERE, AT THE TOP LEVEL OF THIS FUNCTION COMPONENT (AuthProvider) VVVV
   const router = useRouter(); // Correct place for useRouter
-  const { toast } = useToast(); // Correct place for useToast
   const supabase = getSupabaseBrowserClient(); // Can also be called here or within functions, but here is fine
 
   useEffect(() => {
@@ -77,30 +76,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
+      console.log('Starting signIn function');
       setIsLoading(true);
       try {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        // Basic validation
+        if (!email || !password) {
+          const err = new Error("Please enter both email and password");
+          console.log('Validation error:', err.message);
+          throw err;
+        }
+
+        console.log('Attempting to sign in with email:', email);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password,
         });
 
-        if (error) throw error;
+        if (error) {
+          console.log('Auth error occurred:', error);
+          // More specific error handling
+          let errorMessage = error.message;
+          if (error.message.includes("Invalid login credentials")) {
+            errorMessage = "The email or password you entered is incorrect. Please try again.";
+          } else if (error.message.includes("Email not confirmed")) {
+            errorMessage = "Please verify your email before signing in.";
+          } else if (error.message.includes("network")) {
+            errorMessage = "Network error. Please check your internet connection.";
+          }
+          const authError = new Error(errorMessage);
+          console.log('Throwing auth error:', authError.message);
+          throw authError;
+        }
 
-        toast({
-          title: "Welcome back! 🎉",
-          description: "Syncing your latest data...",
-          variant: "default",
-        });
-        await performPostLoginSync();
+        // Success case - Let the calling component handle the success state
+        console.log('Login successful');
+        try {
+          console.log('Starting post-login sync');
+          await performPostLoginSync();
+        } catch (syncError) {
+          console.error("Sync error after login:", syncError);
+          // Don't block the login flow for sync errors
+          toast({
+            title: "Sync Error",
+            description: "Could not sync all data. Some features may be limited.",
+            variant: "destructive" as const,
+            duration: 5000,
+          });
+        }
+
+        // Use router.push instead of window.location for better SPA behavior
         window.location.href = "/";
       } catch (error: any) {
-        console.error("Sign-in error:", error.message);
-        toast({
-          title: "Oops! Login failed 😕",
-          description:
-            error.message || "Please check your credentials and try again.",
-          variant: "destructive",
-        });
+        console.error("Sign-in error:", error);
+        // Just re-throw the error - let the login page handle the toast
         throw error;
       } finally {
         setIsLoading(false);
