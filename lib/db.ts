@@ -359,6 +359,9 @@ export async function clearAllLocalAndRemoteData(): Promise<void> {
 }
 
 export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemote: number; skipped: number }> {
+  // Check if we're in a browser environment
+  const isClient = typeof window !== 'undefined' && typeof navigator !== 'undefined';
+  
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
@@ -374,7 +377,8 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
     return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
   }
 
-  if (!navigator.onLine) {
+  // Only check online status in browser environment
+  if (isClient && !navigator.onLine) {
     return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
   }
 
