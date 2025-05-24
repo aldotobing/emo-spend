@@ -17,6 +17,8 @@ import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 interface GamificationProps {
   className?: string;
+  expenses: Expense[];
+  isLoading: boolean;
 }
 
 interface UserStreak {

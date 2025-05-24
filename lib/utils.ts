@@ -24,31 +24,37 @@ export function formatDate(dateString: string): string {
 }
 
 export function getDateRangeForPeriod(period: "day" | "week" | "month" | "year"): { start: string; end: string } {
-  const now = new Date()
-  const start = new Date()
+  // Create dates in local time
+  const now = new Date();
+  const start = new Date();
+  
+  // Set to start of day in local time
+  start.setHours(0, 0, 0, 0);
+  now.setHours(23, 59, 59, 999);
 
   switch (period) {
     case "day":
-      start.setHours(0, 0, 0, 0)
-      break
+      // Already set to start of today
+      break;
     case "week":
-      start.setDate(now.getDate() - now.getDay())
-      start.setHours(0, 0, 0, 0)
-      break
+      // Set to start of the week (Sunday)
+      start.setDate(now.getDate() - now.getDay());
+      break;
     case "month":
-      start.setDate(1)
-      start.setHours(0, 0, 0, 0)
-      break
+      // Set to first day of current month
+      start.setDate(1);
+      break;
     case "year":
-      start.setMonth(0, 1)
-      start.setHours(0, 0, 0, 0)
-      break
+      // Set to first day of the year
+      start.setMonth(0, 1);
+      break;
   }
 
+  // Convert to ISO string for database query
   return {
-    start: start.toISOString(),
-    end: now.toISOString(),
-  }
+    start: start.toISOString().split('T')[0] + 'T00:00:00.000Z',
+    end: now.toISOString()
+  };
 }
 
 export function generateInsights(expenses: any[]): string[] {

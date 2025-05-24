@@ -14,7 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getExpensesByDateRange } from "@/lib/db";
+import { getDb, getExpensesByDateRange } from "@/lib/db";
 import type { Expense } from "@/types/expense";
 import { formatCurrency, getDateRangeForPeriod } from "@/lib/utils";
 import { moods } from "@/data/moods";
@@ -25,14 +25,22 @@ import { SpendingOverTime } from "@/components/spending-over-time";
 import { SpendingByDay } from "@/components/spending-by-day";
 import { Gamification } from "@/components/gamification";
 import { AnimatePresence, motion } from "framer-motion";
+import { CalendarIcon } from "lucide-react";
+import { EnhancedCalendar } from "@/components/enhanced-calendar";
 
 export default function Dashboard() {
+  // State for expenses and loading
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">(
-    "month"
-  );
+  
+  // State for period selection
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("month");
+  
+  // State for animated total
   const [animatedTotal, setAnimatedTotal] = useState(0);
+  
+  // State for calendar visibility
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -80,6 +88,37 @@ export default function Dashboard() {
 
   const periods: (typeof period)[] = ["day", "week", "month", "year"];
 
+  useEffect(() => {
+    const db = getDb();
+    let mounted = true;
+
+    const handleExpenseChange = async () => {
+      if (!mounted) return;
+      try {
+        const { start, end } = getDateRangeForPeriod(period);
+        const data = await getExpensesByDateRange(start, end);
+        if (mounted) {
+          setExpenses(data);
+        }
+      } catch (error) {
+        console.error('Error fetching expenses after change:', error);
+      }
+    };
+
+    // Subscribe to changes
+    const unsubscribe = db.expenses.hook('creating', handleExpenseChange as any) as unknown as (() => void) | undefined;
+
+    // Initial fetch
+    handleExpenseChange();
+
+    return () => {
+      mounted = false;
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [period]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted/20">
       {/* Content with proper spacing for bottom nav */}
@@ -113,6 +152,41 @@ export default function Dashboard() {
         </div>
 
         <div className="px-4 sm:px-6 lg:px-8">
+          {/* Calendar Toggle Button - Moved to top */}
+          <div className="flex justify-end mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-10 px-4 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+              onClick={() => setShowCalendar(!showCalendar)}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {showCalendar ? 'Sembunyikan Kalender' : 'Tampilkan Kalender'}
+            </Button>
+          </div>
+
+          {/* Calendar */}
+          <AnimatePresence>
+            {showCalendar && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: '1.5rem' }}
+                exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden mb-6"
+              >
+                <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+                  <CardContent className="p-4">
+                    <EnhancedCalendar 
+                      expenses={expenses} 
+                      isLoading={isLoading} 
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <Tabs
             defaultValue="month"
             onValueChange={(v) => setPeriod(v as any)}
@@ -123,9 +197,9 @@ export default function Dashboard() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
+              className="w-full"
             >
-              {/* MODIFIED: Added h-10 for consistent height */}
-              <TabsList className="flex sm:grid sm:grid-cols-4 gap-1 rounded-2xl bg-muted/30 p-1.5 w-full backdrop-blur-sm border border-border/50 min-h-[42px] sm:h-10">
+              <TabsList className="flex sm:grid sm:grid-cols-4 gap-1 rounded-2xl bg-muted/30 p-1.5 w-full backdrop-blur-sm border border-border/50 min-h-[42px] h-10">
                 {" "}
                 {periods.map((p, index) => (
                   <TabsTrigger
@@ -201,7 +275,11 @@ export default function Dashboard() {
                             transition={{ delay: 0.3 }}
                             className="w-full"
                           >
-                            <Gamification className="h-full" />
+                            <Gamification 
+                              className="h-full" 
+                              expenses={expenses}
+                              isLoading={isLoading}
+                            />
                           </motion.div>
                         </div>
                       </motion.div>
@@ -393,6 +471,44 @@ function DashboardCharts({
 
   return (
     <div className="space-y-6">
+      <div className="space-y-4">
+        <h2 className="text-2xl font-semibold tracking-tight">Analisis Pengeluaran</h2>
+      </div>
+      
+      <div className="grid gap-6 lg:grid-cols-2">
+        {chartConfigs.map(({ title, Comp }, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+          >
+            <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+              <CardHeader>
+                <CardTitle className="text-sm sm:text-base">{title}</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[250px] sm:h-[300px]">
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "linear",
+                      }}
+                    >
+                      <Skeleton className="h-[200px] sm:h-[250px] w-full rounded-full" />
+                    </motion.div>
+                  </div>
+                ) : (
+                  Comp
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
       <div className="grid gap-6 lg:grid-cols-2">
         {chartConfigs.map(({ title, Comp }, i) => (
           <motion.div

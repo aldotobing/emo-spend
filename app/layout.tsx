@@ -12,6 +12,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { SyncManager } from '@/components/sync-manager';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -19,6 +20,8 @@ const inter = Inter({
   preload: true,
   variable: "--font-inter",
 });
+
+
 
 export const metadata: Metadata = {
   title: {
@@ -146,6 +149,7 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // SyncManager component handles all client-side sync logic
   return (
     <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
@@ -274,7 +278,8 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${inter.className} ${inter.variable}`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
+        <SyncManager />
         <AuthProvider>
           <ThemeProvider
             attribute="class"

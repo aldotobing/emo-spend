@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SyncManager } from "@/components/sync-manager";
 import {
   Card,
   CardContent,
@@ -146,7 +147,10 @@ export default function SettingsPage() {
           <CardDescription>Manage your expense data</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-4">
+          <div className="space-y-6">
+            <SyncManager showUI={true} />
+            <Separator />
+            
             <div>
               <h3 className="font-medium">Clear All Data</h3>
               <p className="text-sm text-muted-foreground">

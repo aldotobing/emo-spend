@@ -83,7 +83,7 @@ export default function AddExpensePage() {
       category: "",
       mood: "neutral",
       moodReason: "",
-      date: new Date(),
+      date: new Date(new Date().setHours(0, 0, 0, 0)), // Set time to start of day to avoid timezone issues
       notes: "",
     },
   });
@@ -91,18 +91,11 @@ export default function AddExpensePage() {
   // Helper function to sync data after successful expense addition
   async function performPostSubmitSync() {
     try {
-      console.log("[AddExpense] Starting post-submit data sync...");
-
-      // Pull latest data from Supabase to ensure we have all updates
       await pullExpensesFromSupabase();
-
-      // Sync any pending local changes
       await syncExpenses();
-
-      console.log("[AddExpense] Post-submit sync completed successfully");
     } catch (error) {
-      console.error("[AddExpense] Error during post-submit sync:", error);
-      // Don't throw error as the expense was already saved successfully
+      console.error("Error during post-submit sync:", error);
+      throw error; // Re-throw to handle in the calling function
     }
   }
 
@@ -112,13 +105,16 @@ export default function AddExpensePage() {
       // Ensure amount is within database limits
       const safeAmount = Math.min(values.amount, 99999999.99);
       
+      // Format the date to YYYY-MM-DD to avoid timezone issues
+      const formattedDate = format(values.date, 'yyyy-MM-dd');
+      
       // Add the expense
       const expenseId = await addExpense({
         amount: safeAmount,
         category: values.category,
         mood: values.mood as MoodType,
         moodReason: values.moodReason,
-        date: values.date.toISOString(),
+        date: formattedDate, // Use formatted date string instead of ISO string
         notes: values.notes,
       });
 
@@ -126,22 +122,22 @@ export default function AddExpensePage() {
         throw new Error("Failed to add expense");
       }
 
+      // Then sync
+      await performPostSubmitSync();
+      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
+
       toast({
-        title: "Pengeluaran ditambahkan! 🎉",
-        description:
-          "Pengeluaranmu berhasil dicatat dan sedang disinkronisasi.",
+        title: "Pengeluaran ditambahkan! ",
+        description: "Pengeluaranmu berhasil dicatat dan sedang disinkronisasi.",
         variant: "default",
       });
 
-      // Perform data sync to ensure consistency
-      await performPostSubmitSync();
-
-      // Use window.location for a hard refresh to ensure dashboard shows updated data
-      window.location.href = "/";
+      router.push('/');
+      router.refresh();
     } catch (error) {
       console.error("Error adding expense:", error);
       toast({
-        title: "Ups! Terjadi kesalahan 😕",
+        title: "Ups! Terjadi kesalahan ",
         description: "Gagal menambahkan pengeluaran. Silakan coba lagi.",
         variant: "destructive",
       });
@@ -338,10 +334,15 @@ export default function AddExpensePage() {
                             >
                               <Calendar
                                 mode="single"
-                                selected={field.value}
+                                selected={field.value ? new Date(field.value) : undefined}
                                 onSelect={(date) => {
-                                  field.onChange(date);
-                                  setIsCalendarOpen(false); // Auto-close calendar
+                                  if (date) {
+                                    // Create a new date at the start of the selected day to avoid timezone issues
+                                    const startOfDay = new Date(date);
+                                    startOfDay.setHours(0, 0, 0, 0);
+                                    field.onChange(startOfDay);
+                                    setIsCalendarOpen(false); // Auto-close calendar
+                                  }
                                 }}
                                 disabled={(date) =>
                                   date > new Date() ||

@@ -16,6 +16,7 @@ export interface Expense {
   date: string
   notes?: string
   createdAt: string
+  updatedAt?: string
 }
 
 export interface Category {
