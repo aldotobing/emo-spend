@@ -171,6 +171,7 @@ export default function Dashboard() {
                           isLoading={isLoading}
                           totalSpent={animatedTotal}
                           expensesByMood={expensesByMood}
+                          expenses={expenses}
                         />
                         <DashboardCharts
                           isLoading={isLoading}
@@ -209,12 +210,36 @@ function SummaryCards({
   isLoading,
   totalSpent,
   expensesByMood,
+  expenses,
 }: {
   isLoading: boolean;
   totalSpent: number;
   expensesByMood: any[];
+  expenses: any[];
 }) {
   const topMood = [...expensesByMood].sort((a, b) => b.total - a.total)[0];
+
+  // Calculate expenses by category
+  const { categories } = require("@/data/categories");
+  const expensesByCategory = categories
+    .map((category: any) => {
+      const categoryExpenses = expenses.filter(
+        (expense: any) => expense.category === category.id
+      );
+      const total = categoryExpenses.reduce(
+        (sum: number, expense: any) => sum + expense.amount,
+        0
+      );
+      return {
+        ...category,
+        total,
+        count: categoryExpenses.length,
+        percentage: totalSpent ? (total / totalSpent) * 100 : 0,
+      };
+    })
+    .filter((item: any) => item.total > 0);
+
+  const topCategory = [...expensesByCategory].sort((a, b) => b.total - a.total)[0];
 
   const cards = [
     {
@@ -226,7 +251,7 @@ function SummaryCards({
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 15 }}
-          className="text-2xl sm:text-3xl font-bold tabular-nums bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"
+          className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex justify-center w-full"
         >
           {formatCurrency(totalSpent)}
         </motion.div>
@@ -241,7 +266,7 @@ function SummaryCards({
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="flex items-center"
+          className="flex items-center justify-center w-full"
         >
           <motion.span
             animate={{ rotate: [0, 10, -10, 0] }}
@@ -251,11 +276,41 @@ function SummaryCards({
             {topMood?.emoji}
           </motion.span>
           <div>
-            <div className="font-bold text-sm sm:text-base">
+            <div className="font-bold text-xs sm:text-sm lg:text-base">
               {topMood?.label}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs sm:text-xs lg:text-sm text-muted-foreground">
               {formatCurrency(topMood?.total)} ({topMood?.percentage.toFixed(0)}
+              %)
+            </div>
+          </div>
+        </motion.div>
+      ),
+    },
+    {
+      title: "Kategori Teratas",
+      content: isLoading ? (
+        <Skeleton className="h-8 w-[120px]" />
+      ) : (
+        <motion.div
+          initial={{ x: -20, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ delay: 0.15 }}
+          className="flex items-center justify-center w-full"
+        >
+          <motion.span
+            animate={{ scale: [1, 1.1, 1] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+            className="text-2xl mr-3"
+          >
+            {topCategory?.icon}
+          </motion.span>
+          <div>
+            <div className="font-bold text-xs sm:text-sm lg:text-base">
+              {topCategory?.name}
+            </div>
+            <div className="text-xs sm:text-xs lg:text-sm text-muted-foreground">
+              {formatCurrency(topCategory?.total)} ({topCategory?.percentage.toFixed(0)}
               %)
             </div>
           </div>
@@ -276,7 +331,7 @@ function SummaryCards({
             stiffness: 200,
             damping: 15,
           }}
-          className="text-2xl sm:text-3xl font-bold tabular-nums text-blue-600"
+          className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums text-blue-600 flex justify-center w-full"
         >
           {expensesByMood.reduce((sum, m) => sum + m.count, 0)}
         </motion.div>
@@ -285,21 +340,22 @@ function SummaryCards({
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
       {cards.map((card, index) => (
         <motion.div
           key={index}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.1 }}
+          transition={{ delay: index * 0.1, duration: 0.3 }}
+          className="h-full"
         >
-          <Card className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader className="flex justify-between items-center pb-3">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+          <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardHeader className="flex justify-between items-center pb-2 xs:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 {card.title}
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">{card.content}</CardContent>
+            <CardContent className="pt-0 px-3 sm:px-4 pb-3 sm:pb-4">{card.content}</CardContent>
           </Card>
         </motion.div>
       ))}
@@ -335,7 +391,7 @@ function DashboardCharts({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card className="hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+            <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-sm sm:text-base">{title}</CardTitle>
               </CardHeader>
