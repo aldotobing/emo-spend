@@ -1,9 +1,52 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
+import type { CellStyleColor } from 'xlsx-js-style';
+
+// Define a type for our cell style that includes the properties we need
+type ExcelCellStyle = {
+  font?: {
+    bold?: boolean;
+    sz?: number;
+    italic?: boolean;
+    color?: CellStyleColor;
+    name?: string;
+    strike?: boolean;
+    underline?: boolean;
+    vertAlign?: 'superscript' | 'subscript';
+  };
+  alignment?: {
+    horizontal?: 'left' | 'center' | 'right' | 'justify' | 'fill' | 'centerContinuous' | 'distributed';
+    vertical?: 'top' | 'middle' | 'bottom' | 'distributed' | 'justify';
+    wrapText?: boolean;
+    textRotation?: number;
+  };
+  border?: {
+    top?: { style?: string; color?: CellStyleColor };
+    bottom?: { style?: string; color?: CellStyleColor };
+    left?: { style?: string; color?: CellStyleColor };
+    right?: { style?: string; color?: CellStyleColor };
+  };
+  fill?: {
+    fgColor?: { rgb: string };
+    patternType?: string;
+  };
+  numFmt?: string;
+};
+
 import { getExpenses } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 import { getCategory } from "@/data/categories";
 import { getMood } from "@/data/moods";
 import type { Expense } from "@/types/expense";
+
+// Use the ExcelCellStyle type we defined at the top of the file
+type CellStyle = ExcelCellStyle;
+
+// Define a type for worksheet cell with our custom style
+type WorksheetCell = {
+  v: any;
+  t: string;
+  s: ExcelCellStyle;
+};
 
 /**
  * Exports expenses to an Excel file with proper formatting
@@ -66,10 +109,132 @@ export async function exportExpensesToExcel(): Promise<Blob> {
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Default cell style
+  const defaultCellStyle: ExcelCellStyle = {
+    font: { sz: 11 },
+    border: {
+      top: { style: 'thin' },
+      bottom: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' }
+    }
+  };
 
-  // Set column widths - adjusted for new order
-  const columnWidths = [
+  // Prepare data with styles
+  const wsDataWithStyles: WorksheetCell[][] = wsData.map((row, rowIndex) => 
+    row.map((cell, colIndex) => ({
+      v: cell,
+      t: typeof cell === 'number' ? 'n' : 's',
+      s: { ...defaultCellStyle }
+    }))
+  );
+
+  // Title styling - override the default style for the title cell
+  const titleCell = wsDataWithStyles[0][0];
+  titleCell.s = {
+    font: {
+      bold: true,
+      sz: 16,
+      name: 'Arial'
+    },
+    alignment: {
+      horizontal: 'left',
+      vertical: 'middle'
+    },
+    border: {
+      top: { style: 'thin' },
+      bottom: { style: 'thin' },
+      left: { style: 'thin' },
+      right: { style: 'thin' }
+    }
+  };
+
+  // Generation date styling
+  const generationDateCell = wsDataWithStyles[1][0];
+  generationDateCell.s = {
+    font: { italic: true },
+    alignment: { horizontal: 'left' },
+    border: {
+      top: { style: 'none', color: { rgb: '00000000' } },
+      bottom: { style: 'none', color: { rgb: '00000000' } },
+      left: { style: 'none', color: { rgb: '00000000' } },
+      right: { style: 'none', color: { rgb: '00000000' } }
+    }
+  };
+
+  // Header row styling
+  const headerRowIndex = 3; // Title + Generated Date + Empty row
+  wsDataWithStyles[headerRowIndex].forEach(cell => {
+    cell.s = {
+      fill: { fgColor: { rgb: 'BFBFBF' }, patternType: 'solid' },
+      font: { bold: true, sz: 11 },
+      alignment: { horizontal: 'center', vertical: 'middle' },
+      border: {
+        top: { style: 'thin' },
+        bottom: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    };
+  });
+
+  // Amount column formatting (last column)
+  for (let i = headerRowIndex + 1; i < wsDataWithStyles.length - 1; i++) {
+    const amountCell = wsDataWithStyles[i][5];
+    if (amountCell) {
+      amountCell.s = {
+        ...amountCell.s,
+        numFmt: '"Rp"#,##0.00'
+      };
+    }
+  }
+
+  // Total row styling
+  const totalRowIndex = wsDataWithStyles.length - 1;
+  
+  // Style the "Total" text cell (column E)
+  wsDataWithStyles[totalRowIndex][4].s = {
+    font: { bold: true, sz: 11 },
+    alignment: { horizontal: 'right' },
+    fill: { fgColor: { rgb: 'E6E6E6' }, patternType: 'solid' },
+    border: {
+      top: { style: 'thin' },
+      bottom: { style: 'double' },
+      left: { style: 'thin' },
+      right: { style: 'thin' }
+    }
+  };
+  
+  // Style the total amount cell (column F)
+  wsDataWithStyles[totalRowIndex][5].s = {
+    font: { bold: true, sz: 11 },
+    fill: { fgColor: { rgb: 'E6E6E6' }, patternType: 'solid' },
+    border: {
+      top: { style: 'thin' },
+      bottom: { style: 'double' },
+      left: { style: 'thin' },
+      right: { style: 'thin' }
+    },
+    numFmt: '"Rp"#,##0.00'
+  };
+
+  // Create worksheet from styled data
+  const ws = XLSX.utils.aoa_to_sheet(wsDataWithStyles.map(row => 
+    row.map(cell => cell.v)
+  ));
+
+  // Apply styles to worksheet
+  wsDataWithStyles.forEach((row, rowIndex) => {
+    row.forEach((cell, colIndex) => {
+      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
+      ws[cellRef].s = cell.s;
+    });
+  });
+
+  // Set column widths
+  ws['!cols'] = [
     { wch: 15 }, // Date
     { wch: 15 }, // Category
     { wch: 15 }, // Mood
@@ -77,112 +242,22 @@ export async function exportExpensesToExcel(): Promise<Blob> {
     { wch: 30 }, // Notes
     { wch: 15 }, // Amount
   ];
-  ws['!cols'] = columnWidths;
-
-  // Apply styling
-  // Title styling
-  const titleCell = XLSX.utils.encode_cell({ r: 0, c: 0 });
-  if (!ws[titleCell].s) ws[titleCell].s = {};
-  ws[titleCell].s = {
-    font: { bold: true, sz: 16 },
-    alignment: { horizontal: "left" }
-  };
-
-  // Generation date styling
-  const genDateCell = XLSX.utils.encode_cell({ r: 1, c: 0 });
-  if (!ws[genDateCell].s) ws[genDateCell].s = {};
-  ws[genDateCell].s = {
-    font: { italic: true },
-    alignment: { horizontal: "left" }
-  };
-
-  // Header styling (grey background, bold font)
-  const headerRowIndex = 3; // Title + Generated Date + Empty row
-  const headerRange = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-  for (let C = headerRange.s.c; C <= headerRange.e.c; ++C) {
-    const cellRef = XLSX.utils.encode_cell({ r: headerRowIndex, c: C });
-    if (!ws[cellRef]) continue;
-    
-    // Create cell object if it doesn't exist
-    if (!ws[cellRef].s) ws[cellRef].s = {};
-    
-    // Apply header styling - darker grey background
-    ws[cellRef].s = {
-      fill: { fgColor: { rgb: "BFBFBF" }, patternType: "solid" },
-      font: { bold: true, sz: 11 },
-      alignment: { horizontal: "center", vertical: "center" },
-      border: {
-        top: { style: "thin" },
-        bottom: { style: "thin" },
-        left: { style: "thin" },
-        right: { style: "thin" }
-      }
-    };
-  }
-
-  // Add borders to all data cells
-  for (let R = headerRowIndex + 1; R < headerRowIndex + rows.length + 1; ++R) {
-    for (let C = 0; C <= headerRange.e.c; ++C) {
-      const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-      if (!ws[cellRef]) continue;
-      
-      // Create cell object if it doesn't exist
-      if (!ws[cellRef].s) ws[cellRef].s = {};
-      
-      // Apply cell borders
-      ws[cellRef].s.border = {
-        top: { style: "thin" },
-        bottom: { style: "thin" },
-        left: { style: "thin" },
-        right: { style: "thin" }
-      };
-
-      // Format amount cells (last column) as Indonesian currency
-      if (C === 5) { // Amount column (last column)
-        ws[cellRef].z = '"Rp"#,##0'; // Indonesian Rupiah format
-      }
-    }
-  }
-
-  // Total row styling
-  const totalRowIndex = headerRowIndex + rows.length; // Header row + data rows
-  const totalTextCell = XLSX.utils.encode_cell({ r: totalRowIndex, c: 4 }); // "Total" text cell
-  const totalAmountCell = XLSX.utils.encode_cell({ r: totalRowIndex, c: 5 }); // Amount cell
-  
-  // Style the "Total" text cell
-  if (!ws[totalTextCell].s) ws[totalTextCell].s = {};
-  ws[totalTextCell].s = {
-    font: { bold: true, sz: 11 },
-    alignment: { horizontal: "right" },
-    fill: { fgColor: { rgb: "E6E6E6" }, patternType: "solid" },
-    border: {
-      top: { style: "thin" },
-      bottom: { style: "double" },
-      left: { style: "thin" },
-      right: { style: "thin" }
-    }
-  };
-  
-  // Style the total amount cell
-  if (!ws[totalAmountCell].s) ws[totalAmountCell].s = {};
-  ws[totalAmountCell].s = {
-    font: { bold: true, sz: 11 },
-    fill: { fgColor: { rgb: "E6E6E6" }, patternType: "solid" },
-    border: {
-      top: { style: "thin" },
-      bottom: { style: "double" },
-      left: { style: "thin" },
-      right: { style: "thin" }
-    }
-  };
-  ws[totalAmountCell].z = '"Rp"#,##0'; // Indonesian Rupiah format
 
   // Add the worksheet to the workbook
-  XLSX.utils.book_append_sheet(wb, ws, "Expense Report");
+  XLSX.utils.book_append_sheet(wb, ws, 'Expense Report');
 
   // Generate Excel file as a blob
-  const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  return new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const excelBuffer = XLSX.write(wb, { 
+    bookType: 'xlsx', 
+    type: 'array',
+    bookSST: false,
+    cellStyles: true,
+    compression: true
+  });
+  
+  return new Blob([excelBuffer], { 
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+  });
 }
 
 /**
