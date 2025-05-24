@@ -34,17 +34,19 @@ export default function Dashboard() {
   // State for expenses and loading
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // State for period selection
-  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("month");
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">(
+    "month"
+  );
   const { sync } = useSync();
-  
+
   // State for animated total
   const [animatedTotal, setAnimatedTotal] = useState(0);
-  
+
   // State for calendar visibility
   const [showCalendar, setShowCalendar] = useState(false);
-  
+
   // State for mood filter
   const [selectedMood, setSelectedMood] = useState<MoodType | "all">("all");
 
@@ -54,7 +56,7 @@ export default function Dashboard() {
       const { start, end } = getDateRangeForPeriod(period);
       const data = await getExpensesByDateRange(start, end);
       setExpenses(data);
-      
+
       // Trigger a sync when data is loaded (in case there are pending changes)
       await sync({ silent: true });
     } catch (err) {
@@ -121,19 +123,22 @@ export default function Dashboard() {
           setExpenses(data);
         }
       } catch (error) {
-        console.error('Error fetching expenses after change:', error);
+        console.error("Error fetching expenses after change:", error);
       }
     };
 
     // Subscribe to changes
-    const unsubscribe = db.expenses.hook('creating', handleExpenseChange as any) as unknown as (() => void) | undefined;
+    const unsubscribe = db.expenses.hook(
+      "creating",
+      handleExpenseChange as any
+    ) as unknown as (() => void) | undefined;
 
     // Initial fetch
     handleExpenseChange();
 
     return () => {
       mounted = false;
-      if (typeof unsubscribe === 'function') {
+      if (typeof unsubscribe === "function") {
         unsubscribe();
       }
     };
@@ -156,7 +161,7 @@ export default function Dashboard() {
               onClick={() => setShowCalendar(!showCalendar)}
             >
               <CalendarIcon className="h-4 w-4" />
-              {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
+              {showCalendar ? "Hide Calendar" : "Show Calendar"}
             </Button>
             <Link href="/add">
               <Button size="sm" className="h-10 px-4 gap-2">
@@ -185,21 +190,18 @@ export default function Dashboard() {
               onClick={() => setShowCalendar(!showCalendar)}
             >
               <CalendarIcon className="h-5 w-5" />
-              <span className="text-sm font-medium">
-                Calendar
-              </span>
+              <span className="text-sm font-medium">Calendar</span>
             </Button>
           </motion.div>
         </div>
 
         <div className="px-4 sm:px-6 lg:px-8">
-
           {/* Calendar */}
           <AnimatePresence>
             {showCalendar && (
               <motion.div
                 initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginBottom: '1.5rem' }}
+                animate={{ opacity: 1, height: "auto", marginBottom: "1.5rem" }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden mb-6"
@@ -211,7 +213,9 @@ export default function Dashboard() {
                         <h3 className="text-lg font-medium">Calendar View</h3>
                         <select
                           value={selectedMood}
-                          onChange={(e) => setSelectedMood(e.target.value as MoodType | "all")}
+                          onChange={(e) =>
+                            setSelectedMood(e.target.value as MoodType | "all")
+                          }
                           className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
                         >
                           <option value="all">All Moods</option>
@@ -222,10 +226,12 @@ export default function Dashboard() {
                           ))}
                         </select>
                       </div>
-                      <EnhancedCalendar 
-                        expenses={expenses} 
+                      <EnhancedCalendar
+                        expenses={expenses}
                         isLoading={isLoading}
-                        selectedMood={selectedMood === "all" ? undefined : selectedMood}
+                        selectedMood={
+                          selectedMood === "all" ? undefined : selectedMood
+                        }
                       />
                     </div>
                   </CardContent>
@@ -246,13 +252,13 @@ export default function Dashboard() {
               transition={{ delay: 0.1 }}
               className="w-full"
             >
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-4 h-10 sm:h-12 rounded-md p-1">
                 {periods.map((p) => (
                   <TabsTrigger
                     key={p}
                     value={p}
                     onClick={() => handlePeriodChange(p)}
-                    className="capitalize"
+                    className="capitalize h-8 sm:h-10 w-full text-xs font-medium sm:text-base flex items-center justify-center rounded-sm min-h-[32px] sm:min-h-[40px]"
                   >
                     {p}
                   </TabsTrigger>
@@ -294,8 +300,12 @@ export default function Dashboard() {
                               expenses={expenses}
                               onExpenseDeleted={async () => {
                                 // Refresh the dashboard data when an expense is deleted
-                                const { start, end } = getDateRangeForPeriod(period);
-                                const data = await getExpensesByDateRange(start, end);
+                                const { start, end } =
+                                  getDateRangeForPeriod(period);
+                                const data = await getExpensesByDateRange(
+                                  start,
+                                  end
+                                );
                                 setExpenses(data);
                               }}
                             />
@@ -306,8 +316,8 @@ export default function Dashboard() {
                             transition={{ delay: 0.3 }}
                             className="w-full"
                           >
-                            <Gamification 
-                              className="h-full" 
+                            <Gamification
+                              className="h-full"
                               expenses={expenses}
                               isLoading={isLoading}
                             />
@@ -358,7 +368,9 @@ function SummaryCards({
     })
     .filter((item: any) => item.total > 0);
 
-  const topCategory = [...expensesByCategory].sort((a, b) => b.total - a.total)[0];
+  const topCategory = [...expensesByCategory].sort(
+    (a, b) => b.total - a.total
+  )[0];
 
   const cards = [
     {
@@ -449,7 +461,8 @@ function SummaryCards({
               {topCategory?.name}
             </div>
             <div className="text-xs sm:text-xs lg:text-sm text-muted-foreground">
-              {formatCurrency(topCategory?.total)} ({topCategory?.percentage.toFixed(0)}
+              {formatCurrency(topCategory?.total)} (
+              {topCategory?.percentage.toFixed(0)}
               %)
             </div>
           </div>
@@ -474,7 +487,9 @@ function SummaryCards({
                 {card.title}
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 px-3 sm:px-4 pb-3 sm:pb-4">{card.content}</CardContent>
+            <CardContent className="pt-0 px-3 sm:px-4 pb-3 sm:pb-4">
+              {card.content}
+            </CardContent>
           </Card>
         </motion.div>
       ))}
@@ -502,7 +517,6 @@ function DashboardCharts({
 
   return (
     <div className="space-y-6">
-      
       <div className="grid gap-6 lg:grid-cols-2">
         {chartConfigs.map(({ title, Comp }, i) => (
           <motion.div
@@ -573,7 +587,7 @@ function DashboardCharts({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <motion.div
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
@@ -596,7 +610,7 @@ function DashboardCharts({
             </CardContent>
           </Card>
         </motion.div>
-        
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -620,8 +634,6 @@ function DashboardCharts({
             </CardContent>
           </Card>
         </motion.div>
-
-        
       </div>
     </div>
   );
@@ -642,14 +654,14 @@ function RecentExpenses({
 
   const handleDeleteExpense = async (id: string) => {
     try {
-      const { deleteExpense } = await import('@/lib/db');
+      const { deleteExpense } = await import("@/lib/db");
       const success = await deleteExpense(id);
       if (success && onExpenseDeleted) {
         onExpenseDeleted();
       }
       return success;
     } catch (error) {
-      console.error('Error deleting expense:', error);
+      console.error("Error deleting expense:", error);
       return false;
     }
   };
@@ -669,10 +681,7 @@ function RecentExpenses({
             ))}
           </div>
         ) : (
-          <ExpenseList 
-            expenses={recent} 
-            onDelete={handleDeleteExpense} 
-          />
+          <ExpenseList expenses={recent} onDelete={handleDeleteExpense} />
         )}
       </CardContent>
     </Card>
