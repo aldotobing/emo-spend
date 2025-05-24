@@ -16,7 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { useTheme } from "next-themes";
 import { clearLocalUserData } from "@/lib/db";
 import { useToast } from "@/components/ui/use-toast";
-import { exportExpensesToCSV, downloadCSV } from "@/lib/csv-export";
+import { exportExpensesToExcel, downloadExcel } from "@/lib/excel-export";
 import { useAuth } from "@/context/auth-context";
 import {
   AlertDialog,
@@ -29,6 +29,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import PrivacyPolicy from "../privacy-policy";
+import TermsOfService from "../terms-of-service";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -36,6 +43,8 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const [isClearing, setIsClearing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const handleClearData = async () => {
     setIsClearing(true);
@@ -77,16 +86,17 @@ export default function SettingsPage() {
     // Don't set isClearing to false on success as we're redirecting
   };
 
-  const handleExportCSV = async () => {
+  const handleExportExcel = async () => {
     setIsExporting(true);
     try {
-      const csvContent = await exportExpensesToCSV();
-      downloadCSV(csvContent, "emospend-expenses.csv");
+      const excelBlob = await exportExpensesToExcel();
+      downloadExcel(excelBlob, "EmoSpend-Expense-Report.xlsx");
       toast({
         title: "Export successful",
-        description: "Your expense data has been exported to CSV.",
+        description: "Your expense data has been exported to Excel.",
       });
     } catch (error) {
+      console.error('Export error:', error);
       toast({
         title: "Export failed",
         description: "Failed to export data. Please try again.",
@@ -176,15 +186,15 @@ export default function SettingsPage() {
             <div>
               <h3 className="font-medium">Export Data</h3>
               <p className="text-sm text-muted-foreground">
-                Export your expense data as a CSV file
+                Export your expense data as a formatted Excel report
               </p>
             </div>
             <Button
               variant="outline"
-              onClick={handleExportCSV}
+              onClick={handleExportExcel}
               disabled={isExporting}
             >
-              {isExporting ? "Exporting..." : "Export to CSV"}
+              {isExporting ? "Exporting..." : "Export to Excel"}
             </Button>
           </div>
         </CardContent>
@@ -217,8 +227,23 @@ export default function SettingsPage() {
           </p>
         </CardContent>
         <CardFooter className="flex justify-between">
-          <Button variant="outline">Privacy Policy</Button>
-          <Button variant="outline">Terms of Service</Button>
+          <Dialog open={privacyOpen} onOpenChange={setPrivacyOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">Privacy Policy</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[625px] max-h-[80vh]">
+              <PrivacyPolicy />
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">Terms of Service</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[625px] max-h-[80vh]">
+              <TermsOfService />
+            </DialogContent>
+          </Dialog>
         </CardFooter>
       </Card>
     </div>
