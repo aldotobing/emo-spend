@@ -31,7 +31,7 @@ import {
   MessageSquareText, // For model used
 } from "lucide-react";
 import { moods } from "@/data/moods";
-import { CalendarHeatmap } from "@/components/calendar-heatmap";
+import { EnhancedCalendar } from "@/components/enhanced-calendar";
 import { Gamification } from "@/components/gamification";
 import { generateAIInsights, generateDetailedAnalysis } from "@/lib/ai-insights";
 import { motion } from "framer-motion";
@@ -543,7 +543,7 @@ export default function InsightsPage() {
             </Select>
           </div>
 
-          <CalendarHeatmap
+          <EnhancedCalendar
             selectedMood={selectedMood === "all" ? undefined : selectedMood}
             expenses={expenses}
             isLoading={isLoading}
