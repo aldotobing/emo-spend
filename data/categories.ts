@@ -1,4 +1,4 @@
-import type { Category } from "@/types/expense"
+import type { Category } from "@/types/expense";
 
 export const categories: Category[] = [
   {
@@ -46,8 +46,11 @@ export const categories: Category[] = [
     name: "Other",
     icon: "📦",
   },
-]
+];
 
-export function getCategory(id: string): Category {
-  return categories.find((category) => category.id === id) || categories[8] // Default to other
+export function getCategory(id: string): Category | undefined {
+  return (
+    categories.find((category) => category.id === id) ||
+    categories.find((c) => c.id === "other")
+  );
 }

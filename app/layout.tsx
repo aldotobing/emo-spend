@@ -10,9 +10,9 @@ import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
-import { Analytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
-import { SyncManager } from '@/components/sync-manager';
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { SyncManager } from "@/components/sync-manager";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,11 +21,10 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
-
-
 export const metadata: Metadata = {
   title: {
-    default: "EmoSpend - Track your spending and uncover the emotions behind every purchase with AI-powered insights.",
+    default:
+      "EmoSpend - Track your spending and uncover the emotions behind every purchase with AI-powered insights.",
     template: "%s | EmoSpend - Emotional Spending Tracker",
   },
   description:
@@ -147,7 +146,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }) {
   // SyncManager component handles all client-side sync logic
   return (
@@ -164,7 +163,6 @@ export default function RootLayout({
 
         {/* Icons and PWA */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="manifest" href="/site.webmanifest" />
 
@@ -302,47 +300,47 @@ export default function RootLayout({
                     </main>
                     <ConditionalBottomNavigation />
                   </div>
-                  <Toaster 
+                  <Toaster
                     position="bottom-right"
                     containerStyle={{
-                      bottom: '2rem',
-                      right: '2rem',
+                      bottom: "2rem",
+                      right: "2rem",
                       zIndex: 1000,
                     }}
                     toastOptions={{
                       duration: 5000,
                       style: {
-                        background: 'hsl(var(--background))',
-                        color: 'hsl(var(--foreground))',
-                        border: '1px solid hsl(var(--border))',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        background: "hsl(var(--background))",
+                        color: "hsl(var(--foreground))",
+                        border: "1px solid hsl(var(--border))",
+                        padding: "12px 16px",
+                        borderRadius: "8px",
+                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
                         margin: 0,
-                        maxWidth: '400px',
-                        width: 'auto',
+                        maxWidth: "400px",
+                        width: "auto",
                       },
-                      className: 'toast',
+                      className: "toast",
                       success: {
                         iconTheme: {
-                          primary: 'hsl(var(--primary))',
-                          secondary: 'hsl(var(--primary-foreground))',
+                          primary: "hsl(var(--primary))",
+                          secondary: "hsl(var(--primary-foreground))",
                         },
                       },
                       error: {
                         style: {
-                          background: 'hsl(var(--destructive))',
-                          color: 'hsl(var(--destructive-foreground))',
+                          background: "hsl(var(--destructive))",
+                          color: "hsl(var(--destructive-foreground))",
                         },
                         iconTheme: {
-                          primary: 'hsl(var(--destructive-foreground))',
-                          secondary: 'hsl(var(--destructive))',
+                          primary: "hsl(var(--destructive-foreground))",
+                          secondary: "hsl(var(--destructive))",
                         },
                       },
                       loading: {
                         iconTheme: {
-                          primary: 'hsl(var(--primary))',
-                          secondary: 'hsl(var(--primary-foreground))',
+                          primary: "hsl(var(--primary))",
+                          secondary: "hsl(var(--primary-foreground))",
                         },
                       },
                     }}
