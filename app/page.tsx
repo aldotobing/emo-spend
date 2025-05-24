@@ -1,10 +1,11 @@
 // app/page.tsx or pages/dashboard.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { MoodType } from "@/types/expense";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
+import { useSync } from "@/hooks/use-sync";
 import {
   Card,
   CardContent,
@@ -36,6 +37,7 @@ export default function Dashboard() {
   
   // State for period selection
   const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("month");
+  const { sync } = useSync();
   
   // State for animated total
   const [animatedTotal, setAnimatedTotal] = useState(0);
@@ -46,21 +48,33 @@ export default function Dashboard() {
   // State for mood filter
   const [selectedMood, setSelectedMood] = useState<MoodType | "all">("all");
 
-  useEffect(() => {
-    async function fetchData() {
-      setIsLoading(true);
-      try {
-        const { start, end } = getDateRangeForPeriod(period);
-        const data = await getExpensesByDateRange(start, end);
-        setExpenses(data);
-      } catch (err) {
-        console.error("Error fetching expenses:", err);
-      } finally {
-        setIsLoading(false);
-      }
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { start, end } = getDateRangeForPeriod(period);
+      const data = await getExpensesByDateRange(start, end);
+      setExpenses(data);
+      
+      // Trigger a sync when data is loaded (in case there are pending changes)
+      await sync({ silent: true });
+    } catch (err) {
+      console.error("Error fetching expenses:", err);
+    } finally {
+      setIsLoading(false);
     }
+  }, [period, sync]);
+
+  // Initial data fetch
+  useEffect(() => {
     fetchData();
-  }, [period]);
+  }, [fetchData]);
+
+  // Handle period change with sync
+  const handlePeriodChange = (newPeriod: typeof period) => {
+    setPeriod(newPeriod);
+    // Trigger a sync when changing periods to ensure we have the latest data
+    sync({ silent: true });
+  };
 
   const totalSpent = expenses.reduce((sum, e) => sum + e.amount, 0);
   const expensesByMood = moods.map((m) => {
@@ -99,6 +113,8 @@ export default function Dashboard() {
     const handleExpenseChange = async () => {
       if (!mounted) return;
       try {
+        // Trigger a sync when expenses change
+        await sync({ silent: true });
         const { start, end } = getDateRangeForPeriod(period);
         const data = await getExpensesByDateRange(start, end);
         if (mounted) {
@@ -230,31 +246,15 @@ export default function Dashboard() {
               transition={{ delay: 0.1 }}
               className="w-full"
             >
-              <TabsList className="flex sm:grid sm:grid-cols-4 gap-1 rounded-2xl bg-muted/30 p-1.5 w-full backdrop-blur-sm border border-border/50 min-h-[42px] h-10">
-                {" "}
-                {periods.map((p, index) => (
+              <TabsList className="grid w-full grid-cols-4">
+                {periods.map((p) => (
                   <TabsTrigger
                     key={p}
                     value={p}
-                    // MODIFIED: Added px-3 py-1.5 for better padding/touch targets
-                    className="text-xs sm:text-sm font-medium rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-border/20 transition-all duration-300 relative overflow-hidden px-3 py-1.5"
+                    onClick={() => handlePeriodChange(p)}
+                    className="capitalize"
                   >
-                    <motion.span
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="relative z-10"
-                    >
-                      {p === "day"
-                        ? "Hari"
-                        : p === "week"
-                        ? "Minggu"
-                        : p === "month"
-                        ? "Bulan"
-                        : "Tahun"}
-                    </motion.span>
+                    {p}
                   </TabsTrigger>
                 ))}
               </TabsList>

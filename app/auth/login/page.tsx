@@ -75,8 +75,8 @@ export default function LoginPage() {
     // Perform data sync
     await performPostLoginSync();
 
-    // Use window.location for a hard refresh to ensure all components re-initialize
-    window.location.href = "/";
+    // Navigate to home page without full page refresh
+    router.push('/');
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {

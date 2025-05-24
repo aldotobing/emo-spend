@@ -37,8 +37,9 @@ import {
 import { FunMoodSelector } from "@/components/fun-mood-selector";
 import { categories } from "@/data/categories";
 import { cn } from "@/lib/utils";
-import { addExpense, pullExpensesFromSupabase, syncExpenses } from "@/lib/db";
+import { addExpense } from "@/lib/db";
 import { useToast } from "@/components/ui/use-toast";
+import { useSync } from "@/hooks/use-sync";
 import type { MoodType } from "@/types/expense";
 
 const formSchema = z.object({
@@ -75,6 +76,7 @@ export default function AddExpensePage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { sync } = useSync();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -91,8 +93,8 @@ export default function AddExpensePage() {
   // Helper function to sync data after successful expense addition
   async function performPostSubmitSync() {
     try {
-      await pullExpensesFromSupabase();
-      await syncExpenses();
+      // Use the new sync system which handles both pull and push
+      await sync({ silent: true });
     } catch (error) {
       console.error("Error during post-submit sync:", error);
       throw error; // Re-throw to handle in the calling function

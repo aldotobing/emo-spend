@@ -1,12 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { getDb, syncExpenses, pullExpensesFromSupabase } from '@/lib/db';
+import { useEffect, useState } from 'react';
+import { useSync, type SyncResult } from '@/hooks/use-sync';
 import { Button } from './ui/button';
-import { RefreshCw, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-
-// Simple lock to prevent concurrent syncs
-let isSyncing = false;
+import { RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface SyncStats {
   syncedLocal: number;
@@ -21,95 +19,57 @@ interface SyncManagerProps {
 }
 
 export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
-  const [syncState, setSyncState] = useState<{
-    isSyncing: boolean;
-    lastSync: Date | null;
-    lastError: string | null;
-    stats: SyncStats;
-  }>({
-    isSyncing: false,
-    lastSync: null,
-    lastError: null,
-    stats: { syncedLocal: 0, syncedRemote: 0, skipped: 0 }
+  const { sync, isSyncing } = useSync();
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(
+    typeof window !== 'undefined' ? navigator.onLine : true
+  );
+  const [stats, setStats] = useState<SyncStats>({ 
+    syncedLocal: 0, 
+    syncedRemote: 0, 
+    skipped: 0 
   });
+  const router = useRouter();
 
-  const updateSyncState = (updates: Partial<typeof syncState> | ((prev: typeof syncState) => Partial<typeof syncState>)) => {
-    setSyncState(prev => {
-      const newState = typeof updates === 'function' ? updates(prev) : updates;
-      return {
-        ...prev,
-        ...newState
-      };
-    });
-  };
-
-  // Use a ref to track the current sync state without causing re-renders
-  const isSyncingRef = useRef(false);
-  const lastSyncTimeRef = useRef<number>(0);
-  const SYNC_COOLDOWN_MS = 30000; // 30 seconds cooldown between syncs
-
-  const performSync = useCallback(async (manual = false) => {
-    const now = Date.now();
-    
-    // Skip if already syncing or in cooldown (unless it's a manual sync)
-    if (isSyncingRef.current || (!manual && now - lastSyncTimeRef.current < SYNC_COOLDOWN_MS)) {
-      if (manual) {
-        updateSyncState({ lastError: 'Sync already in progress or in cooldown' });
-      }
-      return;
-    }
-
-    isSyncingRef.current = true;
-    updateSyncState({
-      isSyncing: true,
-      lastError: null
-    });
-
+  const performSync = async (manual = false): Promise<SyncResult> => {
     try {
-      console.log('[Sync] Starting sync process...');
+      const result = await sync({ force: manual });
       
-      // Perform the sync operation which now handles both push and pull
-      const result = await syncExpenses();
+      if (result.success) {
+        setLastSync(new Date());
+        setLastError(null);
+        
+        // Update stats if we have them
+        if (result.syncedLocal !== undefined || result.syncedRemote !== undefined) {
+          setStats(prev => ({
+            ...prev,
+            syncedLocal: result.syncedLocal ?? 0,
+            syncedRemote: result.syncedRemote ?? 0,
+            skipped: result.skipped ?? 0
+          }));
+        }
+        
+        // Refresh the page data after successful sync
+        router.refresh();
+      } else if (result.error) {
+        setLastError(result.error);
+      } else if (result.message) {
+        console.log('[Sync]', result.message);
+      }
       
-      // Update last sync time
-      lastSyncTimeRef.current = now;
-      
-      // Update stats
-      updateSyncState(prev => ({
-        lastSync: new Date(),
-        stats: {
-          ...prev.stats, // Keep existing stats
-          ...result,    // Update with new sync results
-          lastSync: new Date()
-        },
-        lastError: null
-      }));
-      
-      console.log('[Sync] Sync completed successfully', result);
+      return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Sync] Error during sync:', error);
-      updateSyncState(prev => ({
-        lastError: errorMessage,
-        stats: {
-          ...prev.stats, // Keep existing stats
-          lastError: errorMessage
-        }
-      }));
-    } finally {
-      isSyncingRef.current = false;
-      updateSyncState(prev => ({
-        isSyncing: false,
-        // Keep other state but update isSyncing
-        ...(prev.lastError ? {} : { lastError: null })
-      }));
+      setLastError(errorMessage);
+      return { success: false, error: errorMessage };
     }
-  }, []); // No dependencies - we're using refs for values that change
+  };
 
   // Initial sync on mount
   useEffect(() => {
     performSync();
-  }, [performSync]);
+  }, []);
 
   // Set up periodic sync (every 5 minutes)
   useEffect(() => {
@@ -118,10 +78,7 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [performSync]);
-
-  // State to track online status
-  const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? navigator.onLine : true);
+  }, []);
 
   // Listen for online/offline events to trigger sync when connection is restored
   useEffect(() => {
@@ -144,11 +101,12 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     // Set initial online state
     setIsOnline(navigator.onLine);
     
+    // Cleanup
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [performSync]);
+  }, []);
 
   const formatTimeAgo = (date: Date | null) => {
     if (!date) return 'Never';
@@ -172,36 +130,45 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
             variant="outline" 
             size="sm"
             onClick={() => performSync(true)}
-            disabled={syncState.isSyncing}
+            disabled={isSyncing}
             className="gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${syncState.isSyncing ? 'animate-spin' : ''}`} />
-            {syncState.isSyncing ? 'Syncing...' : 'Sync Now'}
+            <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Syncing...' : 'Sync Now'}
           </Button>
         </div>
         
         <div className="text-sm space-y-1 text-muted-foreground">
-          {syncState.lastSync && (
-            <div>Last sync: {formatTimeAgo(syncState.lastSync)}</div>
+          {lastSync && (
+            <div>Last sync: {formatTimeAgo(lastSync)}</div>
           )}
           
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {isOnline ? (
+              <Wifi className="h-3 w-3 text-green-500" />
+            ) : (
+              <WifiOff className="h-3 w-3 text-red-500" />
+            )}
+            <span>{isOnline ? 'Online' : 'Offline'}</span>
+          </div>
+          
           <div className="text-xs mt-1 space-y-1">
-            {syncState.stats.syncedLocal > 0 && (
-              <div>• Uploaded: {syncState.stats.syncedLocal} items</div>
+            {stats.syncedLocal > 0 && (
+              <div>• Uploaded: {stats.syncedLocal} items</div>
             )}
             
-            {syncState.stats.syncedRemote > 0 && (
-              <div>• Downloaded: {syncState.stats.syncedRemote} items</div>
+            {stats.syncedRemote > 0 && (
+              <div>• Downloaded: {stats.syncedRemote} items</div>
             )}
             
-            {syncState.stats.skipped > 0 && (
-              <div>• Skipped: {syncState.stats.skipped} items</div>
+            {stats.skipped > 0 && (
+              <div>• Skipped: {stats.skipped} items</div>
             )}
           </div>
           
-          {syncState.lastError && (
+          {lastError && (
             <div className="text-destructive text-xs mt-1">
-              Error: {syncState.lastError}
+              Error: {lastError}
             </div>
           )}
           
