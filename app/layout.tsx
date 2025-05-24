@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { SyncProvider } from "./providers";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
-import { BottomNavigation } from "@/components/bottom-navigation";
+import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -275,7 +275,7 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="light"
+            defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
@@ -289,7 +289,7 @@ export default function RootLayout({
                   >
                     {children}
                   </main>
-                  <BottomNavigation />
+                  <ConditionalBottomNavigation />
                 </div>
               </AuthGuard>
             </SyncProvider>
