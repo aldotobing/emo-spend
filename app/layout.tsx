@@ -9,6 +9,8 @@ import { SyncProvider } from "./providers";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -288,6 +290,8 @@ export default function RootLayout({
                     role="main"
                   >
                     {children}
+                    <Analytics />
+                    <SpeedInsights />
                   </main>
                   <ConditionalBottomNavigation />
                 </div>
