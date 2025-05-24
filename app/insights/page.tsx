@@ -33,10 +33,7 @@ import {
 import { moods } from "@/data/moods";
 import { CalendarHeatmap } from "@/components/calendar-heatmap";
 import { Gamification } from "@/components/gamification";
-import {
-  generateAIInsights,
-  generateDetailedAnalysis,
-} from "@/lib/ai-insights";
+import { generateAIInsights, generateDetailedAnalysis } from "@/lib/ai-insights";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { renderFormattedResponse } from "@/lib/text-formatter";
@@ -47,12 +44,28 @@ export default function InsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [period, setPeriod] = useState<"week" | "month" | "year">("month");
   const [selectedMood, setSelectedMood] = useState<MoodType | "all">("all");
+  // Add a state to track if data needs to be fetched
+  const [shouldFetchData, setShouldFetchData] = useState(true);
+  // Add a state to store fetched data for each period
+  const [cachedData, setCachedData] = useState<{
+    week?: Expense[];
+    month?: Expense[];
+    year?: Expense[];
+  }>({});
+  // Track which periods have already had insights generated
+  const [insightsGenerated, setInsightsGenerated] = useState<{
+    week?: boolean;
+    month?: boolean;
+    year?: boolean;
+  }>({});
 
   const [aiInsightResult, setAiInsightResult] = useState<AIInsightResponse>({
     insights: [],
     modelUsed: "",
   });
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  // Flag to track if we should generate AI insights when fetching data
+  const [shouldGenerateInsights, setShouldGenerateInsights] = useState(false);
 
   const [detailedAnalysisResult, setDetailedAnalysisResult] =
     useState<AIDetailedAnalysisResponse | null>(null);
@@ -65,47 +78,139 @@ export default function InsightsPage() {
 
   // --- Effects -----------------------------------------------------------------
   useEffect(() => {
-    async function loadData() {
-      setIsLoading(true);
-      setIsGeneratingInsights(true);
-      setDetailedAnalysisResult(null); // Reset detailed analysis on period change
-
-      try {
-        const { start, end } = getDateRangeForPeriod(period);
-        const expenseData = await getExpensesByDateRange(start, end);
-        setExpenses(expenseData);
-
-        if (noApiKeysConfigured) {
-          console.warn(
-            "No AI API Keys are configured. AI insights will be limited."
-          );
-          setAiInsightResult({
-            insights: ["Kunci API untuk wawasan AI tidak dikonfigurasi."],
-            modelUsed: "None",
-            error: "No API Keys",
-          });
-        } else {
-          const initialResult = await generateAIInsights(
-            geminiApiKey,
-            deepSeekApiKey
-          );
-          setAiInsightResult(initialResult);
-        }
-      } catch (error) {
-        console.error("Failed to load data:", error);
-        setAiInsightResult({
-          insights: ["Gagal memuat wawasan. Periksa koneksi Anda."],
-          modelUsed: "None (Error)",
-          error: (error as Error).message,
-        });
-      } finally {
-        setIsLoading(false);
-        setIsGeneratingInsights(false);
-      }
+    // Initial data load for the default period (month)
+    if (Object.keys(cachedData).length === 0) {
+      fetchDataForPeriod(period);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on component mount
 
-    loadData();
-  }, [period, geminiApiKey, deepSeekApiKey]); // Add API keys to dependency array if they could change (e.g. dynamic env)
+  // Effect to handle period changes
+  useEffect(() => {
+    console.log(`Period changed to: ${period}`);
+    console.log('Current cached data:', cachedData);
+    console.log('Insights generated for periods:', insightsGenerated);
+    
+    // If we already have data for this period, use it
+    if (cachedData[period]) {
+      console.log(`Using cached data for ${period}`);
+      setExpenses(cachedData[period] || []);
+      
+      // If we haven't generated insights for this period yet, do it now
+      if (!insightsGenerated[period]) {
+        console.log(`Generating insights for ${period} using cached data`);
+        generateInsightsForPeriod(cachedData[period] || []);
+      }
+      
+      setIsLoading(false);
+    } else {
+      // Otherwise fetch it
+      console.log(`Fetching new data for ${period}`);
+      fetchDataForPeriod(period);
+    }
+  }, [period, insightsGenerated]);  // Include insightsGenerated in dependencies
+
+  // Separate useEffect for API keys changes
+  useEffect(() => {
+    if (geminiApiKey || deepSeekApiKey) {
+      // If API keys change, we might want to regenerate insights
+      // But we'll let the user decide by clicking the button
+    }
+  }, [geminiApiKey, deepSeekApiKey]);
+
+  async function fetchDataForPeriod(currentPeriod: "week" | "month" | "year") {
+    setIsLoading(true);
+    
+    try {
+      // Fetch expense data for the specified period
+      const { start, end } = getDateRangeForPeriod(currentPeriod);
+      console.log(`Fetching data for ${currentPeriod} from ${start} to ${end}`);
+      
+      const expenseData = await getExpensesByDateRange(start, end);
+      console.log(`Received ${expenseData.length} expenses for ${currentPeriod}:`, expenseData);
+      
+      // Update the expenses state with the fetched data
+      setExpenses(expenseData);
+      
+      // Cache the data for this period using a functional update to ensure we're working with the latest state
+      setCachedData(prev => {
+        const newCache = {
+          ...prev,
+          [currentPeriod]: expenseData
+        };
+        console.log('Updated cache:', newCache);
+        return newCache;
+      });
+      
+      // Always generate insights for newly fetched data
+      console.log(`Generating insights for newly fetched ${currentPeriod} data:`, expenseData);
+      await generateInsightsForPeriod(expenseData);
+    } catch (error) {
+      console.error(`Failed to load data for ${currentPeriod}:`, error);
+      setAiInsightResult({
+        insights: ["Gagal memuat wawasan. Periksa koneksi Anda."],
+        modelUsed: "None (Error)",
+        error: (error as Error).message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  
+  async function generateInsightsForPeriod(expenseData: Expense[]) {
+    setIsGeneratingInsights(true);
+    setDetailedAnalysisResult(null);
+    
+    try {
+      if (noApiKeysConfigured) {
+        console.warn(
+          "No AI API Keys are configured. AI insights will be limited."
+        );
+        setAiInsightResult({
+          insights: ["Kunci API untuk wawasan AI tidak dikonfigurasi."],
+          modelUsed: "None",
+          error: "No API Keys",
+        });
+      } else {
+        // Use the provided expense data
+        console.log('generateInsightsForPeriod - provided expenses:', expenseData);
+        if (expenseData.length < 3) {
+          console.warn(`Not enough expenses for AI insights: only ${expenseData.length} available`);
+          setAiInsightResult({
+            insights: ["Tidak cukup data untuk menghasilkan wawasan. Tambahkan lebih banyak pengeluaran."],
+            modelUsed: "None",
+            error: "Not enough data",
+          });
+          return;
+        }
+        
+        // Generate insights using the provided expenses
+        console.log('Calling generateAIInsights with expenses:', expenseData);
+        const result = await generateAIInsights(
+          geminiApiKey,
+          deepSeekApiKey,
+          expenseData // Pass the provided expenses
+        );
+        console.log('Received AI insights result:', result);
+        setAiInsightResult(result);
+        
+        // Mark insights as generated for this period
+        setInsightsGenerated(prev => ({
+          ...prev,
+          [period]: true
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to generate insights:", error);
+      setAiInsightResult({
+        insights: ["Gagal memuat wawasan. Periksa koneksi Anda."],
+        modelUsed: "None (Error)",
+        error: (error as Error).message,
+      });
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  }
 
   // --- Handlers ----------------------------------------------------------------
   const handleGenerateInsights = async () => {
@@ -119,11 +224,54 @@ export default function InsightsPage() {
       });
       return;
     }
+    
+    console.log('Generate Insights clicked - clearing all cached data and insights');
+    // Clear cached data and insights generated tracking
+    setCachedData({});
+    setInsightsGenerated({});
+    
     setIsGeneratingInsights(true);
     setDetailedAnalysisResult(null); // Reset detailed analysis
+    
     try {
-      const newResult = await generateAIInsights(geminiApiKey, deepSeekApiKey);
+      // Fetch fresh data for the current period
+      const { start, end } = getDateRangeForPeriod(period);
+      console.log(`Regenerating insights for ${period} from ${start} to ${end}`);
+      
+      const expenseData = await getExpensesByDateRange(start, end);
+      console.log(`Received ${expenseData.length} expenses for regeneration:`, expenseData);
+      
+      // Update the expenses state with the fetched data
+      setExpenses(expenseData);
+      
+      // Cache only the current period data - using direct assignment to ensure clean state
+      const newCache = { [period]: expenseData };
+      console.log('New cache after regeneration:', newCache);
+      setCachedData(newCache);
+      
+      // Generate insights using the fetched expense data
+      if (expenseData.length < 3) {
+        console.warn(`Not enough expenses for AI insights regeneration: only ${expenseData.length} available`);
+        setAiInsightResult({
+          insights: ["Tidak cukup data untuk menghasilkan wawasan. Tambahkan lebih banyak pengeluaran."],
+          modelUsed: "None",
+          error: "Not enough data",
+        });
+        return;
+      }
+      
+      // Generate new AI insights with the fetched expense data
+      console.log('Calling generateAIInsights for regeneration with expenses:', expenseData);
+      const newResult = await generateAIInsights(
+        geminiApiKey,
+        deepSeekApiKey,
+        expenseData // Pass the fetched expense data directly
+      );
+      console.log('Received regenerated AI insights result:', newResult);
       setAiInsightResult(newResult);
+      
+      // Mark insights as generated for current period only
+      setInsightsGenerated({ [period]: true });
     } catch (error) {
       console.error("Failed to generate insights:", error);
       setAiInsightResult({
@@ -202,9 +350,11 @@ export default function InsightsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <Tabs
               defaultValue={period}
-              onValueChange={(value) =>
-                setPeriod(value as "week" | "month" | "year")
-              }
+              onValueChange={(value) => {
+                const newPeriod = value as "week" | "month" | "year";
+                console.log(`Tab clicked: changing period from ${period} to ${newPeriod}`);
+                setPeriod(newPeriod);
+              }}
               className="w-full sm:w-auto"
             >
               <TabsList className="w-full sm:w-auto">

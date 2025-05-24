@@ -34,7 +34,8 @@ const notEnoughDataError = {
 
 export async function generateAIInsights(
   geminiApiKey: string | undefined,
-  deepSeekApiKey: string | undefined
+  deepSeekApiKey: string | undefined,
+  providedExpenses?: Expense[] // Add optional parameter for expenses
 ): Promise<AIInsightResponse> {
   if (!geminiApiKey && !deepSeekApiKey) {
     console.error("Neither Gemini nor DeepSeek API key is configured.");
@@ -42,7 +43,9 @@ export async function generateAIInsights(
   }
 
   try {
-    const expenses = await getExpenses();
+    // Use provided expenses if available, otherwise fetch all expenses
+    const expenses = providedExpenses || await getExpenses();
+    console.log(`Generating insights with ${expenses.length} expenses`);
 
     if (expenses.length < 3) {
       return notEnoughDataError;
@@ -130,7 +133,8 @@ export async function generateDetailedAnalysis(
       `## Konteks Tambahan: Wawasan Awal Pengguna\n` +
       `Wawasan berikut sebelumnya telah diberikan kepada pengguna. Gunakan ini untuk memperdalam analisis Anda, bukan untuk diulang:\n` +
       `${currentInsights.map((insight) => `- ${insight}`).join("\n")}\n\n` +
-      `## Instruksi Utama untuk Analisis Mendalam (Format: Markdown Lanjutan)\n\n` +
+      `## Instruksi Utama untuk Analisis Mendalam (Format: Markdown Lanjutan)\n +
+        ## Berbicara langsung kepada pengguna.\n` +
       `Sebagai seorang psikolog keuangan yang ahli dan empatik, tugas Anda adalah memberikan **analisis psikoanalisis yang komprehensif, mendalam, dan actionable** mengenai kebiasaan belanja emosional pengguna. Berdasarkan **semua data yang disediakan** (ringkasan pengeluaran, contoh transaksi spesifik termasuk alasan suasana hati dan catatan, serta wawasan awal yang telah diberikan), susunlah analisis Anda dengan cermat.\n\n` +
       `**Struktur dan Konten Analisis yang Diharapkan:**\n` +
       `Harap jelaskan poin-poin berikut secara rinci:\n\n` +
@@ -143,12 +147,12 @@ export async function generateDetailedAnalysis(
       `   - Perhatikan bahwa belanja emosional bisa bersifat positif (misalnya, hadiah untuk diri sendiri setelah mencapai target) atau negatif (misalnya, belanja impulsif saat stres).\n\n` +
       `### 3. Identifikasi Pemicu (Triggers)\n` +
       `   - Sebutkan potensi pemicu emosional (baik positif seperti kebahagiaan, pencapaian, maupun negatif seperti kesepian, kebosanan, stres kerja) dan situasional (misalnya, akhir pekan, setelah menerima gaji, melihat iklan, merayakan kesuksesan) yang mungkin menyebabkan pengeluaran tersebut.\n` +
-      `   - Jika memungkinkan, buat **tabel sederhana** atau **bullet points terstruktur** yang menghubungkan pemicu dengan jenis pengeluaran atau suasana hati tertentu.\n` +
-      `     Contoh tabel (gunakan format Markdown untuk tabel):\n` +
-      `     | Pemicu Potensial        | Suasana Hati Terkait | Jenis Pengeluaran Umum |\n` +
-      `     |-------------------------|----------------------|------------------------|\n` +
-      `     | Stres kerja             | Cemas, Lelah         | Makanan cepat saji, Belanja online impulsif |\n` +
-      `     | Merasa kesepian         | Sedih, Bosan         | Hiburan, Barang mewah kecil |\n\n` +
+      `   - Jika memungkinkan, buat **tabel sederhana** atau **bullet points terstruktur** yang menghubungkan pemicu dengan jenis pengeluaran atau suasana hati tertentu. buat ini statistically appealing\n` +
+      // `     Contoh tabel (gunakan format Markdown untuk tabel):\n` +
+      // `     | Pemicu Potensial        | Suasana Hati Terkait | Jenis Pengeluaran Umum |\n` +
+      // `     |-------------------------|----------------------|------------------------|\n` +
+      // `     | Stres kerja             | Cemas, Lelah         | Makanan cepat saji, Belanja online impulsif |\n` +
+      // `     | Merasa kesepian         | Sedih, Bosan         | Hiburan, Barang mewah kecil |\n\n` +
       `### 4. Dampak Pola Belanja\n` +
       `   - Jelaskan secara singkat potensi dampak jangka pendek dan jangka panjang dari pola belanja emosional ini terhadap kesejahteraan finansial dan emosional pengguna.\n` +
       `   - Bedakan antara pola belanja yang sehat (yang mungkin meningkatkan kesejahteraan emosional tanpa mengorbankan stabilitas keuangan) dan pola belanja yang kurang sehat (yang mungkin memberikan kepuasan sementara tetapi berdampak negatif pada keuangan).\n\n` +
@@ -170,21 +174,9 @@ export async function generateDetailedAnalysis(
 
     let result;
 
-    if (geminiApiKey) {
-      console.log("Attempting to use Gemini API for detailed analysis...");
-      result = await callGeminiAPI(geminiApiKey, detailedContext, true); // true for detailed
-      if (!result.error && result.text) {
-        console.log("Successfully generated detailed analysis with Gemini.");
-        return { analysis: result.text, modelUsed: result.modelUsed };
-      }
-      console.warn(
-        "Gemini API call for detailed analysis failed. Error:",
-        result.error
-      );
-    }
-
+    // Use DeepSeek directly for detailed analysis
     if (deepSeekApiKey) {
-      console.log("Falling back to DeepSeek API for detailed analysis...");
+      console.log("Using DeepSeek API for detailed analysis...");
       result = await callDeepSeekAPI(deepSeekApiKey, detailedContext, true); // true for detailed
       if (!result.error && result.text) {
         console.log("Successfully generated detailed analysis with DeepSeek.");
@@ -192,6 +184,20 @@ export async function generateDetailedAnalysis(
       }
       console.warn(
         "DeepSeek API call for detailed analysis failed. Error:",
+        result.error
+      );
+    }
+    
+    // Fall back to Gemini only if DeepSeek is not available or fails
+    if (geminiApiKey) {
+      console.log("Falling back to Gemini API for detailed analysis...");
+      result = await callGeminiAPI(geminiApiKey, detailedContext, true); // true for detailed
+      if (!result.error && result.text) {
+        console.log("Successfully generated detailed analysis with Gemini.");
+        return { analysis: result.text, modelUsed: result.modelUsed };
+      }
+      console.warn(
+        "Gemini API call for detailed analysis failed. Error:",
         result.error
       );
     }
@@ -323,11 +329,14 @@ function prepareContextForAI(
     context +=
       "## Instruksi untuk AI: Wawasan Awal (Format: Markdown List)\n" +
       "Berdasarkan **semua data di atas**, lakukan hal berikut:\n" +
-      "1.  Identifikasi **3 hingga 6 pola belanja emosional** yang paling signifikan atau menarik dari data pengguna. Perhatikan baik emosi positif (seperti bahagia, puas) maupun emosi negatif (seperti sedih, stres) dan bagaimana keduanya mempengaruhi pengeluaran. Buatkan hipotesa sebagai judul besarnya\n" +
+      "1.  Identifikasi **3 hingga 4 pola belanja emosional** yang paling signifikan atau menarik dari data pengguna. Perhatikan baik emosi positif (seperti bahagia, puas) maupun emosi negatif (seperti sedih, stres) dan bagaimana keduanya mempengaruhi pengeluaran. \n" 
+          +"**PENTING** : Buatkan hipotesa sebagai judul besarnya tanpa tulisan Hipotesa \n" +
       "2.  Untuk setiap pola, berikan **satu wawasan (insight)** yang jelas dan actionable. Wawasan ini bisa berupa penguatan pola positif atau perbaikan pola negatif.\n" +
       "3.  Sampaikan setiap wawasan sebagai **item dalam daftar Markdown** (misalnya, diawali dengan `- ` atau `* ` atau `###` atau `>' atau `##` atau `####`).\n" +
-      "4.  Gunakan **Bahasa Indonesia** yang empatik dan profesional.\n" +
+      "4.  Gunakan **Bahasa Indonesia** yang empatik, santai namun profesional. Boleh sertakan emoji agar tidak terlalu kaku\n" +
       "5.  **PENTING:** Kembalikan **HANYA daftar Markdown berisi wawasan tersebut**. Jangan sertakan teks pembuka, penutup, judul tambahan, atau sapaan. Setiap item list harus merupakan wawasan yang diminta.\n\n" +
+      "6.  **PENTING:** Buat singkat, padat dan jelas sekitar 5 kalimat\n\n" +
+      "7.  **PENTING:** Buat singkat, padat dan jelas sekitar 5 kalimat\n\n" +
       "Contoh format output yang diinginkan:\n" +
       "- Wawasan pertama Anda ada di sini.\n" +
       "- Wawasan kedua yang menjelaskan pola lain.\n" +
