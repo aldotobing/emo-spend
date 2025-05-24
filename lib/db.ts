@@ -3,16 +3,8 @@ import type { Expense as AppExpense, MoodType } from "@/types/expense";
 import { getSupabaseBrowserClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
 
-// Debug logging
-const DEBUG = true;
-
-/**
- * Logs debug messages when DEBUG is true
- * @param args - Arguments to log
- */
-function debugLog(...args: any[]): void {
-  if (DEBUG) console.log('[SYNC]', ...args);
-}
+// Debug logging disabled in production
+const DEBUG = false;
 
 /**
  * Safely parses a date string, returning a Date object or epoch start if invalid
@@ -58,19 +50,12 @@ export class EmoSpendDatabase extends Dexie {
                 }
               })
               .catch((err) =>
-                console.error(
-                  "--- [DB Constructor Log ERROR] --- Error during expenses table upgrade:",
-                  err
-                )
+                console.error("Error during expenses table upgrade:", err)
               );
           }
         });
     } catch (e: any) {
-      console.error(
-        "--- [DB Constructor Log ERROR] --- Error during EmoSpendDatabase construction (version/stores):",
-        e.message,
-        e.stack
-      );
+      console.error("Error during EmoSpendDatabase construction:", e);
       throw e;
     }
   }
@@ -82,11 +67,7 @@ export function getDb(): EmoSpendDatabase {
     try {
       dbInstance = new EmoSpendDatabase();
     } catch (e: any) {
-      console.error(
-        "--- [DB getDb() ERROR] --- Error creating EmoSpendDatabase instance in getDb():",
-        e.message,
-        e.stack
-      );
+      console.error("Error creating EmoSpendDatabase instance:", e);
       throw e;
     }
   } else {
@@ -103,11 +84,11 @@ export async function getCurrentUser(): Promise<User | null> {
       error,
     } = await supabase.auth.getUser();
     if (error) {
-      /* console.error("[Auth] Error getting current user:", error.message); */ return null;
+      return null;
     }
     return user;
   } catch (e: any) {
-    console.error("[Auth] Exception getting current user:", e.message);
+    console.error("Error getting current user:", e);
     return null;
   }
 }
@@ -240,7 +221,6 @@ export async function getExpensesByDateRange(
 ): Promise<SyncedExpense[]> {
   const db = getDb();
   try {
-    debugLog(`Fetching expenses between ${startDate} and ${endDate}`);
     const allExpenses = await db.expenses.toArray();
     
     // Parse the dates once for comparison
@@ -258,7 +238,6 @@ export async function getExpensesByDateRange(
       }
     });
     
-    debugLog(`Found ${filteredExpenses.length} expenses in the specified date range`);
     return filteredExpenses;
   } catch (error: any) {
     console.error(
@@ -368,7 +347,6 @@ export async function clearAllLocalAndRemoteData(): Promise<void> {
           "[DB] Error clearing user's expenses from Supabase:",
           error.message
         );
-      else console.log("[DB] User's expenses cleared from Supabase.");
     }
     await db.transaction("rw", db.expenses, db.syncStatus, async () => {
       await db.expenses.clear();
@@ -391,24 +369,16 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
   let syncedRemote = 0;
   let skipped = 0;
 
-  debugLog('[Sync] Starting sync process...');
-  dispatchSyncEvent('background');
-
   // Check preconditions
   if (!user) {
-    debugLog('[Sync] Cannot sync: No authenticated user');
-    dispatchSyncEvent(null);
     return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
   }
 
   if (!navigator.onLine) {
-    debugLog('[Sync] Cannot sync: Offline');
-    dispatchSyncEvent(null);
     return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
   }
 
   // First, pull any remote changes
-  debugLog('[Sync] Pulling remote changes...');
   const pullResult = await pullExpensesFromSupabase();
   syncedRemote = pullResult.synced;
   skipped += pullResult.skipped;
@@ -421,7 +391,6 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
       if (typeof entry.id !== "string" || entry.id.trim() === "") return false;
       return entry.synced === false;
     });
-    debugLog(`[Sync] Found ${unsyncedStatusEntries.length} unsynced local changes`);
   } catch (error: any) {
     const errorMsg = `Error finding unsynced changes: ${error.message}`;
     console.error('[Sync]', errorMsg);
@@ -436,7 +405,6 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
 
   // If no local changes, we're done
   if (unsyncedStatusEntries.length === 0) {
-    debugLog('[Sync] No local changes to sync');
     return { syncedLocal: 0, syncedRemote, skipped };
   }
 
@@ -455,9 +423,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
       if (!expense) {
         // Clean up orphaned sync status
         if (statusEntry) {
-          await db.syncStatus.delete(statusEntry.id).catch(e => 
-            debugLog(`[Sync] Failed to delete orphaned syncStatus ${statusEntry.id}:`, e)
-          );
+          await db.syncStatus.delete(statusEntry.id);
         }
         continue;
       }
@@ -467,9 +433,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
         await db.syncStatus.update(expense.id, {
           synced: true,
           lastAttempt: new Date().toISOString(),
-        }).catch(e => 
-          debugLog(`[Sync] Failed to update sync status for ${expense.id}:`, e)
-        );
+        });
         continue;
       }
       
@@ -491,7 +455,6 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
   }
 
   if (localExpensesToSync.length === 0) {
-    debugLog('[Sync] No valid local changes to sync after processing');
     return { syncedLocal: 0, syncedRemote, skipped };
   }
 
@@ -510,8 +473,6 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
     };
   });
 
-  debugLog(`[Sync] Syncing ${localExpensesToSync.length} expenses to Supabase...`);
-  
   try {
     const { error: supabaseError } = await supabase
       .from("expenses")
@@ -526,7 +487,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
         for (const expense of localExpensesToSync) {
           await db.syncStatus.update(expense.id, {
             lastAttempt: syncTimestamp,
-          }).catch(e => debugLog(`[Sync] Failed to update sync status for ${expense.id}:`, e));
+          });
         }
       });
       
@@ -542,7 +503,6 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
     }
 
     // Update local sync status for successful syncs
-    debugLog('[Sync] Updating local sync status...');
     await db.transaction("rw", [db.expenses, db.syncStatus], async () => {
       for (const expense of localExpensesToSync) {
         try {
@@ -564,7 +524,6 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
       }
     });
     
-    debugLog(`[Sync] Successfully synced ${syncedLocal} expenses to Supabase`);
     return { syncedLocal, syncedRemote, skipped };
     
   } catch (error: any) {
@@ -591,25 +550,21 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
   let skippedCount = 0;
   const startTime = Date.now();
 
-  debugLog('[Pull] Starting sync from Supabase...');
-  
   // Dispatch sync start event with pull operation
   dispatchSyncEvent('pull');
 
   if (!user) {
-    debugLog('[Pull] Cannot sync: No authenticated user');
     dispatchSyncEvent(null);
     return { synced: 0, skipped: 0 };
   }
 
   if (!navigator.onLine) {
-    debugLog('[Pull] Cannot sync: Offline');
     dispatchSyncEvent(null);
     return { synced: 0, skipped: 0 };
   }
 
   try {
-    debugLog('[Pull] Fetching expenses from Supabase...');
+
     const { data: supabaseData, error: supabaseError } = await supabase
       .from("expenses")
       .select("id, amount, category_id, mood_id, mood_reason, date, notes, created_at, updated_at")
@@ -618,7 +573,7 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
 
     if (supabaseError) {
       const errorMsg = `Failed to fetch from Supabase: ${supabaseError.message}`;
-      debugLog(`[Pull] ${errorMsg}`);
+
       window.dispatchEvent(new CustomEvent("sync:error", { 
         detail: { 
           operation: 'pull',
@@ -630,11 +585,11 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
     }
 
     if (!supabaseData || supabaseData.length === 0) {
-      debugLog('[Pull] No data to sync from Supabase');
+
       return { synced: 0, skipped: 0 };
     }
 
-    debugLog(`[Pull] Fetched ${supabaseData.length} expenses from Supabase`);
+
     
     // Get local expenses for comparison
     const localExpenses = await db.expenses.toArray();
@@ -650,7 +605,7 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
 
         // Skip if local version is newer and already synced
         if (local && local.synced && localUpdated > remoteUpdated) {
-          debugLog(`[Pull] Skipping ${remote.id} - local version is newer`);
+
           skippedCount++;
           continue;
         }
@@ -678,13 +633,13 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
         });
 
         syncedCount++;
-        debugLog(`[Pull] Synced expense ${expense.id}`);
+
       } catch (expenseError) {
         console.error(`[Pull] Error processing expense ${remote.id}:`, expenseError);
       }
     }
 
-    debugLog(`[Pull] Sync complete. Synced: ${syncedCount}, Skipped: ${skippedCount}, Time: ${Date.now() - startTime}ms`);
+
     return { synced: syncedCount, skipped: skippedCount };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -891,7 +846,6 @@ export async function syncGamificationData(): Promise<void> {
     
     // Sync other badges
     for (const badge of badges) {
-      console.log("[Gamification] Processing badge:", badge.id, "earned:", badge.earned);
       if (badge.earned) {
         await supabase.from("user_badges").upsert({
           user_id: user.id,

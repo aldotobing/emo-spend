@@ -143,9 +143,9 @@ export default function Dashboard() {
               {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
             </Button>
             <Link href="/add">
-              <Button className="shadow-lg hover:shadow-xl transition-all duration-200">
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Tambah Pengeluaran
+              <Button size="sm" className="h-10 px-4 gap-2">
+                <PlusCircle className="h-4 w-4" />
+                Add
               </Button>
             </Link>
           </div>
