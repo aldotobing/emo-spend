@@ -268,6 +268,26 @@ function SummaryCards({
       ),
     },
     {
+      title: "Transaksi",
+      content: isLoading ? (
+        <Skeleton className="h-8 w-[60px]" />
+      ) : (
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{
+            delay: 0.2,
+            type: "spring",
+            stiffness: 200,
+            damping: 15,
+          }}
+          className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums text-blue-600 flex justify-center w-full"
+        >
+          {expensesByMood.reduce((sum, m) => sum + m.count, 0)}
+        </motion.div>
+      ),
+    },
+    {
       title: "Mood Teratas",
       content: isLoading ? (
         <Skeleton className="h-8 w-[120px]" />
@@ -324,26 +344,6 @@ function SummaryCards({
               %)
             </div>
           </div>
-        </motion.div>
-      ),
-    },
-    {
-      title: "Transaksi",
-      content: isLoading ? (
-        <Skeleton className="h-8 w-[60px]" />
-      ) : (
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{
-            delay: 0.2,
-            type: "spring",
-            stiffness: 200,
-            damping: 15,
-          }}
-          className="text-xl sm:text-2xl lg:text-3xl font-bold tabular-nums text-blue-600 flex justify-center w-full"
-        >
-          {expensesByMood.reduce((sum, m) => sum + m.count, 0)}
         </motion.div>
       ),
     },

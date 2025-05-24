@@ -58,12 +58,12 @@ export default function Navbar() {
         )}
       >
         <div className="container flex h-14 items-center">
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center">
             <motion.div
               initial={{ rotate: -10 }}
               animate={{ rotate: 0 }}
               transition={{ duration: 0.5 }}
-              className="text-2xl"
+              className="text-2xl flex items-center"
             >
               💰
             </motion.div>
@@ -71,7 +71,7 @@ export default function Navbar() {
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70"
+              className="ml-2 text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 flex items-center"
             >
               EmoSpend
             </motion.span>
@@ -92,26 +92,26 @@ export default function Navbar() {
     >
       <div className="container flex h-16 items-center">
         <div className="mr-4 hidden md:flex">
-          <Link href="/" className="flex items-center space-x-2">
+          <Link href="/" className="flex items-center">
             <motion.div
               whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
               transition={{ duration: 0.5 }}
-              className="text-2xl"
+              className="text-2xl flex items-center"
             >
               💰
             </motion.div>
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+            <span className="ml-2 text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 flex items-center">
               EmoSpend
             </span>
           </Link>
         </div>
         <nav className="flex items-center justify-between w-full md:justify-end space-x-2">
           <div className="flex-1 md:hidden">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center">
               <motion.div
                 whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
                 transition={{ duration: 0.5 }}
-                className="text-2xl"
+                className="text-2xl flex items-center"
               >
                 💰
               </motion.div>
