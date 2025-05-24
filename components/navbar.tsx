@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Home, PieChart, Plus, Settings, LogOut, LogIn, Menu, X } from "lucide-react"
+import { SyncIndicator } from "./sync-indicator"
 import { ModeToggle } from "./mode-toggle"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/auth-context"
@@ -77,7 +78,10 @@ export default function Navbar() {
             </motion.span>
           </Link>
           <div className="flex-1"></div>
-          <ModeToggle />
+          <div className="flex items-center space-x-2">
+            <SyncIndicator />
+            <ModeToggle />
+          </div>
         </div>
       </header>
     )
@@ -146,6 +150,10 @@ export default function Navbar() {
               </motion.div>
             ))}
 
+            <div className="flex items-center mr-2">
+              <SyncIndicator />
+            </div>
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -202,6 +210,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <div className="flex md:hidden items-center space-x-2">
+            <SyncIndicator />
             <ModeToggle />
             <Button
               variant="ghost"

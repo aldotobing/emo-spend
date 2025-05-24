@@ -171,16 +171,13 @@ export async function addExpense(
     return id;
   } catch (error: any) {
     console.error(`[DB] Error adding expense ${id}:`, error.message);
-    try {
-      await db.syncStatus.update(id, { lastAttempt: new Date().toISOString() });
-    } catch (e) {
-      console.error(
-        `[DB] Failed to update syncStatus for ${id} after addExpense error.`,
-        e
-      );
+  } finally {
+    // Dispatch sync end event if in browser
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync:end"));
     }
-    return null;
   }
+  return null;
 }
 
 export async function getExpenses(): Promise<SyncedExpense[]> {
@@ -332,7 +329,16 @@ export async function syncExpenses(): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
-  if (!user) {
+  // Dispatch sync start event if in browser
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("sync:start"));
+  }
+
+  if (!user || !navigator.onLine) {
+    // Dispatch sync end event if in browser
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync:end"));
+    }
     return;
   }
   if (!navigator.onLine) {
@@ -468,7 +474,16 @@ export async function pullExpensesFromSupabase(): Promise<void> {
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
 
-  if (!user) {
+  // Dispatch sync start event if in browser
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("sync:start"));
+  }
+
+  if (!user || !navigator.onLine) {
+    // Dispatch sync end event if in browser
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("sync:end"));
+    }
     return;
   }
   if (!navigator.onLine) {
@@ -552,11 +567,19 @@ export function setupSync(): void {
   const supabase = getSupabaseBrowserClient();
   let isSyncing = false;
 
+  // Create custom events for sync status
+  const syncStartEvent = new Event("sync:start");
+  const syncEndEvent = new Event("sync:end");
+
   const performFullSync = async (reason: string) => {
     if (isSyncing) {
       return;
     }
+    
+    // Dispatch sync start event
+    window.dispatchEvent(syncStartEvent);
     isSyncing = true;
+    
     try {
       await pullExpensesFromSupabase();
       await syncExpenses();
@@ -568,6 +591,8 @@ export function setupSync(): void {
       );
     } finally {
       isSyncing = false;
+      // Dispatch sync end event
+      window.dispatchEvent(syncEndEvent);
     }
   };
 

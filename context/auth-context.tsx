@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setTimeout(() => {
-        window.location.href = "/";
+        window.location.href = "/auth/login";
       }, 500);
     } catch (error: any) {
       console.error(

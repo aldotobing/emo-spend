@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { motion } from "framer-motion";
-import { Sparkles, Smile, ArrowRight } from "lucide-react";
+import { Sparkles, Smile, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { pullExpensesFromSupabase, syncExpenses } from "@/lib/db";
 import { getSupabaseBrowserClient } from "@/lib/supabase";
 
@@ -37,6 +37,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -99,10 +100,10 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     try {
-      // Mulai proses login via Google (akan redirect balik ke app)
+      // Start Google login process (will redirect back to app)
       await signInWithGoogle();
 
-      // Polling sampai session siap (max 10x percobaan dengan delay 300ms)
+      // Poll until session is ready (max 10 attempts with 300ms delay)
       const maxRetries = 10;
       let retries = 0;
       let sessionReady = false;
@@ -120,10 +121,10 @@ export default function LoginPage() {
       }
 
       if (!sessionReady) {
-        throw new Error("Gagal mendapatkan session dari Supabase");
+        throw new Error("Failed to get session from Supabase");
       }
 
-      // Kalau session udah siap, lanjut sync
+      // If session is ready, continue with sync
       toast({
         title: "Welcome back! 🎉",
         description: "Syncing your latest data...",
@@ -131,7 +132,7 @@ export default function LoginPage() {
       });
 
       await performPostLoginSync();
-      window.location.href = "/"; // hard reload biar semua state reset
+      window.location.href = "/"; // hard reload to reset all state
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
@@ -146,52 +147,54 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-b from-background to-primary/5">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-primary/5 px-4 py-6 sm:px-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md px-8"
+        className="w-full max-w-sm sm:max-w-md"
       >
-        <div className="bg-card rounded-3xl overflow-hidden shadow-lg border border-primary/20">
-          <div className="bg-primary/10 p-6 text-center relative overflow-hidden">
+        <div className="bg-card rounded-2xl sm:rounded-3xl overflow-hidden shadow-lg border border-primary/20">
+          {/* Header Section */}
+          <div className="bg-primary/10 p-4 sm:p-6 text-center relative overflow-hidden">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 100 }}
-              className="absolute top-4 right-4"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4"
             >
-              <Sparkles className="h-6 w-6 text-primary" />
+              <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             </motion.div>
 
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
-              className="h-20 w-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4"
+              className="h-16 w-16 sm:h-20 sm:w-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4"
             >
-              <Smile className="h-10 w-10 text-primary" />
+              <Smile className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
             </motion.div>
 
-            <h1 className="text-2xl font-bold mb-1">Welcome Back!</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold mb-1">Welcome Back!</h1>
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
               Sign in to continue your emotional spending journey
             </p>
           </div>
 
-          <div className="p-6">
+          {/* Form Section */}
+          <div className="p-4 sm:p-6">
             {/* Google Sign-in Button */}
             <motion.div
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="mb-6"
+              className="mb-4 sm:mb-6"
             >
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isGoogleLoading}
-                className="w-full rounded-xl py-6 text-base font-medium border-primary/20 hover:bg-primary/5 relative"
+                className="w-full rounded-xl py-3 sm:py-4 text-sm sm:text-base font-medium border-primary/20 hover:bg-primary/5 relative min-h-[48px] touch-manipulation"
               >
                 {isGoogleLoading ? (
                   <motion.div
@@ -203,10 +206,10 @@ export default function LoginPage() {
                     }}
                     className="mr-2"
                   >
-                    <Sparkles className="h-5 w-5" />
+                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                   </motion.div>
                 ) : (
-                  <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="mr-2 h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24">
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                       fill="#4285F4"
@@ -229,7 +232,8 @@ export default function LoginPage() {
               </Button>
             </motion.div>
 
-            <div className="relative my-6">
+            {/* Divider */}
+            <div className="relative my-4 sm:my-6">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-primary/10" />
               </div>
@@ -240,58 +244,80 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Email/Password Form */}
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-5"
+                className="space-y-4 sm:space-y-5"
               >
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">
+                      <FormLabel className="text-sm font-medium text-foreground/80">
                         Email
                       </FormLabel>
                       <FormControl>
                         <Input
+                          type="email"
+                          inputMode="email"
+                          autoComplete="email"
                           placeholder="your.email@example.com"
                           {...field}
-                          className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50"
+                          className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-12 text-base touch-manipulation"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
+                
                 <FormField
                   control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">
+                      <FormLabel className="text-sm font-medium text-foreground/80">
                         Password
                       </FormLabel>
                       <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                          className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50"
-                        />
+                        <div className="relative">
+                          <Input
+                            type={showPassword ? "text" : "password"}
+                            autoComplete="current-password"
+                            placeholder="••••••••"
+                            {...field}
+                            className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-12 text-base pr-12 touch-manipulation"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 touch-manipulation"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </button>
+                        </div>
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
 
+                {/* Submit Button */}
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
+                  className="pt-2"
                 >
                   <Button
                     type="submit"
-                    className="w-full rounded-xl py-6 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                    className="w-full rounded-xl py-3 sm:py-4 text-sm sm:text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary min-h-[48px] touch-manipulation"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -304,10 +330,10 @@ export default function LoginPage() {
                         }}
                         className="mr-2"
                       >
-                        <Sparkles className="h-5 w-5" />
+                        <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
                       </motion.div>
                     ) : (
-                      <ArrowRight className="mr-2 h-5 w-5" />
+                      <ArrowRight className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                     )}
                     {isLoading ? "Signing In..." : "Sign In"}
                   </Button>
@@ -315,12 +341,13 @@ export default function LoginPage() {
               </form>
             </Form>
 
-            <div className="mt-6 text-center">
-              <p className="text-muted-foreground">
+            {/* Sign Up Link */}
+            <div className="mt-4 sm:mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
                 Don&apos;t have an account?{" "}
                 <Link
                   href="/auth/register"
-                  className="text-primary hover:underline font-medium"
+                  className="text-primary hover:underline font-medium touch-manipulation"
                 >
                   Sign up
                 </Link>
@@ -328,6 +355,9 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+
+        {/* Safe Area Bottom Padding for Mobile */}
+        <div className="h-safe-area-inset-bottom sm:hidden" />
       </motion.div>
     </div>
   );

@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
 import { Toaster } from "@/components/ui/toaster";
 import { SyncProvider } from "./providers";
+import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
@@ -281,22 +282,24 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <SyncProvider>
-              <AuthGuard>
-                <div className="flex min-h-screen flex-col">
-                  <Navbar />
-                  <main
-                    className="flex-1 container mx-auto px-4 py-6"
-                    role="main"
-                  >
-                    {children}
-                    <Analytics />
-                    <SpeedInsights />
-                  </main>
-                  <ConditionalBottomNavigation />
-                </div>
-              </AuthGuard>
-            </SyncProvider>
+            <SyncStatusProvider>
+              <SyncProvider>
+                <AuthGuard>
+                  <div className="flex min-h-screen flex-col">
+                    <Navbar />
+                    <main
+                      className="flex-1 container mx-auto px-4 py-6"
+                      role="main"
+                    >
+                      {children}
+                      <Analytics />
+                      <SpeedInsights />
+                    </main>
+                    <ConditionalBottomNavigation />
+                  </div>
+                </AuthGuard>
+              </SyncProvider>
+            </SyncStatusProvider>
           </ThemeProvider>
         </AuthProvider>
         <Toaster />
