@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { MoodType } from "@/types/expense";
 import Link from "next/link";
 import { PlusCircle } from "lucide-react";
 import {
@@ -41,6 +42,9 @@ export default function Dashboard() {
   
   // State for calendar visibility
   const [showCalendar, setShowCalendar] = useState(false);
+  
+  // State for mood filter
+  const [selectedMood, setSelectedMood] = useState<MoodType | "all">("all");
 
   useEffect(() => {
     async function fetchData() {
@@ -124,16 +128,27 @@ export default function Dashboard() {
       {/* Content with proper spacing for bottom nav */}
       <div className="space-y-6 pb-32 sm:pb-6">
         {/* Desktop header */}
-        <div className="hidden sm:flex justify-between items-center sticky top-0 z-40 bg-background/80 backdrop-blur-md py-4 border-b border-border/50">
+        <div className="hidden sm:flex justify-between items-center sticky top-0 z-40 bg-background/80 backdrop-blur-md py-4 border-b border-border/50 px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             Dashboard
           </h1>
-          <Link href="/add">
-            <Button className="shadow-lg hover:shadow-xl transition-all duration-200">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Tambah Pengeluaran
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 h-10 px-4 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+              onClick={() => setShowCalendar(!showCalendar)}
+            >
+              <CalendarIcon className="h-4 w-4" />
+              {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
             </Button>
-          </Link>
+            <Link href="/add">
+              <Button className="shadow-lg hover:shadow-xl transition-all duration-200">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Tambah Pengeluaran
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Mobile header with enhanced styling */}
@@ -147,23 +162,21 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
               Dashboard
             </h1>
-            {/* Optional: Add a notification or menu icon here */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-10 px-3 rounded-lg gap-2"
+              onClick={() => setShowCalendar(!showCalendar)}
+            >
+              <CalendarIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">
+                Calendar
+              </span>
+            </Button>
           </motion.div>
         </div>
 
         <div className="px-4 sm:px-6 lg:px-8">
-          {/* Calendar Toggle Button - Moved to top */}
-          <div className="flex justify-end mb-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 h-10 px-4 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
-              onClick={() => setShowCalendar(!showCalendar)}
-            >
-              <CalendarIcon className="h-4 w-4" />
-              {showCalendar ? 'Sembunyikan Kalender' : 'Tampilkan Kalender'}
-            </Button>
-          </div>
 
           {/* Calendar */}
           <AnimatePresence>
@@ -177,10 +190,28 @@ export default function Dashboard() {
               >
                 <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
                   <CardContent className="p-4">
-                    <EnhancedCalendar 
-                      expenses={expenses} 
-                      isLoading={isLoading} 
-                    />
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium">Calendar View</h3>
+                        <select
+                          value={selectedMood}
+                          onChange={(e) => setSelectedMood(e.target.value as MoodType | "all")}
+                          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          <option value="all">All Moods</option>
+                          {moods.map((mood) => (
+                            <option key={mood.id} value={mood.id}>
+                              {mood.emoji} {mood.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <EnhancedCalendar 
+                        expenses={expenses} 
+                        isLoading={isLoading}
+                        selectedMood={selectedMood === "all" ? undefined : selectedMood}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -471,9 +502,6 @@ function DashboardCharts({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold tracking-tight">Analisis Pengeluaran</h2>
-      </div>
       
       <div className="grid gap-6 lg:grid-cols-2">
         {chartConfigs.map(({ title, Comp }, i) => (

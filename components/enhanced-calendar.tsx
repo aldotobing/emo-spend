@@ -177,8 +177,8 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
     setCurrentMonth((prevMonth) => addMonths(prevMonth, 1));
   };
 
-  // LongPressTooltip component for handling long press on mobile
-  const LongPressTooltip = ({ children, content }: { children: React.ReactNode, content: React.ReactNode }) => {
+  // Tooltip component for handling both hover (desktop) and tap (mobile) interactions
+  const CalendarTooltip = ({ children, content }: { children: React.ReactNode, content: React.ReactNode }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [placement, setPlacement] = useState<{ vertical: 'top' | 'bottom', horizontal: 'left' | 'center' | 'right' }>({ 
@@ -189,6 +189,7 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
     const tooltipRef = useRef<HTMLDivElement>(null);
     const childRef = useRef<HTMLDivElement>(null);
     const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 768);
+    const isHovering = useRef(false);
     
     // Calculate optimal placement based on position and window boundaries
     const calculatePlacement = useCallback((x: number, y: number, element: HTMLElement | null) => {
@@ -243,8 +244,12 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
       return { vertical, horizontal };
     }, []);
     
+    // Handle touch start for mobile
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
       if (!isMobile.current) return;
+      
+      // Prevent default to avoid any default touch behaviors
+      e.preventDefault();
       
       const touch = e.touches[0];
       const x = touch.clientX;
@@ -253,19 +258,33 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
       setPosition({ x, y });
       setPlacement(calculatePlacement(x, y, e.currentTarget as HTMLElement));
       
-      timeoutRef.current = setTimeout(() => {
-        setShowTooltip(true);
-      }, 500); // 500ms long press
-    }, [calculatePlacement]);
-    
-    const handleTouchEnd = useCallback(() => {
+      // Show tooltip immediately on touch start
+      setShowTooltip(true);
+      
+      // Clear any existing timeout to prevent multiple tooltips
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      setShowTooltip(false);
+      
+      // Auto-hide the tooltip after 3 seconds
+      timeoutRef.current = setTimeout(() => {
+        if (!isHovering.current) {
+          setShowTooltip(false);
+        }
+      }, 3000);
+    }, [calculatePlacement]);
+    
+    // Handle touch end for mobile
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+      if (!isMobile.current) return;
+      e.preventDefault();
+      // Don't hide the tooltip on touch end, let the timeout handle it
     }, []);
     
+    // Handle mouse enter for desktop
     const handleMouseEnter = useCallback((e: React.MouseEvent) => {
+      isHovering.current = true;
+      
       if (!isMobile.current) {
         const rect = e.currentTarget.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
@@ -274,13 +293,38 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         setPosition({ x, y });
         setPlacement(calculatePlacement(x, y, e.currentTarget as HTMLElement));
         setShowTooltip(true);
+        
+        // Clear any existing timeout when hovering
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
       }
     }, [calculatePlacement]);
     
+    // Handle mouse leave for desktop
     const handleMouseLeave = useCallback(() => {
+      isHovering.current = false;
+      
       if (!isMobile.current) {
-        setShowTooltip(false);
+        // Add a small delay before hiding to allow moving to the tooltip
+        timeoutRef.current = setTimeout(() => {
+          setShowTooltip(false);
+        }, 300);
       }
+    }, []);
+    
+    // Handle mouse enter on the tooltip itself to keep it visible when hovering over it
+    const handleTooltipMouseEnter = useCallback(() => {
+      isHovering.current = true;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    }, []);
+    
+    // Handle mouse leave from the tooltip
+    const handleTooltipMouseLeave = useCallback(() => {
+      isHovering.current = false;
+      setShowTooltip(false);
     }, []);
     
     // Get tooltip style based on placement
@@ -415,8 +459,10 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         {showTooltip && (
           <div 
             ref={tooltipRef}
-            className="absolute z-50 bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm animate-in fade-in-0 zoom-in-95"
+            className="absolute z-50 bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm animate-in fade-in-0 zoom-in-95 cursor-default"
             style={getTooltipStyle()}
+            onMouseEnter={handleTooltipMouseEnter}
+            onMouseLeave={handleTooltipMouseLeave}
           >
             {content}
             <div 
@@ -531,7 +577,7 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                 const isCurrentDay = isToday(date);
                 
                 return (
-                  <LongPressTooltip 
+                  <CalendarTooltip 
                     key={dateKey} 
                     content={
                       hasExpenses && dayData ? (
@@ -576,7 +622,7 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                   >
                     <div 
                       className={cn(
-                        "aspect-square rounded-md flex flex-col items-center justify-center transition-all",
+                        "aspect-square rounded-md flex flex-col items-center justify-center transition-all touch-none",
                         isCurrentDay ? "ring-2 ring-primary" : "",
                         hasExpenses ? "cursor-pointer active:bg-muted" : "cursor-default"
                       )}
@@ -584,8 +630,10 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                         backgroundColor: hasExpenses && mood 
                           ? `${mood.color}${intensity * 20}` 
                           : "var(--card)",
-                        border: "1px solid var(--border)"
+                        border: "1px solid var(--border)",
+                        WebkitTapHighlightColor: 'transparent'
                       }}
+                      onTouchStart={(e) => e.stopPropagation()}
                     >
                       <div className="flex flex-col items-center">
                         <span className={cn(
@@ -604,7 +652,7 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                         )}
                       </div>
                     </div>
-                  </LongPressTooltip>
+                  </CalendarTooltip>
 
                 );
               })}
