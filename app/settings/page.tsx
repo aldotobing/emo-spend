@@ -40,20 +40,41 @@ export default function SettingsPage() {
   const handleClearData = async () => {
     setIsClearing(true);
     try {
+      // Directly import and use the functions from db.ts, similar to RecentExpenses component
+      const { getExpensesByDateRange, clearLocalUserData } = await import('@/lib/db');
+      
+      // First get all expenses to delete them individually
+      const startDate = new Date(0).toISOString(); // Beginning of time
+      const endDate = new Date(Date.now() + 1000*60*60*24*365).toISOString(); // One year from now
+      const allExpenses = await getExpensesByDateRange(startDate, endDate);
+      
+      // Delete each expense individually using the same method as RecentExpenses
+      const { deleteExpense } = await import('@/lib/db');
+      
+      // Delete expenses one by one
+      for (const expense of allExpenses) {
+        await deleteExpense(expense.id);
+      }
+      
+      // Also clear any remaining data with clearLocalUserData
       await clearLocalUserData();
-      toast({
-        title: "Data cleared",
-        description: "All your expense data has been deleted.",
-      });
+      
+      // Keep the clearing state active for a moment to show "Clearing..." text on button
+      // then redirect to home with cache busting
+      setTimeout(() => {
+        window.location.href = '/?clear=' + Date.now();
+      }, 1000);
+      
     } catch (error) {
+      console.error('Error clearing data:', error);
       toast({
         title: "Error",
         description: "Failed to clear data. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsClearing(false);
     }
+    // Don't set isClearing to false on success as we're redirecting
   };
 
   const handleExportCSV = async () => {
@@ -136,12 +157,14 @@ export default function SettingsPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
+                  {/* Using a regular Button instead of AlertDialogAction to prevent auto-closing */}
+                  <Button 
+                    variant="destructive"
                     onClick={handleClearData}
                     disabled={isClearing}
                   >
                     {isClearing ? "Clearing..." : "Yes, clear all data"}
-                  </AlertDialogAction>
+                  </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
