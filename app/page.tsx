@@ -177,8 +177,13 @@ export default function Dashboard() {
                           isLoading={isLoading}
                           expenses={expenses}
                         />
-                        <div className="grid gap-6 lg:grid-cols-4">
-                          <div className="lg:col-span-2">
+                        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 w-full">
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="w-full"
+                          >
                             <RecentExpenses
                               isLoading={isLoading}
                               expenses={expenses}
@@ -189,10 +194,15 @@ export default function Dashboard() {
                                 setExpenses(data);
                               }}
                             />
-                          </div>
-                          <div className="lg:col-span-2">
+                          </motion.div>
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="w-full"
+                          >
                             <Gamification className="h-full" />
-                          </div>
+                          </motion.div>
                         </div>
                       </motion.div>
                     </TabsContent>

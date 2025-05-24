@@ -47,7 +47,7 @@ export function ExpenseList({ expenses, onDelete }: ExpenseListProps) {
                 <span className="text-lg">{category.icon}</span>
               </div>
               <div className="flex-1">
-                <div className="font-medium">{category.name}</div>
+                <div className="font-medium hidden sm:block">{category.name}</div>
                 <div className="text-sm text-muted-foreground">{formatDate(expense.date)}</div>
               </div>
             </div>
