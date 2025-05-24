@@ -110,6 +110,79 @@ export interface Database {
           updated_at?: string
         }
       }
+    } // Add these to your Database interface in types/supabase.ts
+    badges: {
+      Row: {
+        id: string
+        name: string
+        icon: string
+        description: string
+        created_at: string
+      }
+      Insert: {
+        id: string
+        name: string
+        icon: string
+        description: string
+        created_at?: string
+      }
+      Update: {
+        id?: string
+        name?: string
+        icon?: string
+        description?: string
+        created_at?: string
+      }
     }
+    user_badges: {
+      Row: {
+        id: string
+        user_id: string
+        badge_id: string
+        earned_at: string
+      }
+      Insert: {
+        id?: string
+        user_id: string
+        badge_id: string
+        earned_at?: string
+      }
+      Update: {
+        id?: string
+        user_id?: string
+        badge_id?: string
+        earned_at?: string
+      }
+    }
+    user_streaks: {
+      Row: {
+        id: string
+        user_id: string
+        current_streak: number
+        longest_streak: number
+        last_activity_date: string
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id?: string
+        user_id: string
+        current_streak?: number
+        longest_streak?: number
+        last_activity_date?: string
+        created_at?: string
+        updated_at?: string
+      }
+      Update: {
+        id?: string
+        user_id?: string
+        current_streak?: number
+        longest_streak?: number
+        last_activity_date?: string
+        created_at?: string
+        updated_at?: string
+      }
+    }
+    
   }
 }

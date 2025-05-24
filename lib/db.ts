@@ -75,7 +75,7 @@ export function getDb(): EmoSpendDatabase {
   return dbInstance;
 }
 
-async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<User | null> {
   const supabase = getSupabaseBrowserClient();
   try {
     const {
@@ -161,6 +161,12 @@ export async function addExpense(
           navigator.onLine
         }).`
       );
+    }
+    try {
+      await syncGamificationData();
+    } catch (gamificationError: any) {
+      console.error("[DB] Error syncing gamification data:", gamificationError.message);
+      // Don't fail the expense addition if gamification sync fails
     }
     return id;
   } catch (error: any) {
@@ -554,6 +560,7 @@ export function setupSync(): void {
     try {
       await pullExpensesFromSupabase();
       await syncExpenses();
+      await syncGamificationData();
     } catch (error: any) {
       console.error(
         `[SyncSetup] Error during full sync (${reason}):`,
@@ -579,4 +586,227 @@ export function setupSync(): void {
       // await clearLocalUserData(); // Optional: Add this here for robustness
     }
   });
+}
+
+// Add these functions to your db.ts file
+
+// Special function to fix the 3-day streak badge issue
+export async function fixStreakBadge(): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  const user = await getCurrentUser();
+
+  if (!user || !navigator.onLine) {
+    console.log("[Badge Fix] No user or offline");
+    return;
+  }
+
+  try {
+    console.log("[Badge Fix] Starting badge fix for user:", user.id);
+    
+    // Get local expenses for streak calculation
+    const expenses = await getExpenses();
+    const calculatedStreak = calculateStreak(expenses);
+    console.log("[Badge Fix] Calculated streak:", calculatedStreak);
+    
+    // Force add the 3-day streak badge if streak is >= 3
+    if (calculatedStreak >= 3) {
+      console.log("[Badge Fix] Adding 3-day streak badge");
+      const { error } = await supabase.from("user_badges").upsert({
+        user_id: user.id,
+        badge_id: "3-day-streak",
+        earned_at: new Date().toISOString()
+      }, { onConflict: 'user_id,badge_id' });
+      
+      if (error) {
+        console.error("[Badge Fix] Error adding badge:", error);
+      } else {
+        console.log("[Badge Fix] Badge added successfully!");
+      }
+    }
+    
+    // Update streak record
+    const { error: streakError } = await supabase.from("user_streaks").upsert({
+      user_id: user.id,
+      current_streak: calculatedStreak,
+      longest_streak: calculatedStreak, // This will be adjusted in the regular sync
+      last_activity_date: new Date().toISOString().split('T')[0]
+    }, { onConflict: 'user_id' });
+    
+    if (streakError) {
+      console.error("[Badge Fix] Error updating streak:", streakError);
+    } else {
+      console.log("[Badge Fix] Streak updated successfully!");
+    }
+    
+    return;
+  } catch (error: any) {
+    console.error("[Badge Fix] Error:", error.message);
+  }
+}
+
+// Function to sync gamification data
+export async function syncGamificationData(): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
+  const user = await getCurrentUser();
+
+  if (!user || !navigator.onLine) {
+    return;
+  }
+
+  try {
+    // Get local expenses for streak calculation
+    const expenses = await getExpenses();
+    const calculatedStreak = calculateStreak(expenses);
+    
+    // Check if user already has a streak record
+    const { data: existingStreak, error: streakError } = await supabase
+      .from("user_streaks")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+    
+    if (streakError && streakError.code !== "PGRST116") {
+      console.error("[Gamification] Error checking for existing streak:", streakError);
+      return;
+    }
+    
+    if (!existingStreak) {
+      // Create new streak record
+      await supabase.from("user_streaks").insert({
+        user_id: user.id,
+        current_streak: calculatedStreak,
+        longest_streak: calculatedStreak,
+        last_activity_date: new Date().toISOString().split('T')[0]
+      });
+    } else {
+      // Update existing streak record
+      const longestStreak = Math.max(existingStreak.longest_streak, calculatedStreak);
+      await supabase.from("user_streaks").update({
+        current_streak: calculatedStreak,
+        longest_streak: longestStreak,
+        last_activity_date: new Date().toISOString().split('T')[0]
+      }).eq("user_id", user.id);
+    }
+    
+    // Sync badges based on local calculations
+    const badges = calculateBadges(expenses, calculatedStreak);
+    console.log("[Gamification] Calculated badges:", badges);
+    console.log("[Gamification] Current streak:", calculatedStreak);
+    
+    // Force sync the 3-day streak badge if streak is >= 3
+    if (calculatedStreak >= 3) {
+      console.log("[Gamification] Forcing sync of 3-day streak badge");
+      await supabase.from("user_badges").upsert({
+        user_id: user.id,
+        badge_id: "3-day-streak",
+        earned_at: new Date().toISOString()
+      }, { onConflict: 'user_id,badge_id' });
+    }
+    
+    // Sync other badges
+    for (const badge of badges) {
+      console.log("[Gamification] Processing badge:", badge.id, "earned:", badge.earned);
+      if (badge.earned) {
+        await supabase.from("user_badges").upsert({
+          user_id: user.id,
+          badge_id: badge.id,
+          earned_at: new Date().toISOString()
+        }, { onConflict: 'user_id,badge_id' });
+      }
+    }
+  } catch (error: any) {
+    console.error("[Gamification] Error syncing gamification data:", error.message);
+  }
+}
+
+// Helper function to calculate streak from expenses
+function calculateStreak(expenses: SyncedExpense[]): number {
+  if (!expenses || expenses.length === 0) return 0;
+  
+  // Sort expenses by date (newest first)
+  const sortedExpenses = [...expenses].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  
+  // Group expenses by date
+  const expensesByDate = sortedExpenses.reduce<Record<string, SyncedExpense[]>>((acc, expense) => {
+    const dateStr = expense.date.split('T')[0]; // Get YYYY-MM-DD part
+    if (!acc[dateStr]) {
+      acc[dateStr] = [];
+    }
+    acc[dateStr].push(expense);
+    return acc;
+  }, {});
+  
+  // Get unique dates with expenses
+  const dates = Object.keys(expensesByDate).sort().reverse(); // Sort dates newest first
+  
+  if (dates.length === 0) return 0;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const latestExpenseDate = new Date(dates[0]);
+  latestExpenseDate.setHours(0, 0, 0, 0);
+  
+  // If latest expense is not from today or yesterday, streak is broken
+  const daysSinceLatest = Math.floor((today.getTime() - latestExpenseDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (daysSinceLatest > 1) return 0;
+  
+  // Count consecutive days
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const currentDate = new Date(dates[i-1]);
+    const prevDate = new Date(dates[i]);
+    
+    // Calculate difference in days
+    const diffDays = Math.floor((currentDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      streak++;
+    } else if (diffDays > 1) {
+      // Streak is broken
+      break;
+    }
+  }
+  
+  return streak;
+}
+
+// Helper function to calculate badges
+function calculateBadges(expenses: SyncedExpense[], streak: number): {
+  id: string;
+  earned: boolean;
+}[] {
+  if (!expenses) expenses = [];
+  
+  // Count expenses with mood data
+  const expensesWithMood = expenses.filter(e => e.mood);
+  
+  return [
+    {
+      id: "3-day-streak",
+      earned: streak >= 3,
+    },
+    {
+      id: "budget-master",
+      earned: false, // This requires budget data
+    },
+    {
+      id: "no-impulse",
+      earned: false, // This requires impulse purchase data
+    },
+    {
+      id: "mood-tracker",
+      earned: expensesWithMood.length >= 10,
+    },
+    {
+      id: "weekly-complete",
+      earned: streak >= 7,
+    },
+    {
+      id: "insights-explorer",
+      earned: false, // This requires tracking insights views
+    },
+  ];
 }
