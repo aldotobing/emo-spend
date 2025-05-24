@@ -139,9 +139,10 @@ export async function generateDetailedAnalysis(
       `   - Jelaskan bagaimana pola-pola ini termanifestasi (misalnya, belanja saat sedih, pengeluaran impulsif pada kategori tertentu saat stres).\n\n` +
       `### 2. Analisis Motivasi Emosional Dasar\n` +
       `   - Gali lebih dalam mengenai kemungkinan motivasi emosional di balik setiap pola utama.\n` +
-      `   - Apakah ini upaya untuk mengatasi emosi negatif, mencari kesenangan sesaat, mengisi kekosongan, atau mekanisme koping lainnya?\n\n` +
+      `   - Pertimbangkan berbagai motivasi, seperti: merayakan pencapaian, menghargai diri sendiri, mengatasi emosi negatif, mencari kesenangan, mengisi kekosongan, atau mekanisme koping lainnya.\n` +
+      `   - Perhatikan bahwa belanja emosional bisa bersifat positif (misalnya, hadiah untuk diri sendiri setelah mencapai target) atau negatif (misalnya, belanja impulsif saat stres).\n\n` +
       `### 3. Identifikasi Pemicu (Triggers)\n` +
-      `   - Sebutkan potensi pemicu emosional (misalnya, kesepian, kebosanan, stres kerja) dan situasional (misalnya, akhir pekan, setelah menerima gaji, melihat iklan) yang mungkin menyebabkan pengeluaran tersebut.\n` +
+      `   - Sebutkan potensi pemicu emosional (baik positif seperti kebahagiaan, pencapaian, maupun negatif seperti kesepian, kebosanan, stres kerja) dan situasional (misalnya, akhir pekan, setelah menerima gaji, melihat iklan, merayakan kesuksesan) yang mungkin menyebabkan pengeluaran tersebut.\n` +
       `   - Jika memungkinkan, buat **tabel sederhana** atau **bullet points terstruktur** yang menghubungkan pemicu dengan jenis pengeluaran atau suasana hati tertentu.\n` +
       `     Contoh tabel (gunakan format Markdown untuk tabel):\n` +
       `     | Pemicu Potensial        | Suasana Hati Terkait | Jenis Pengeluaran Umum |\n` +
@@ -149,12 +150,14 @@ export async function generateDetailedAnalysis(
       `     | Stres kerja             | Cemas, Lelah         | Makanan cepat saji, Belanja online impulsif |\n` +
       `     | Merasa kesepian         | Sedih, Bosan         | Hiburan, Barang mewah kecil |\n\n` +
       `### 4. Dampak Pola Belanja\n` +
-      `   - Jelaskan secara singkat potensi dampak jangka pendek dan jangka panjang dari pola belanja emosional ini terhadap kesejahteraan finansial dan emosional pengguna.\n\n` +
-      `### 5. Saran Konstruktif dan Strategi Koping\n` +
+      `   - Jelaskan secara singkat potensi dampak jangka pendek dan jangka panjang dari pola belanja emosional ini terhadap kesejahteraan finansial dan emosional pengguna.\n` +
+      `   - Bedakan antara pola belanja yang sehat (yang mungkin meningkatkan kesejahteraan emosional tanpa mengorbankan stabilitas keuangan) dan pola belanja yang kurang sehat (yang mungkin memberikan kepuasan sementara tetapi berdampak negatif pada keuangan).\n\n` +
+      `### 5. Saran Konstruktif dan Strategi Pengelolaan\n` +
       `   - Berikan saran yang **konkret, praktis, dan dapat ditindaklanjuti** untuk membantu pengguna:\n` +
-      `     - Meningkatkan kesadaran diri terhadap belanja emosional.\n` +
-      `     - Mengembangkan strategi koping yang lebih sehat untuk mengelola emosi tanpa harus belanja.\n` +
-      `     - Membuat rencana anggaran yang mempertimbangkan potensi belanja emosional.\n` +
+      `     - Meningkatkan kesadaran diri terhadap pola belanja emosional, baik positif maupun negatif.\n` +
+      `     - Mempertahankan dan meningkatkan pola belanja positif yang sehat dan seimbang.\n` +
+      `     - Mengembangkan strategi pengelolaan yang lebih sehat untuk mengelola emosi negatif tanpa harus belanja berlebihan.\n` +
+      `     - Membuat rencana anggaran yang mempertimbangkan kebutuhan emosional dan memberikan ruang untuk pengeluaran yang meningkatkan kesejahteraan.\n` +
       `   - Gunakan **bullet points** untuk setiap saran agar mudah dibaca dan dicerna.\n` +
       `   - Jika relevan, Anda dapat menyajikan alur sederhana atau "decision tree" tekstual untuk membantu pengguna mengidentifikasi dan mengatasi dorongan belanja emosional. Contoh konseptual:\n` +
       `     \`Merasa dorongan belanja? -> Identifikasi emosi saat ini -> Apakah ada kebutuhan nyata? -> Jika tidak, coba alternatif [Aktivitas X, Y, Z] -> Evaluasi setelah 15 menit.\`\n\n` +
@@ -253,7 +256,7 @@ function prepareContextForAI(
   let context =
     "# Analisis Data Pengeluaran Pengguna untuk Wawasan Emosional\n\n" +
     "**Konteks Utama:** Data pengeluaran pengguna ini dalam **Rupiah Indonesia (Rp)** dan seluruh interaksi serta respons diharapkan dalam **Bahasa Indonesia**.\n" +
-    "**Peran AI:** Anda adalah seorang penasihat keuangan yang juga memiliki keahlian sebagai psikoanalis, berfokus pada identifikasi pola belanja emosional.\n\n";
+    "**Peran AI:** Anda adalah seorang penasihat keuangan yang juga memiliki keahlian sebagai psikoanalis, berfokus pada identifikasi pola belanja emosional. Penting untuk memahami bahwa emosi pengguna bisa positif maupun negatif, dan keduanya dapat mempengaruhi pola pengeluaran dengan cara yang berbeda-beda.\n\n";
 
   context +=
     "## Ringkasan Pengeluaran Berdasarkan Suasana Hati\n" +
@@ -320,8 +323,8 @@ function prepareContextForAI(
     context +=
       "## Instruksi untuk AI: Wawasan Awal (Format: Markdown List)\n" +
       "Berdasarkan **semua data di atas**, lakukan hal berikut:\n" +
-      "1.  Identifikasi **3 hingga 6 pola belanja emosional** yang paling signifikan atau menarik dari data pengguna. Buatkan hipotesa sebagai judul besarnya\n" +
-      "2.  Untuk setiap pola, berikan **satu wawasan (insight)** yang jelas dan actionable.\n" +
+      "1.  Identifikasi **3 hingga 6 pola belanja emosional** yang paling signifikan atau menarik dari data pengguna. Perhatikan baik emosi positif (seperti bahagia, puas) maupun emosi negatif (seperti sedih, stres) dan bagaimana keduanya mempengaruhi pengeluaran. Buatkan hipotesa sebagai judul besarnya\n" +
+      "2.  Untuk setiap pola, berikan **satu wawasan (insight)** yang jelas dan actionable. Wawasan ini bisa berupa penguatan pola positif atau perbaikan pola negatif.\n" +
       "3.  Sampaikan setiap wawasan sebagai **item dalam daftar Markdown** (misalnya, diawali dengan `- ` atau `* ` atau `###` atau `>' atau `##` atau `####`).\n" +
       "4.  Gunakan **Bahasa Indonesia** yang empatik dan profesional.\n" +
       "5.  **PENTING:** Kembalikan **HANYA daftar Markdown berisi wawasan tersebut**. Jangan sertakan teks pembuka, penutup, judul tambahan, atau sapaan. Setiap item list harus merupakan wawasan yang diminta.\n\n" +

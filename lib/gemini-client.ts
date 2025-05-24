@@ -29,7 +29,7 @@ export async function callGeminiAPI(
       body: JSON.stringify({
         contents: [
           {
-            role: "user", // Role can be 'user' for direct prompts
+            role: "user", 
             parts: [
               {
                 text:
@@ -41,7 +41,7 @@ export async function callGeminiAPI(
           },
         ],
         generationConfig: {
-          temperature: 0.7,
+          temperature: 1.0,
           maxOutputTokens: isDetailedAnalysis ? 1000 : 500, // More tokens for detailed analysis
           // topP: 0.9, // Optional: nucleus sampling
           // topK: 40, // Optional: top-k sampling

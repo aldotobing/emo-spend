@@ -27,7 +27,8 @@ export class EmoSpendDatabase extends Dexie {
           syncStatus: "id, synced, lastAttempt",
         })
         .upgrade(async (tx) => {
-          if (tx.verno < 5 && tx.table("expenses")) {
+          // Check if the expenses table exists
+          if (tx.table("expenses")) {
             await tx
               .table<SyncedExpense>("expenses")
               .toCollection()
