@@ -76,58 +76,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      console.log('Starting signIn function');
+      console.log("Starting signIn function");
       setIsLoading(true);
       try {
         // Basic validation
         if (!email || !password) {
           const err = new Error("Please enter both email and password");
-          console.log('Validation error:', err.message);
+          console.log("Validation error:", err.message);
           throw err;
         }
 
-        console.log('Attempting to sign in with email:', email);
+        console.log("Attempting to sign in with email:", email);
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password,
         });
 
         if (error) {
-          console.log('Auth error occurred:', error);
+          console.log("Auth error occurred:", error);
           // More specific error handling
           let errorMessage = error.message;
           if (error.message.includes("Invalid login credentials")) {
-            errorMessage = "The email or password you entered is incorrect. Please try again.";
+            errorMessage =
+              "The email or password you entered is incorrect. Please try again.";
           } else if (error.message.includes("Email not confirmed")) {
             errorMessage = "Please verify your email before signing in.";
           } else if (error.message.includes("network")) {
-            errorMessage = "Network error. Please check your internet connection.";
+            errorMessage =
+              "Network error. Please check your internet connection.";
           }
           const authError = new Error(errorMessage);
-          console.log('Throwing auth error:', authError.message);
+          console.log("Throwing auth error:", authError.message);
           throw authError;
         }
 
         // Success case - Let the calling component handle the success state
-        console.log('Login successful');
+        console.log("Login successful");
         try {
-          console.log('Starting post-login sync');
+          console.log("Starting post-login sync");
           await performPostLoginSync();
         } catch (syncError) {
           console.error("Sync error after login:", syncError);
           // Don't block the login flow for sync errors
           toast({
             title: "Sync Error",
-            description: "Could not sync all data. Some features may be limited.",
+            description:
+              "Could not sync all data. Some features may be limited.",
             variant: "destructive" as const,
             duration: 5000,
           });
         }
 
         // Use router.push instead of window.location for better SPA behavior
-        window.location.href = "/";
+        router.push("/");
       } catch (error: any) {
-        console.error("Sign-in error:", error);
+        // console.error("Sign-in error:", error);
         // Just re-throw the error - let the login page handle the toast
         throw error;
       } finally {

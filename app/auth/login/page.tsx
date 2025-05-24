@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { motion } from "framer-motion";
 import { Sparkles, Smile, ArrowRight } from "lucide-react";
@@ -66,17 +66,48 @@ export default function LoginPage() {
 
   // Helper function to handle successful login
   async function handleSuccessfulLogin() {
-    toast({
+    // Animasi titik berjalan
+    const baseText = "Syncing your latest data";
+    const dots = ["", ".", "..", "..."];
+    let dotIndex = 0;
+    let isSyncing = true;
+    let toastId: string | undefined = undefined;
+
+    // Tampilkan toast pertama kali
+    const toastObj = toast({
       title: "Welcome back! 🎉",
-      description: "Syncing your latest data...",
+      description: `${baseText}...`,
+      variant: "default",
+    });
+    toastId = toastObj.id;
+
+    // Interval untuk update animasi
+    const interval = setInterval(() => {
+      if (!isSyncing) return;
+      toastObj.update({
+        id: toastObj.id,
+        title: "Welcome back! 🎉",
+        description: `${baseText}${dots[dotIndex]}`,
+        variant: "default",
+      });
+      dotIndex = (dotIndex + 1) % dots.length;
+    }, 500);
+
+    // Lakukan sync
+    await performPostLoginSync();
+    isSyncing = false;
+    clearInterval(interval);
+
+    // Update toast menjadi selesai
+    toastObj.update({
+      id: toastObj.id,
+      title: "Welcome back! 🎉",
+      description: "Data kamu sudah tersinkronisasi! 🚀",
       variant: "default",
     });
 
-    // Perform data sync
-    await performPostLoginSync();
-
-    // Navigate to home page without full page refresh
-    router.push('/');
+    // Navigasi ke home page
+    router.push("/");
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -84,11 +115,12 @@ export default function LoginPage() {
     try {
       await signIn(values.email, values.password);
       await handleSuccessfulLogin();
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (error: any) {
+      // console.error("Login error:", error);
       toast({
         title: "Oops! Login failed 😕",
-        description: "Please check your credentials and try again.",
+        description:
+          error?.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {
@@ -124,13 +156,45 @@ export default function LoginPage() {
       }
 
       // Kalau session udah siap, lanjut sync
-      toast({
+      // Animasi titik berjalan
+      const baseText = "Syncing your latest data";
+      const dots = ["", ".", "..", "..."];
+      let dotIndex = 0;
+      let isSyncing = true;
+      let toastId: string | undefined = undefined;
+
+      // Tampilkan toast pertama kali
+      const toastObj = toast({
         title: "Welcome back! 🎉",
-        description: "Syncing your latest data...",
+        description: `${baseText}...`,
+        variant: "default",
+      });
+      toastId = toastObj.id;
+
+      // Interval untuk update animasi
+      const interval = setInterval(() => {
+        if (!isSyncing) return;
+        toastObj.update({
+          id: toastObj.id,
+          title: "Welcome back! 🎉",
+          description: `${baseText}${dots[dotIndex]}`,
+          variant: "default",
+        });
+        dotIndex = (dotIndex + 1) % dots.length;
+      }, 500);
+
+      await performPostLoginSync();
+      isSyncing = false;
+      clearInterval(interval);
+
+      // Update toast menjadi selesai
+      toastObj.update({
+        id: toastObj.id,
+        title: "Welcome back! 🎉",
+        description: "Data kamu sudah tersinkronisasi! 🚀",
         variant: "default",
       });
 
-      await performPostLoginSync();
       window.location.href = "/"; // hard reload biar semua state reset
     } catch (error) {
       console.error("Google sign-in error:", error);

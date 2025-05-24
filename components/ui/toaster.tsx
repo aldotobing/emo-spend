@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast";
 import {
   Toast,
   ToastClose,
@@ -8,25 +8,20 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
-} from "@/components/ui/toast"
-import { useEffect } from "react"
+} from "@/components/ui/toast";
 
 export function Toaster() {
-  const { toasts } = useToast()
-
-  // Debug: Log when toasts change
-  useEffect(() => {
-    console.log('Toasts updated:', toasts)
-  }, [toasts])
-
-  console.log('Rendering Toaster with toasts:', toasts.length)
+  const { toasts } = useToast();
 
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
-        console.log('Rendering toast:', { id, title, description })
         return (
-          <Toast key={id} {...props}>
+          <Toast
+            key={id}
+            {...props}
+            className="max-w-xs w-full mx-4 bg-background/80 text-foreground border border-border backdrop-blur-md sm:max-w-sm sm:mx-0"
+          >
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (
@@ -36,9 +31,9 @@ export function Toaster() {
             {action}
             <ToastClose />
           </Toast>
-        )
+        );
       })}
-      <ToastViewport className="fixed bottom-0 right-0 z-50" />
+      <ToastViewport className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 sm:bottom-8 sm:right-8 sm:top-auto sm:left-auto sm:translate-y-0 sm:translate-x-0" />
     </ToastProvider>
-  )
+  );
 }

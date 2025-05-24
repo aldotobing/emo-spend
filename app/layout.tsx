@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
-import { Toaster } from "react-hot-toast";
+import { Toaster } from "@/components/ui/toaster";
 import { SyncProvider } from "./providers";
 import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
@@ -300,51 +300,7 @@ export default function RootLayout({
                     </main>
                     <ConditionalBottomNavigation />
                   </div>
-                  <Toaster
-                    position="bottom-right"
-                    containerStyle={{
-                      bottom: "2rem",
-                      right: "2rem",
-                      zIndex: 1000,
-                    }}
-                    toastOptions={{
-                      duration: 5000,
-                      style: {
-                        background: "hsl(var(--background))",
-                        color: "hsl(var(--foreground))",
-                        border: "1px solid hsl(var(--border))",
-                        padding: "12px 16px",
-                        borderRadius: "8px",
-                        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-                        margin: 0,
-                        maxWidth: "400px",
-                        width: "auto",
-                      },
-                      className: "toast",
-                      success: {
-                        iconTheme: {
-                          primary: "hsl(var(--primary))",
-                          secondary: "hsl(var(--primary-foreground))",
-                        },
-                      },
-                      error: {
-                        style: {
-                          background: "hsl(var(--destructive))",
-                          color: "hsl(var(--destructive-foreground))",
-                        },
-                        iconTheme: {
-                          primary: "hsl(var(--destructive-foreground))",
-                          secondary: "hsl(var(--destructive))",
-                        },
-                      },
-                      loading: {
-                        iconTheme: {
-                          primary: "hsl(var(--primary))",
-                          secondary: "hsl(var(--primary-foreground))",
-                        },
-                      },
-                    }}
-                  />
+                  <Toaster />
                 </AuthGuard>
               </SyncProvider>
             </SyncStatusProvider>
