@@ -190,6 +190,7 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
     const childRef = useRef<HTMLDivElement>(null);
     const isMobile = useRef(typeof window !== 'undefined' && window.innerWidth < 768);
     const isHovering = useRef(false);
+    const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
     
     // Calculate optimal placement based on position and window boundaries
     const calculatePlacement = useCallback((x: number, y: number, element: HTMLElement | null) => {
@@ -248,38 +249,122 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
       if (!isMobile.current) return;
       
-      // Prevent default to avoid any default touch behaviors
-      e.preventDefault();
-      
       const touch = e.touches[0];
       const x = touch.clientX;
       const y = touch.clientY;
       
-      setPosition({ x, y });
-      setPlacement(calculatePlacement(x, y, e.currentTarget as HTMLElement));
+      // Store touch start position and time
+      touchStartRef.current = { x, y, time: Date.now() };
       
-      // Show tooltip immediately on touch start
-      setShowTooltip(true);
+      // Don't prevent default here to avoid passive event warning
+      // We'll handle the actual touch in a ref callback
+    }, []);
+    
+    // Handle touch move to detect if it's a scroll
+    const handleTouchMove = useCallback((e: TouchEvent) => {
+      if (!touchStartRef.current) return;
       
-      // Clear any existing timeout to prevent multiple tooltips
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - touchStartRef.current.x);
+      const dy = Math.abs(touch.clientY - touchStartRef.current.y);
+      
+      // If the touch moved significantly, it's probably a scroll
+      if (dx > 5 || dy > 5) {
+        touchStartRef.current = null;
       }
-      
-      // Auto-hide the tooltip after 3 seconds
-      timeoutRef.current = setTimeout(() => {
-        if (!isHovering.current) {
-          setShowTooltip(false);
-        }
-      }, 3000);
-    }, [calculatePlacement]);
+    }, []);
     
     // Handle touch end for mobile
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-      if (!isMobile.current) return;
-      e.preventDefault();
-      // Don't hide the tooltip on touch end, let the timeout handle it
-    }, []);
+      if (!isMobile.current || !touchStartRef.current) return;
+      
+      const touch = e.changedTouches[0];
+      const x = touch.clientX;
+      const y = touch.clientY;
+      
+      // Check if this was a tap (not a scroll)
+      const dx = Math.abs(x - touchStartRef.current.x);
+      const dy = Math.abs(y - touchStartRef.current.y);
+      const dt = Date.now() - touchStartRef.current.time;
+      
+      if (dx < 10 && dy < 10 && dt < 300) {
+        // It's a tap, show the tooltip
+        const target = e.currentTarget as HTMLElement;
+        const rect = target.getBoundingClientRect();
+        
+        // Check if touch is within the target element
+        if (
+          x >= rect.left - 10 && 
+          x <= rect.right + 10 && 
+          y >= rect.top - 10 && 
+          y <= rect.bottom + 10
+        ) {
+          // Hide any existing tooltip first to avoid flickering
+          setShowTooltip(false);
+          
+          // Use a small delay to ensure state updates are processed
+          setTimeout(() => {
+            setPosition({ x, y });
+            setPlacement(calculatePlacement(x, y, target));
+            setShowTooltip(true);
+            
+            // Clear any existing timeout to prevent multiple tooltips
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+            }
+            
+            // Auto-hide the tooltip after 5 seconds (slightly longer for better UX)
+            timeoutRef.current = setTimeout(() => {
+              setShowTooltip(false);
+            }, 5000);
+          }, 50);
+        }
+      }
+      
+      touchStartRef.current = null;
+    }, [calculatePlacement]);
+    
+    // Handle document click to close tooltip when clicking outside
+    const handleDocumentClick = useCallback((e: MouseEvent | TouchEvent) => {
+      if (!isMobile.current || !showTooltip || !tooltipRef.current) return;
+      
+      let target: Node | null = null;
+      
+      // Handle both TouchEvent and MouseEvent
+      if ('touches' in e) {
+        if (e.touches.length > 0) {
+          target = document.elementFromPoint(
+            e.touches[0].clientX,
+            e.touches[0].clientY
+          ) as Node;
+        }
+      } else {
+        target = e.target as Node;
+      }
+      
+      if (!target) return;
+      
+      // If the click is outside the tooltip and not on the child element
+      if (!tooltipRef.current.contains(target) && !childRef.current?.contains(target)) {
+        setShowTooltip(false);
+      }
+    }, [showTooltip]);
+    
+    // Add event listeners for touch move and document click
+    useEffect(() => {
+      if (isMobile.current) {
+        // Add passive touch move listener to detect scrolls
+        document.addEventListener('touchmove', handleTouchMove as any, { passive: true });
+        document.addEventListener('click', handleDocumentClick as any, true);
+        document.addEventListener('touchend', handleDocumentClick as any, true);
+        
+        return () => {
+          document.removeEventListener('touchmove', handleTouchMove as any);
+          document.removeEventListener('click', handleDocumentClick as any, true);
+          document.removeEventListener('touchend', handleDocumentClick as any, true);
+        };
+      }
+    }, [handleTouchMove, handleDocumentClick]);
     
     // Handle mouse enter for desktop
     const handleMouseEnter = useCallback((e: React.MouseEvent) => {
@@ -328,70 +413,73 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
     }, []);
     
     // Get tooltip style based on placement
-    const getTooltipStyle = useCallback(() => {
+    const getTooltipStyle = useCallback((): React.CSSProperties => {
       if (isMobile.current) {
         // Mobile styles - position near the touch point
-        const baseStyle = {
-          position: 'fixed' as const,
-          maxWidth: '250px',
-          width: 'max-content'
+        const baseStyle: React.CSSProperties = {
+          position: 'fixed',
+          maxWidth: '90vw', // Use viewport width instead of fixed width
+          width: 280, // Use number for better TypeScript compatibility
+          zIndex: 9999,
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+          borderRadius: 12,
+          padding: 12,
+          backgroundColor: 'var(--background)',
+          border: '1px solid var(--border)',
+          overflow: 'hidden',
+          maxHeight: '70vh', // Prevent tooltip from being too tall
+          overflowY: 'auto' as const, // Properly type the overflowY property
+          WebkitOverflowScrolling: 'touch' as any, // Type assertion for webkit prefixed property
         };
+
+        // Calculate safe area insets for notches and home indicators
+        const safeAreaInsetBottom = typeof window !== 'undefined' 
+          ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0', 10) 
+          : 0;
         
-        // Adjust position based on placement
-        if (placement.vertical === 'top') {
-          // Horizontal placement adjustments for mobile
-          if (placement.horizontal === 'right') {
-            // For right edge, position tooltip to the left of the touch point
-            return {
-              ...baseStyle,
-              right: `${window.innerWidth - position.x + 20}px`,
-              left: 'auto',
-              top: `${position.y - 20}px`,
-              transform: 'translateY(-100%)'
-            };
-          } else if (placement.horizontal === 'left') {
-            // For left edge, position tooltip to the right of the touch point
-            return {
-              ...baseStyle,
-              left: `${position.x + 20}px`,
-              right: 'auto',
-              top: `${position.y - 20}px`,
-              transform: 'translateY(-100%)'
-            };
-          } else {
-            // Center (default)
-            return {
-              ...baseStyle,
-              left: `${position.x}px`,
-              top: `${position.y - 20}px`,
-              transform: 'translate(-50%, -100%)'
-            };
-          }
-        } else {
-          // Bottom placement with similar horizontal adjustments
-          if (placement.horizontal === 'right') {
-            return {
-              ...baseStyle,
-              right: `${window.innerWidth - position.x + 20}px`,
-              left: 'auto',
-              top: `${position.y + 50}px`,
-            };
-          } else if (placement.horizontal === 'left') {
-            return {
-              ...baseStyle,
-              left: `${position.x + 20}px`,
-              right: 'auto',
-              top: `${position.y + 50}px`,
-            };
-          } else {
-            return {
-              ...baseStyle,
-              left: `${position.x}px`,
-              top: `${position.y + 50}px`,
-              transform: 'translateX(-50%)'
-            };
-          }
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight - safeAreaInsetBottom;
+        
+        // Estimate tooltip dimensions (will be adjusted after render)
+        const tooltipWidth = Math.min(280, viewportWidth * 0.9);
+        const tooltipHeight = 180; // Initial estimate, will be adjusted
+        
+        // Calculate initial position centered on touch point
+        let left = position.x - (tooltipWidth / 2);
+        let top = position.y + 20; // Position below touch point by default
+        
+        // Adjust horizontal position to keep tooltip within viewport
+        if (left < 10) {
+          left = 10;
+        } else if (left + tooltipWidth > viewportWidth - 10) {
+          left = viewportWidth - tooltipWidth - 10;
         }
+        
+        // Adjust vertical position based on available space
+        const spaceAbove = position.y - 20; // Space above touch point
+        const spaceBelow = viewportHeight - position.y - 40; // Space below touch point
+        
+        if (spaceBelow < tooltipHeight && spaceAbove > spaceBelow) {
+          // If more space above and not enough below, position above
+          top = position.y - tooltipHeight - 20;
+        } else {
+          // Default to below, but ensure it doesn't go off screen
+          top = Math.min(viewportHeight - tooltipHeight - 20, top);
+        }
+        
+        // Ensure minimum distance from edges
+        top = Math.max(10, Math.min(viewportHeight - tooltipHeight - 20, top));
+        
+        return {
+          ...baseStyle,
+          left: `${left}px`,
+          top: `${top}px`,
+          transform: 'none',
+          opacity: showTooltip ? 1 : 0, // Fade in/out
+          transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
+          pointerEvents: showTooltip ? 'auto' : 'none' // Prevent blocking interactions when hidden
+        };
       } else {
         // Desktop styles - position relative to the calendar cell
         return {
@@ -451,7 +539,6 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         className="relative"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onTouchCancel={handleTouchEnd}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
@@ -459,10 +546,22 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         {showTooltip && (
           <div 
             ref={tooltipRef}
-            className="absolute z-50 bg-popover text-popover-foreground shadow-md rounded-md p-3 text-sm animate-in fade-in-0 zoom-in-95 cursor-default"
-            style={getTooltipStyle()}
+            className={cn(
+              "z-50 bg-popover text-popover-foreground shadow-lg rounded-lg p-3 text-sm animate-in fade-in-0 zoom-in-95 cursor-default",
+              "transition-all duration-200 ease-out",
+              isMobile.current ? "fixed" : "absolute"
+            )}
+            style={{
+              ...getTooltipStyle(),
+              pointerEvents: 'auto',
+              touchAction: 'none',
+              WebkitTapHighlightColor: 'transparent'
+            }}
             onMouseEnter={handleTooltipMouseEnter}
             onMouseLeave={handleTooltipMouseLeave}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
           >
             {content}
             <div 
