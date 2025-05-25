@@ -476,70 +476,87 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="p-3 sm:pb-2 sm:pt-4 sm:px-6">
+    <Card className="overflow-hidden border-0 shadow-lg dark:shadow-gray-800/30 transition-all duration-300 hover:shadow-xl dark:hover:shadow-gray-800/50">
+      <CardHeader className="p-2 sm:p-4 sm:px-6 sm:py-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium sm:text-lg">Kalender</h3>
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div>
+            <h3 className="text-sm sm:text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+              Kalender
+              <span className="hidden xs:inline"> Pengeluaran</span>
+            </h3>
+            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">Lacak pengeluaran harian</p>
+          </div>
+          <div className="flex items-center gap-1 xs:gap-2 bg-white/50 dark:bg-gray-800/50 rounded-lg p-0.5 xs:p-1 border border-gray-100 dark:border-gray-700">
             <Button 
               variant="ghost" 
-              size="icon" 
+              size="sm"
               onClick={goToPreviousMonth}
-              className="h-6 w-6 sm:h-7 sm:w-7"
+              className="h-7 w-7 xs:h-8 xs:w-8 p-0 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
             >
-              <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+              <ChevronLeft className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
             </Button>
-            <span className="font-medium text-xs sm:text-sm whitespace-nowrap">
-              {format(currentMonth, "MMM yyyy", { locale: id })}
+            <span className="font-medium text-xs xs:text-sm whitespace-nowrap px-1.5 xs:px-2 text-gray-700 dark:text-gray-200">
+              <span className="hidden sm:inline">{format(currentMonth, "MMMM yyyy", { locale: id })}</span>
+              <span className="sm:hidden">{format(currentMonth, "MMM yyyy", { locale: id })}</span>
             </span>
             <Button 
               variant="ghost" 
-              size="icon" 
+              size="sm"
               onClick={goToNextMonth}
-              className="h-6 w-6 sm:h-7 sm:w-7"
+              className="h-7 w-7 xs:h-8 xs:w-8 p-0 rounded-md hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
             >
-              <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
+              <ChevronRight className="h-3.5 w-3.5 xs:h-4 xs:w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="p-2 sm:p-4 md:p-6 space-y-3 sm:space-y-4 md:space-y-6">
         {/* Month Summary */}
         {!isLoading && (
-          <Card className="bg-muted/30">
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Pengeluaran</p>
-                  <p className="text-2xl font-bold">{formatCurrency(monthSummary.totalSpent)}</p>
+          <Card className="bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 divide-x divide-y md:divide-y-0 divide-gray-100 dark:divide-gray-700 text-center sm:text-left">
+                <div className="p-2 sm:p-3 md:p-4 lg:p-5">
+                  <p className="text-[10px] xs:text-xs font-medium text-muted-foreground mb-0.5 sm:mb-1 flex items-center justify-center sm:justify-start">Total Pengeluaran</p>
+                  <p className="text-lg xs:text-xl sm:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
+                    {formatCurrency(monthSummary.totalSpent)}
+                  </p>
                 </div>
                 {monthSummary.highestDay && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                      <TrendingUp className="h-4 w-4 text-destructive" /> Pengeluaran Tertinggi
+                  <div className="p-2 sm:p-3 md:p-4 lg:p-5">
+                    <p className="text-[10px] xs:text-xs font-medium text-muted-foreground mb-0.5 sm:mb-1 flex items-center justify-center sm:justify-start gap-1">
+                      <TrendingUp className="h-3 w-3 xs:h-3.5 xs:w-3.5 text-red-500 flex-shrink-0" />
+                      <span className="truncate">Pengeluaran Tertinggi</span>
                     </p>
-                    <p className="text-xl font-bold">{formatCurrency(monthSummary.highestDay.amount)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(monthSummary.highestDay.date, "EEEE, d MMMM", { locale: id })}
+                    <p className="text-base xs:text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">
+                      {formatCurrency(monthSummary.highestDay.amount)}
+                    </p>
+                    <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                      {format(monthSummary.highestDay.date, "EEE, d MMM", { locale: id })}
                     </p>
                   </div>
                 )}
                 {monthSummary.lowestDay && monthSummary.daysWithExpenses > 1 && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                      <TrendingDown className="h-4 w-4 text-primary" /> Pengeluaran Terendah
+                  <div className="p-2 sm:p-3 md:p-4 lg:p-5">
+                    <p className="text-[10px] xs:text-xs font-medium text-muted-foreground mb-0.5 sm:mb-1 flex items-center justify-center sm:justify-start gap-1">
+                      <TrendingDown className="h-3 w-3 xs:h-3.5 xs:w-3.5 text-emerald-500 flex-shrink-0" />
+                      <span className="truncate">Pengeluaran Terendah</span>
                     </p>
-                    <p className="text-xl font-bold">{formatCurrency(monthSummary.lowestDay.amount)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(monthSummary.lowestDay.date, "EEEE, d MMMM", { locale: id })}
+                    <p className="text-base xs:text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">
+                      {formatCurrency(monthSummary.lowestDay.amount)}
+                    </p>
+                    <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                      {format(monthSummary.lowestDay.date, "EEE, d MMM", { locale: id })}
                     </p>
                   </div>
                 )}
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Rata-rata per Hari</p>
-                  <p className="text-xl font-bold">{formatCurrency(monthSummary.avgPerDay)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Dari {monthSummary.daysWithExpenses} hari dengan pengeluaran
+                <div className="p-2 sm:p-3 md:p-4 lg:p-5">
+                  <p className="text-[10px] xs:text-xs font-medium text-muted-foreground mb-0.5 sm:mb-1">Rata-rata per Hari</p>
+                  <p className="text-base xs:text-lg sm:text-xl font-bold text-gray-800 dark:text-gray-100">
+                    {formatCurrency(monthSummary.avgPerDay)}
+                  </p>
+                  <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">
+                    <span className="font-medium text-foreground">{monthSummary.daysWithExpenses} hari</span> dengan pengeluaran
                   </p>
                 </div>
               </div>
@@ -552,19 +569,29 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         ) : (
           <div className="calendar-container">
             {/* Calendar Header - Days of Week */}
-            <div className="grid grid-cols-7 mb-2">
-              {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day) => (
-                <div key={day} className="text-center text-xs font-medium py-1 text-muted-foreground">
+            <div className="grid grid-cols-7 mb-2 sm:mb-3">
+              {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day, i) => (
+                <div 
+                  key={day} 
+                  className={cn(
+                    "text-center text-[10px] xs:text-xs font-medium py-1.5 sm:py-2 text-muted-foreground",
+                    i === 0 && "text-red-500 dark:text-red-400", // Sunday
+                    i === 6 && "text-blue-500 dark:text-blue-400"  // Saturday
+                  )}
+                >
                   {day}
                 </div>
               ))}
             </div>
             
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-1 md:gap-2">
+            <div className="grid grid-cols-7 gap-1 xs:gap-1.5 sm:gap-2.5">
               {/* Empty cells for days before the first day of the month */}
               {Array.from({ length: getDay(days[0]) }).map((_, index) => (
-                <div key={`empty-start-${index}`} className="aspect-square rounded-md bg-muted/20" />
+                <div 
+                  key={`empty-start-${index}`} 
+                  className="aspect-square rounded-lg bg-muted/10 dark:bg-muted/20" 
+                />
               ))}
               
               {/* Calendar days */}
@@ -575,42 +602,64 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                 const mood = dayData?.dominantMood ? getMood(dayData.dominantMood) : null;
                 const intensity = dayData ? getIntensityLevel(dayData.totalAmount) : 0;
                 const isCurrentDay = isToday(date);
+                const isWeekend = [0, 6].includes(getDay(date));
+                
+                // Calculate background color based on intensity
+                const bgIntensity = [
+                  'bg-gray-50 dark:bg-gray-900/30',
+                  'bg-blue-50 dark:bg-blue-900/20',
+                  'bg-blue-100 dark:bg-blue-900/30',
+                  'bg-blue-200 dark:bg-blue-800/40',
+                  'bg-blue-300 dark:bg-blue-700/40',
+                  'bg-blue-400 dark:bg-blue-600/50'
+                ][intensity];
                 
                 return (
                   <CalendarTooltip 
                     key={dateKey} 
                     content={
                       hasExpenses && dayData ? (
-                        <div className="max-w-[220px]">
-                          <div className="flex items-center justify-between border-b pb-1.5 mb-2">
-                            <p className="font-medium text-xs">{format(date, "EEEE", { locale: id })}</p>
-                            <p className="font-bold text-xs">{format(date, "d MMM yyyy", { locale: id })}</p>
-                          </div>
-                          
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center">
-                              {mood && <span className="mr-1.5 text-base">{mood.emoji}</span>}
-                              <span className="text-xs">{dayData.expenseCount} transaksi</span>
+                        <div className="max-w-[240px] p-0">
+                          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 text-white">
+                            <div className="flex items-center justify-between">
+                              <p className="font-medium text-sm">{format(date, "EEEE", { locale: id })}</p>
+                              <p className="font-bold text-sm">{format(date, "d MMM yyyy", { locale: id })}</p>
                             </div>
-                            <p className="font-bold text-sm text-primary">{formatCurrency(dayData.totalAmount)}</p>
-                          </div>
-                          
-                          {Object.entries(dayData.categoryCounts).length > 0 && (
-                            <div className="border-t pt-1.5">
-                              <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">Kategori</p>
-                              <div className="grid gap-1">
-                                {Object.entries(dayData.categoryCounts)
-                                  .sort((a, b) => b[1].amount - a[1].amount) // Sort by amount (highest first)
-                                  .map(([category, data]) => (
-                                    <div key={category} className="flex justify-between text-xs items-center">
-                                      <span className="truncate mr-2">{category}</span>
-                                      <span className="font-medium tabular-nums">{formatCurrency(data.amount)}</span>
-                                    </div>
-                                  ))
-                                }
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center bg-white/10 px-2 py-1 rounded-full">
+                                {mood && <span className="mr-1.5 text-base">{mood.emoji}</span>}
+                                <span className="text-xs font-medium">{dayData.expenseCount} transaksi</span>
                               </div>
+                              <p className="font-bold text-base">{formatCurrency(dayData.totalAmount)}</p>
                             </div>
-                          )}
+                          </div>
+                          
+                          <div className="p-3">
+                            {Object.entries(dayData.categoryCounts).length > 0 && (
+                              <div className="space-y-3">
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kategori Pengeluaran</p>
+                                <div className="space-y-2">
+                                  {Object.entries(dayData.categoryCounts)
+                                    .sort((a, b) => b[1].amount - a[1].amount) // Sort by amount (highest first)
+                                    .map(([category, { count, amount }]) => (
+                                      <div key={category} className="flex items-center justify-between">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                          {category}
+                                        </span>
+                                        <div className="flex items-center gap-3">
+                                          <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
+                                            {count}x
+                                          </span>
+                                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                            {formatCurrency(amount)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center py-1">
@@ -621,35 +670,65 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                     }
                   >
                     <div 
+                      key={dateKey}
                       className={cn(
-                        "aspect-square rounded-md flex flex-col items-center justify-center transition-all touch-none",
-                        isCurrentDay ? "ring-2 ring-primary" : "",
-                        hasExpenses ? "cursor-pointer active:bg-muted" : "cursor-default"
+                        "aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 transform hover:scale-105",
+                        // Background only for current day or empty cells
+                        isCurrentDay 
+                          ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-blue-400 shadow-lg bg-muted/10 dark:bg-muted/20" 
+                          : !hasExpenses 
+                            ? "bg-muted/10 dark:bg-muted/20 hover:bg-muted/20 dark:hover:bg-muted/30" 
+                            : "hover:bg-muted/5 dark:hover:bg-muted/10",
+                        // Weekend styling for empty cells
+                        isWeekend && !hasExpenses && !isCurrentDay && "bg-muted/5 dark:bg-muted/10",
+                        "group"
                       )}
-                      style={{
-                        backgroundColor: hasExpenses && mood 
-                          ? `${mood.color}${intensity * 20}` 
-                          : "var(--card)",
-                        border: "1px solid var(--border)",
-                        WebkitTapHighlightColor: 'transparent'
-                      }}
-                      onTouchStart={(e) => e.stopPropagation()}
                     >
-                      <div className="flex flex-col items-center">
-                        <span className={cn(
-                          "text-xs font-medium",
-                          isCurrentDay ? "text-primary font-bold" : ""
-                        )}>
-                          {getDate(date)}
-                        </span>
-                        {hasExpenses && dayData && (
-                          <div className="flex flex-col items-center mt-1 text-[9px]">
-                            <span className="font-medium hidden sm:inline">
-                              {formatCurrency(dayData.totalAmount).replace('Rp', '')}
+                      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-1">
+                        {/* On mobile: Show only emoji if exists, otherwise show date */}
+                        <div className="sm:hidden">
+                          {hasExpenses && mood ? (
+                            <span className={cn(
+                              "text-xl transform transition-transform duration-300 group-hover:scale-110",
+                              isCurrentDay && "text-2xl"
+                            )}>
+                              {mood.emoji}
                             </span>
-                            {mood && <span>{mood.emoji}</span>}
-                          </div>
-                        )}
+                          ) : (
+                            <span className={cn(
+                              "text-xs font-medium",
+                              isCurrentDay 
+                                ? "text-blue-700 dark:text-blue-300 font-bold" 
+                                : isWeekend 
+                                  ? "text-red-500 dark:text-red-400" 
+                                  : "text-muted-foreground"
+                            )}>
+                              {getDate(date)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* On desktop: Always show date, and show emoji if exists */}
+                        <div className="hidden sm:flex flex-col items-center">
+                          <span className={cn(
+                            "text-sm font-medium transition-all duration-200",
+                            isCurrentDay 
+                              ? "text-blue-700 dark:text-blue-300 font-bold text-base" 
+                              : isWeekend 
+                                ? "text-red-500 dark:text-red-400" 
+                                : "text-muted-foreground"
+                          )}>
+                            {getDate(date)}
+                          </span>
+                          {hasExpenses && mood && (
+                            <span className={cn(
+                              "text-xl mt-1 transform transition-transform duration-300 group-hover:scale-110",
+                              isCurrentDay && "text-2xl"
+                            )}>
+                              {mood.emoji}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CalendarTooltip>
