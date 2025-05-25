@@ -34,7 +34,7 @@ export async function callDeepSeekAPI(
             },
           ],
           temperature: 1.3,
-          max_tokens: isDetailedAnalysis ? 1000 : 500,
+          max_tokens: isDetailedAnalysis ? 2000 : 500,
           n: 1,
         }),
       }
