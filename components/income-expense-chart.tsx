@@ -166,9 +166,16 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
   }
 
   return (
-    <div className="space-y-4">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+      <CardHeader>
+        <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-green-500" />
+          Pemasukan vs Pengeluaran
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Income Card */}
         <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
           <CardHeader className="pb-2">
@@ -212,8 +219,8 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
       </div>
 
       {/* Chart */}
-      <Card className="bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
-        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+      <div>
+        <div className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-base sm:text-lg font-semibold">Income vs Expenses</CardTitle>
           {/* Date Navigation - Always visible */}
           <div className="flex items-center space-x-2">
@@ -237,8 +244,8 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="h-[300px] relative">
+        </div>
+        <div className="h-[300px] relative">
           {!hasData ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
               <p className="text-muted-foreground text-center">No transaction data available</p>
@@ -356,12 +363,13 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
                     dot={false}
                     activeDot={{ r: 6 }}
                   />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

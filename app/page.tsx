@@ -537,72 +537,77 @@ function DashboardCharts({
   incomes = [],
   period,
 }: DashboardChartsProps) {
-  const chartConfigs = [
-    {
-      title: "Pemasukan vs Pengeluaran",
-      className: 'md:col-span-3', // Full width on medium screens and up
-      Comp: (
-        <IncomeExpenseChart 
-          expenses={expenses} 
-          incomes={incomes} 
-          period={period} 
-          isLoading={isLoading}
-        />
-      ),
-    },
-    {
-      title: "Pengeluaran berdasarkan Mood",
-      className: 'md:col-span-1', // Half width on medium screens, full on small
-      Comp: <SpendingByMoodChart expenses={expenses} />,
-    },
-    {
-      title: "Pengeluaran berdasarkan Kategori",
-      className: 'md:col-span-2', // Half width on medium screens, full on small
-      Comp: <SpendingByCategory expenses={expenses} />,
-    },
-  ];
-
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {chartConfigs.map(({ title, Comp }, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className={chartConfigs[i].className || ''}
-          >
-            <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm sm:text-base flex items-center gap-2">
-                  {title.includes('Pemasukan') && (
-                    <TrendingUp className="h-4 w-4 text-green-500" />
-                  )}
-                  {title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="h-[250px] sm:h-[300px] flex-1">
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                    >
-                      <Skeleton className="h-[200px] sm:h-[250px] w-full rounded-full" />
-                    </motion.div>
-                  </div>
-                ) : (
-                  Comp
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+      <div className="grid grid-cols-1 gap-6">
+        {/* Income vs Expense Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="h-full"
+        >
+          <div className="h-full">
+            <IncomeExpenseChart 
+              expenses={expenses} 
+              incomes={incomes} 
+              period={period} 
+              isLoading={isLoading}
+            />
+          </div>
+        </motion.div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Spending by Mood */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="h-full"
+        >
+          <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-sm sm:text-base">
+                Pengeluaran berdasarkan Mood
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[300px] sm:h-[350px]">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-[250px] sm:h-[300px] w-full" />
+                </div>
+              ) : (
+                <SpendingByMoodChart expenses={expenses} />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Spending by Category */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="h-full"
+        >
+          <Card className="h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-sm sm:text-base">
+                Pengeluaran berdasarkan Kategori
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-[300px] sm:h-[350px]">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Skeleton className="h-[250px] sm:h-[300px] w-full" />
+                </div>
+              ) : (
+                <SpendingByCategory expenses={expenses} />
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
