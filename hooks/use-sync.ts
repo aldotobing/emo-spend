@@ -1,12 +1,13 @@
 import { useCallback, useRef, useEffect, useState } from "react";
 import { syncExpenses } from "@/lib/db";
+import { syncIncomes } from "@/lib/income";
 
 export interface SyncResult {
   success: boolean;
   message?: string;
   error?: string;
-  syncedLocal?: number;
-  syncedRemote?: number;
+  syncedExpenses?: number;
+  syncedIncomes?: number;
   skipped?: number;
 }
 
@@ -33,8 +34,8 @@ export function useSync() {
         return {
           success: false,
           message: "Sync skipped - not in browser environment",
-          syncedLocal: 0,
-          syncedRemote: 0,
+          syncedExpenses: 0,
+          syncedIncomes: 0,
           skipped: 0,
         };
       }
@@ -50,8 +51,8 @@ export function useSync() {
         return {
           success: false,
           message: "Sync skipped - already in progress or in cooldown",
-          syncedLocal: 0,
-          syncedRemote: 0,
+          syncedExpenses: 0,
+          syncedIncomes: 0,
           skipped: 0,
         };
       }
@@ -63,14 +64,25 @@ export function useSync() {
           console.log("[useSync] Starting sync...");
         }
 
-        const result = await syncExpenses();
+        // Sync both expenses and incomes
+        const expensesResult = await syncExpenses();
+        const incomesResult = await syncIncomes();
         lastSyncTimeRef.current = now;
 
         if (!silent) {
-          console.log("[useSync] Sync completed:", result);
+          console.log("[useSync] Sync completed:", { expenses: expensesResult, incomes: incomesResult });
         }
 
-        return { success: true, ...result };
+        // Calculate total synced and skipped items
+        const totalSynced = (expensesResult.syncedLocal || 0) + (expensesResult.syncedRemote || 0) + (incomesResult.synced || 0);
+        const totalSkipped = (expensesResult.skipped || 0) + (incomesResult.errors || 0);
+
+        return { 
+          success: totalSynced > 0 || totalSkipped > 0,
+          syncedExpenses: (expensesResult.syncedLocal || 0) + (expensesResult.syncedRemote || 0),
+          syncedIncomes: incomesResult.synced || 0,
+          skipped: totalSkipped
+        };
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";

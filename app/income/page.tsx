@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, TrendingUp, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { useSync } from '@/hooks/use-sync';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -61,6 +63,19 @@ export default function IncomePage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [incomeToDelete, setIncomeToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { sync } = useSync();
+  const { toast } = useToast();
+
+  // Helper function to sync data after successful deletion
+  async function performPostDeleteSync() {
+    try {
+      // Use the sync system which handles both pull and push
+      await sync({ silent: true });
+    } catch (error) {
+      console.error('Error during post-delete sync:', error);
+      throw error; // Re-throw to handle in the calling function
+    }
+  }
 
   const handleDeleteClick = (incomeId: string) => {
     setIncomeToDelete(incomeId);
@@ -69,18 +84,39 @@ export default function IncomePage() {
 
   const handleDeleteIncome = async () => {
     if (!incomeToDelete) return;
-    
+
     setIsDeleting(true);
     try {
       const success = await deleteIncome(incomeToDelete);
-      if (success) {
-        setIncomes(incomes.filter(income => income.id !== incomeToDelete));
-      } else {
-        alert('Failed to delete income. Please try again.');
+      if (!success) {
+        throw new Error('Failed to delete income');
       }
+
+      // Update local state immediately for better UX
+      setIncomes(incomes.filter(income => income.id !== incomeToDelete));
+      
+      // Then sync
+      await performPostDeleteSync();
+      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
+
+      // Show success toast
+      toast({
+        title: "Pendapatan dihapus!",
+        description: "Pendapatan berhasil dihapus dan perubahan sedang disinkronisasi.",
+        variant: "default",
+      });
+      
+      // Refresh the page to reflect changes
+      router.refresh();
     } catch (error) {
       console.error('Error deleting income:', error);
-      alert('An error occurred while deleting the income.');
+      
+      // Show error toast
+      toast({
+        title: "Ups! Terjadi kesalahan",
+        description: "Gagal menghapus pendapatan. Silakan coba lagi.",
+        variant: "destructive",
+      });
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -139,22 +175,22 @@ export default function IncomePage() {
       <div className="px-4 py-4 space-y-4 max-w-4xl mx-auto transition-all duration-300">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           {/* Mobile-friendly tabs */}
-          <TabsList className="grid w-full grid-cols-2 h-12 border transition-all duration-300 hover:shadow-sm">
-            <TabsTrigger 
-              value="add" 
-              className="flex items-center gap-2 text-sm sm:text-base py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-accent data-[state=active]:hover:bg-primary data-[state=active]:shadow-sm"
+          <TabsList className="grid w-full grid-cols-2 h-10 sm:h-12 rounded-md p-1">
+            <TabsTrigger
+              value="add"
+              className="h-8 sm:h-10 w-full text-xs font-medium sm:text-base flex items-center justify-center rounded-sm min-h-[32px] sm:min-h-[40px] gap-2"
             >
-              <Plus className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-              <span className="hidden xs:inline transition-opacity duration-200">Add Income</span>
-              <span className="xs:hidden transition-opacity duration-200">Add</span>
+              <Plus className="h-4 w-4" />
+              <span className="hidden xs:inline">Add Income</span>
+              <span className="xs:hidden">Add</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="list" 
-              className="flex items-center gap-2 text-sm sm:text-base py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-300 hover:bg-accent data-[state=active]:hover:bg-primary data-[state=active]:shadow-sm"
+            <TabsTrigger
+              value="list"
+              className="h-8 sm:h-10 w-full text-xs font-medium sm:text-base flex items-center justify-center rounded-sm min-h-[32px] sm:min-h-[40px] gap-2"
             >
-              <TrendingUp className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-              <span className="hidden xs:inline transition-opacity duration-200">View Incomes</span>
-              <span className="xs:hidden transition-opacity duration-200">View</span>
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden xs:inline">View Incomes</span>
+              <span className="xs:hidden">View</span>
             </TabsTrigger>
           </TabsList>
 
@@ -209,8 +245,8 @@ export default function IncomePage() {
                 ) : incomes.length > 0 ? (
                   <div className="space-y-3">
                     {incomes.map((income, index) => (
-                      <div 
-                        key={income.id} 
+                      <div
+                        key={income.id}
                         className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border rounded-lg bg-card hover:bg-accent/50 transition-all duration-300 touch-manipulation hover:shadow-md hover:border-border/80 transform hover:-translate-y-0.5 animate-in fade-in-0 slide-in-from-bottom-2"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >

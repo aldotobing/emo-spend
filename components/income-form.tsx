@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { addIncome } from '@/lib/income';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { useToast } from '@/components/ui/use-toast';
+import { useSync } from '@/hooks/use-sync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -62,6 +65,9 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { sync } = useSync();
+  const { toast } = useToast();
+  const router = useRouter();
 
   // Parse Indonesian formatted number
   const parseIDRNumber = (value: string): number => {
@@ -69,6 +75,17 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
     const parsed = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
     return isNaN(parsed) ? 0 : parsed;
   };
+
+  // Helper function to sync data after successful income addition
+  async function performPostSubmitSync() {
+    try {
+      // Use the sync system which handles both pull and push
+      await sync({ silent: true });
+    } catch (error) {
+      console.error('Error during post-submit sync:', error);
+      throw error; // Re-throw to handle in the calling function
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,17 +126,39 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
         throw new Error('Failed to add income');
       }
 
-      // Reset form
+      // Then sync
+      await performPostSubmitSync();
+      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
+
+      // Show success toast
+      toast({
+        title: "Pendapatan ditambahkan!",
+        description: "Pendapatanmu berhasil dicatat dan sedang disinkronisasi.",
+        variant: "default",
+      });
+
+      // Reset form if this is a new income (not editing)
       if (!initialData) {
         setAmount('');
         setDescription('');
         setDate(new Date());
       }
 
+      // Call onSuccess callback if provided
       onSuccess?.();
+      
+      // Refresh the page to reflect changes
+      router.refresh();
     } catch (err) {
       console.error('Error adding income:', err);
-      setError('Failed to add income. Please try again.');
+      setError('Gagal menambahkan pendapatan. Silakan coba lagi.');
+      
+      // Show error toast
+      toast({
+        title: "Ups! Terjadi kesalahan",
+        description: "Gagal menambahkan pendapatan. Silakan coba lagi.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }

@@ -50,15 +50,16 @@ export default function SettingsPage() {
   const handleClearData = async () => {
     setIsClearing(true);
     try {
-      // Directly import and use the functions from db.ts, similar to RecentExpenses component
+      // Import required functions
       const { getExpensesByDateRange, clearLocalUserData } = await import('@/lib/db');
+      const { getIncomesByDateRange, deleteIncome } = await import('@/lib/income');
       
-      // First get all expenses to delete them individually
+      // Set date range for fetching all data
       const startDate = new Date(0).toISOString(); // Beginning of time
       const endDate = new Date(Date.now() + 1000*60*60*24*365).toISOString(); // One year from now
-      const allExpenses = await getExpensesByDateRange(startDate, endDate);
       
-      // Delete each expense individually using the same method as RecentExpenses
+      // Get and delete all expenses
+      const allExpenses = await getExpensesByDateRange(startDate, endDate);
       const { deleteExpense } = await import('@/lib/db');
       
       // Delete expenses one by one
@@ -66,7 +67,13 @@ export default function SettingsPage() {
         await deleteExpense(expense.id);
       }
       
-      // Also clear any remaining data with clearLocalUserData
+      // Get and delete all incomes
+      const allIncomes = await getIncomesByDateRange(startDate, endDate);
+      for (const income of allIncomes) {
+        await deleteIncome(income.id);
+      }
+      
+      // Clear any remaining data
       await clearLocalUserData();
       
       // Keep the clearing state active for a moment to show "Clearing..." text on button
