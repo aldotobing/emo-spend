@@ -170,11 +170,22 @@ export default function SettingsPage() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete
-                    all your expense data and remove it from our servers.
-                  </AlertDialogDescription>
+                  <AlertDialogTitle>⚠️ Warning: Delete All Data</AlertDialogTitle>
+                  <div className="space-y-4">
+                    <AlertDialogDescription asChild>
+                      <div className="font-medium">This action will permanently delete:</div>
+                    </AlertDialogDescription>
+                    <ul className="list-disc pl-5 space-y-2">
+                      <li>All your expense records</li>
+                      <li>All your income records</li>
+                      <li>Any associated categories and tags</li>
+                    </ul>
+                    <AlertDialogDescription asChild>
+                      <div className="font-medium text-destructive">
+                        This action cannot be undone. Your data will be permanently removed from both this device and our servers.
+                      </div>
+                    </AlertDialogDescription>
+                  </div>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
