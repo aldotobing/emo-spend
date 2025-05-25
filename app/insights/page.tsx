@@ -552,7 +552,7 @@ export default function InsightsPage() {
 
         {/* Gamification Tab */}
         <TabsContent value="gamification">
-          <Gamification />
+          <Gamification expenses={expenses} isLoading={isLoading} />
         </TabsContent>
       </Tabs>
     </div>
