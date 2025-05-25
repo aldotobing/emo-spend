@@ -551,40 +551,6 @@ function DashboardCharts({
           </motion.div>
         ))}
       </div>
-      <div className="grid gap-6 lg:grid-cols-2">
-        {chartConfigs.map(({ title, Comp }, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-          >
-            <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-sm sm:text-base">{title}</CardTitle>
-              </CardHeader>
-              <CardContent className="h-[250px] sm:h-[300px]">
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{
-                        duration: 2,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
-                    >
-                      <Skeleton className="h-[200px] sm:h-[250px] w-full rounded-full" />
-                    </motion.div>
-                  </div>
-                ) : (
-                  Comp
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <motion.div
