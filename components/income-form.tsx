@@ -43,22 +43,40 @@ interface IncomeFormProps {
   };
 }
 
+// Indonesian currency formatter
+const formatToIDR = (value: number): string => {
+  return new Intl.NumberFormat('id-ID', {
+    style: 'decimal',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
 export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
-  const [amount, setAmount] = useState(initialData?.amount ? String(initialData.amount) : '');
+  const [amount, setAmount] = useState(initialData?.amount ? formatToIDR(initialData.amount) : '');
   const [source, setSource] = useState(initialData?.source || INCOME_SOURCES[0]);
   const [description, setDescription] = useState(initialData?.description || '');
   const [date, setDate] = useState<Date | undefined>(
-    initialData?.date ? new Date(initialData.date) : new Date()
+    initialData?.date ? new Date(initialData.date) : new Date(new Date().setHours(0, 0, 0, 0))
   );
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Parse Indonesian formatted number
+  const parseIDRNumber = (value: string): number => {
+    const cleaned = value.replace(/[^\d,]/g, '');
+    const parsed = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    return isNaN(parsed) ? 0 : parsed;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      setError('Please enter a valid amount');
+    const parsedAmount = parseIDRNumber(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError('Masukkan jumlah yang valid');
       return;
     }
 
@@ -79,10 +97,10 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
 
       const incomeData = {
         user_id: user.id,
-        amount: parseFloat(amount),
+        amount: parseIDRNumber(amount),
         source,
         description: description || undefined,
-        date: date.toISOString(),
+        date: format(date || new Date(), 'yyyy-MM-dd'),
       };
 
       const result = await addIncome(incomeData);
@@ -110,33 +128,50 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+        <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md border border-destructive/20">
           {error}
         </div>
       )}
       
       <div className="space-y-2">
-        <Label htmlFor="amount">Amount</Label>
+        <Label htmlFor="amount">Jumlah</Label>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">Rp</span>
           <Input
             id="amount"
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
+            inputMode="decimal"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="pl-8 text-base h-12"
-            placeholder="0.00"
+            onChange={(e) => {
+              const value = e.target.value;
+              // Allow only numbers and decimal separators
+              if (/^\d*[.,]?\d*$/.test(value) || value === '') {
+                // Format the number as the user types
+                const num = parseIDRNumber(value);
+                if (!isNaN(num) && num >= 0) {
+                  setAmount(formatToIDR(num));
+                } else if (value === '') {
+                  setAmount('');
+                }
+              }
+            }}
+            onBlur={(e) => {
+              const num = parseIDRNumber(e.target.value);
+              if (!isNaN(num) && num >= 0) {
+                setAmount(formatToIDR(num));
+              }
+            }}
+            className="pl-10 text-base h-12 bg-background"
+            placeholder="0"
             disabled={isSubmitting}
           />
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="source">Source</Label>
+        <Label htmlFor="source">Sumber</Label>
         <Select value={source} onValueChange={setSource} disabled={isSubmitting}>
-          <SelectTrigger className="h-12">
+          <SelectTrigger className="h-12 bg-background">
             <SelectValue placeholder="Select source" />
           </SelectTrigger>
           <SelectContent>
@@ -150,26 +185,30 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="date">Date</Label>
-        <Popover>
+        <Label htmlFor="date">Tanggal</Label>
+        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
               className={cn(
-                "w-full justify-start text-left font-normal h-12",
+                "w-full justify-start text-left font-normal h-12 bg-background",
                 !date && "text-muted-foreground"
               )}
               disabled={isSubmitting}
+              type="button"
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(date, "PPP") : <span>Pick a date</span>}
+              {date ? format(date, "PPP") : <span>Pilih tanggal</span>}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
               selected={date}
-              onSelect={setDate}
+              onSelect={(selectedDate) => {
+                setDate(selectedDate);
+                setIsCalendarOpen(false);
+              }}
               initialFocus
             />
           </PopoverContent>
@@ -177,20 +216,20 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="description">Description (Optional)</Label>
+        <Label htmlFor="description">Keterangan (Opsional)</Label>
         <Textarea
           id="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Add a note about this income"
-          className="min-h-[100px]"
+          className="min-h-[100px] bg-background"
+          placeholder="Tambahkan catatan atau deskripsi"
           disabled={isSubmitting}
         />
       </div>
 
       <Button 
         type="submit" 
-        className="w-full h-12 text-base"
+        className="w-full h-12 text-base font-medium"
         disabled={isSubmitting}
       >
         {isSubmitting ? (

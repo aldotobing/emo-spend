@@ -87,6 +87,47 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
   }
 }
 
+export async function deleteIncome(incomeId: string): Promise<boolean> {
+  const db = getDb();
+  const supabase = getSupabaseBrowserClient();
+  
+  try {
+    // First, get the income to store in sync queue if needed
+    const income = await db.incomes.get(incomeId);
+    
+    // Delete from local IndexedDB
+    await db.incomes.delete(incomeId);
+    
+    // Try to delete from Supabase if online
+    try {
+      const { error } = await supabase
+        .from('incomes')
+        .delete()
+        .eq('id', incomeId);
+      
+      if (error) throw error;
+      
+    } catch (error) {
+      console.error('Error syncing delete with Supabase, adding to sync queue:', error);
+      // Add to sync queue if there was an error or offline
+      if (income) {
+        await db.syncQueue.add({
+          table_name: 'incomes',
+          record_id: incomeId,
+          action: 'delete',
+          data: income,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting income:', error);
+    return false;
+  }
+}
+
 export async function getTransactionsByDateRange(startDate: string, endDate: string): Promise<Transaction[]> {
   const supabase = getSupabaseBrowserClient();
   try {
