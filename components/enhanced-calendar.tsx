@@ -256,9 +256,27 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
       // Store touch start position and time
       touchStartRef.current = { x, y, time: Date.now() };
       
+      // Add active state for visual feedback
+      const target = e.currentTarget as HTMLElement;
+      target.classList.add('active-touch');
+      
+      // Clear any existing timeouts
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Set a timeout to show the tooltip after a short delay
+      timeoutRef.current = setTimeout(() => {
+        if (touchStartRef.current) {
+          // Only show if touch is still active
+          setPosition({ x, y });
+          setPlacement(calculatePlacement(x, y, target));
+          setShowTooltip(true);
+        }
+      }, 150); // Slight delay to prevent accidental triggers
+      
       // Don't prevent default here to avoid passive event warning
-      // We'll handle the actual touch in a ref callback
-    }, []);
+    }, [calculatePlacement]);
     
     // Handle touch move to detect if it's a scroll
     const handleTouchMove = useCallback((e: TouchEvent) => {
@@ -276,7 +294,25 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
     
     // Handle touch end for mobile
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-      if (!isMobile.current || !touchStartRef.current) return;
+      if (!isMobile.current) return;
+      
+      // Remove active state
+      const target = e.currentTarget as HTMLElement;
+      target.classList.remove('active-touch');
+      
+      // Clear any pending tooltip show timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // If tooltip is already showing, keep it open
+      if (showTooltip) {
+        touchStartRef.current = null;
+        return;
+      }
+      
+      // Only proceed if we have a valid touch start
+      if (!touchStartRef.current) return;
       
       const touch = e.changedTouches[0];
       const x = touch.clientX;
@@ -289,15 +325,14 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
       
       if (dx < 10 && dy < 10 && dt < 300) {
         // It's a tap, show the tooltip
-        const target = e.currentTarget as HTMLElement;
         const rect = target.getBoundingClientRect();
         
         // Check if touch is within the target element
         if (
-          x >= rect.left - 10 && 
-          x <= rect.right + 10 && 
-          y >= rect.top - 10 && 
-          y <= rect.bottom + 10
+          x >= rect.left - 15 && 
+          x <= rect.right + 15 && 
+          y >= rect.top - 15 && 
+          y <= rect.bottom + 15
         ) {
           // Hide any existing tooltip first to avoid flickering
           setShowTooltip(false);
@@ -308,12 +343,10 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
             setPlacement(calculatePlacement(x, y, target));
             setShowTooltip(true);
             
-            // Clear any existing timeout to prevent multiple tooltips
+            // Auto-hide the tooltip after 5 seconds
             if (timeoutRef.current) {
               clearTimeout(timeoutRef.current);
             }
-            
-            // Auto-hide the tooltip after 5 seconds (slightly longer for better UX)
             timeoutRef.current = setTimeout(() => {
               setShowTooltip(false);
             }, 5000);
@@ -322,7 +355,7 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
       }
       
       touchStartRef.current = null;
-    }, [calculatePlacement]);
+    }, [calculatePlacement, showTooltip]);
     
     // Handle document click to close tooltip when clicking outside
     const handleDocumentClick = useCallback((e: MouseEvent | TouchEvent) => {
@@ -418,67 +451,80 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         // Mobile styles - position near the touch point
         const baseStyle: React.CSSProperties = {
           position: 'fixed',
-          maxWidth: '90vw', // Use viewport width instead of fixed width
-          width: 280, // Use number for better TypeScript compatibility
-          zIndex: 9999,
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-          borderRadius: 12,
-          padding: 12,
-          backgroundColor: 'var(--background)',
-          border: '1px solid var(--border)',
+          maxWidth: '85vw', // Slightly smaller max width for better mobile fit
+          width: 260, // Slightly narrower for better mobile display
+          zIndex: 10000, // Ensure it's above other elements
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)', // Softer shadow
+          borderRadius: 14, // Slightly larger border radius
+          padding: '14px 16px', // More padding for better touch targets
+          backgroundColor: 'hsl(var(--background))', // Use HSL for consistent opacity
+          color: 'hsl(var(--foreground))', // Ensure text color is visible
+          border: '1px solid hsl(var(--border))',
           overflow: 'hidden',
-          maxHeight: '70vh', // Prevent tooltip from being too tall
-          overflowY: 'auto' as const, // Properly type the overflowY property
-          WebkitOverflowScrolling: 'touch' as any, // Type assertion for webkit prefixed property
+          maxHeight: '60vh', // Slightly smaller max height
+          overflowY: 'auto' as const,
+          WebkitOverflowScrolling: 'touch' as any,
+          WebkitTapHighlightColor: 'transparent',
+          transform: 'translateZ(0) scale(1)', // Force hardware acceleration
+          backfaceVisibility: 'hidden',
+          willChange: 'transform, opacity',
+          touchAction: 'manipulation',
+          overscrollBehavior: 'contain', // Prevent page scrolling when tooltip is scrolled
+          // Ensure background is always opaque even during transitions
+          opacity: 1,
+          // @ts-ignore - Custom property workaround for background opacity
+          '--tw-bg-opacity': 1,
         };
 
-        // Calculate safe area insets for notches and home indicators
+        // Get viewport dimensions with safe area insets
         const safeAreaInsetBottom = typeof window !== 'undefined' 
           ? parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sab') || '0', 10) 
           : 0;
-        
-        // Get viewport dimensions
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight - safeAreaInsetBottom;
         
-        // Estimate tooltip dimensions (will be adjusted after render)
-        const tooltipWidth = Math.min(280, viewportWidth * 0.9);
-        const tooltipHeight = 180; // Initial estimate, will be adjusted
+        // Tooltip dimensions
+        const tooltipWidth = Math.min(260, viewportWidth * 0.85);
+        const tooltipHeight = 200; // Estimated height, will be adjusted
         
         // Calculate initial position centered on touch point
         let left = position.x - (tooltipWidth / 2);
-        let top = position.y + 20; // Position below touch point by default
+        let top = position.y + 24; // Position below touch point with more spacing
         
-        // Adjust horizontal position to keep tooltip within viewport
-        if (left < 10) {
-          left = 10;
-        } else if (left + tooltipWidth > viewportWidth - 10) {
-          left = viewportWidth - tooltipWidth - 10;
-        }
+        // Adjust horizontal position to keep within viewport with safe margins
+        const horizontalMargin = 12;
+        left = Math.max(horizontalMargin, Math.min(viewportWidth - tooltipWidth - horizontalMargin, left));
         
-        // Adjust vertical position based on available space
-        const spaceAbove = position.y - 20; // Space above touch point
+        // Determine vertical position based on available space
+        const verticalMargin = 16;
         const spaceBelow = viewportHeight - position.y - 40; // Space below touch point
+        const spaceAbove = position.y - 40; // Space above touch point
         
+        // Position tooltip where there's more space, but prefer below if similar
         if (spaceBelow < tooltipHeight && spaceAbove > spaceBelow) {
-          // If more space above and not enough below, position above
-          top = position.y - tooltipHeight - 20;
+          // Position above if more space there
+          top = position.y - tooltipHeight - 24;
         } else {
-          // Default to below, but ensure it doesn't go off screen
-          top = Math.min(viewportHeight - tooltipHeight - 20, top);
+          // Position below, but ensure it doesn't go off screen
+          top = Math.min(viewportHeight - tooltipHeight - verticalMargin, top);
         }
         
         // Ensure minimum distance from edges
-        top = Math.max(10, Math.min(viewportHeight - tooltipHeight - 20, top));
+        top = Math.max(verticalMargin, Math.min(viewportHeight - tooltipHeight - verticalMargin, top));
+        
+        // Add a slight spring animation when appearing
+        const transform = showTooltip 
+          ? 'translateZ(0) scale(1)' 
+          : 'translateZ(0) scale(0.95)';
         
         return {
           ...baseStyle,
           left: `${left}px`,
           top: `${top}px`,
-          transform: 'none',
-          opacity: showTooltip ? 1 : 0, // Fade in/out
-          transition: 'opacity 0.15s ease-out, transform 0.15s ease-out',
-          pointerEvents: showTooltip ? 'auto' : 'none' // Prevent blocking interactions when hidden
+          opacity: showTooltip ? 1 : 0,
+          transform,
+          transition: 'opacity 0.2s ease-out, transform 0.2s cubic-bezier(0.2, 0, 0.1, 1.5)',
+          pointerEvents: showTooltip ? 'auto' : 'none'
         };
       } else {
         // Desktop styles - position relative to the calendar cell
@@ -576,6 +622,34 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
 
   return (
     <Card className="overflow-hidden border-0 shadow-lg dark:shadow-gray-800/30 transition-all duration-300 hover:shadow-xl dark:hover:shadow-gray-800/50">
+      <style jsx global>{`
+        /* Add touch feedback styles */
+        .active-touch {
+          transform: scale(0.95);
+          transition: transform 0.1s ease;
+        }
+        
+        /* Improve tooltip transitions */
+        /* Tooltip animations - ensure background remains solid during transitions */
+        .tooltip-enter {
+          opacity: 0;
+          transform: scale(0.95) translateY(5px);
+        }
+        .tooltip-enter-active {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+          transition: opacity 150ms ease-out, transform 150ms ease-out;
+        }
+        .tooltip-exit {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+        .tooltip-exit-active {
+          opacity: 0;
+          transform: scale(0.95) translateY(5px);
+          transition: opacity 100ms ease-in, transform 100ms ease-in;
+        }
+      `}</style>
       <CardHeader className="p-2 sm:p-4 sm:px-6 sm:py-5 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-900 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div>
