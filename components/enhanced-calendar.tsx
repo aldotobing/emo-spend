@@ -6,22 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import type { Expense } from "@/types/expense";
 import { getMood } from "@/data/moods";
-import {
-  format,
-  isToday,
-  isSameMonth,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  addMonths,
-  subMonths,
-  getDay,
-  getDate,
-} from "date-fns";
+import { format, isToday, isSameMonth, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths, getDay, getDate, } from "date-fns";
 import { id } from "date-fns/locale";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar as CalendarIcon, TrendingUp, TrendingDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { categories, getCategory } from "@/data/categories";
 
 interface EnhancedCalendarProps {
   selectedMood?: string;
@@ -814,21 +804,30 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                                 <div className="space-y-2">
                                   {Object.entries(dayData.categoryCounts)
                                     .sort((a, b) => b[1].amount - a[1].amount) // Sort by amount (highest first)
-                                    .map(([category, { count, amount }]) => (
-                                      <div key={category} className="flex items-center justify-between">
-                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                          {category}
-                                        </span>
-                                        <div className="flex items-center gap-3">
-                                          <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
-                                            {count}x
+                                    .map(([category, { count, amount }]) => {
+                                      // Get the appropriate emoji for the category
+                                      // First try to find by ID (category is stored as ID in the expense)
+                                      const categoryObj = categories.find(cat => cat.id === category) || 
+                                                         categories.find(cat => cat.name === category) || 
+                                                         categories.find(c => c.id === 'other');
+                                      const categoryIcon = categoryObj?.icon || '📦';
+                                      
+                                      return (
+                                        <div key={category} className="flex items-center justify-between">
+                                          <span className="text-lg" title={category}>
+                                            {categoryIcon}
                                           </span>
-                                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                            {formatCurrency(amount)}
-                                          </span>
+                                          <div className="flex items-center gap-3">
+                                            <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full">
+                                              {count}x
+                                            </span>
+                                            <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                              {formatCurrency(amount)}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
                                 </div>
                               </div>
                             )}
