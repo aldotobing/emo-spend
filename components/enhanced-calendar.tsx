@@ -441,29 +441,28 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         // Mobile styles - position near the touch point
         const baseStyle: React.CSSProperties = {
           position: 'fixed',
-          maxWidth: '85vw', // Slightly smaller max width for better mobile fit
-          width: 260, // Slightly narrower for better mobile display
-          zIndex: 10000, // Ensure it's above other elements
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)', // Softer shadow
-          borderRadius: 14, // Slightly larger border radius
-          padding: '14px 16px', // More padding for better touch targets
-          backgroundColor: 'hsl(var(--background))', // Use HSL for consistent opacity
-          color: 'hsl(var(--foreground))', // Ensure text color is visible
+          maxWidth: '80vw', // Reduced from 85vw for better mobile fit
+          width: 220, // Reduced from 260px for more compact display
+          zIndex: 10000,
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)', // Lighter shadow
+          borderRadius: 12, // Slightly smaller border radius
+          padding: '10px 12px', // Reduced padding for more compact look
+          backgroundColor: 'hsl(var(--background))',
+          color: 'hsl(var(--foreground))',
           border: '1px solid hsl(var(--border))',
           overflow: 'hidden',
-          maxHeight: '60vh', // Slightly smaller max height
+          maxHeight: '50vh', // Reduced max height
           overflowY: 'auto' as const,
           WebkitOverflowScrolling: 'touch' as any,
           WebkitTapHighlightColor: 'transparent',
-          transform: 'translateZ(0) scale(1)', // Force hardware acceleration
+          transform: 'translateZ(0) scale(1)',
           backfaceVisibility: 'hidden',
           willChange: 'transform, opacity',
           touchAction: 'manipulation',
-          overscrollBehavior: 'contain', // Prevent page scrolling when tooltip is scrolled
-          // Ensure background is always opaque even during transitions
+          overscrollBehavior: 'contain',
           opacity: 1,
-          // @ts-ignore - Custom property workaround for background opacity
-          '--tw-bg-opacity': 1,
+          fontSize: '0.85rem', // Smaller font size
+          lineHeight: '1.3', // Tighter line height
         };
 
         // Get viewport dimensions with safe area insets
@@ -473,9 +472,9 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight - safeAreaInsetBottom;
         
-        // Tooltip dimensions
-        const tooltipWidth = Math.min(260, viewportWidth * 0.85);
-        const tooltipHeight = 200; // Estimated height, will be adjusted
+        // Tooltip dimensions - smaller for mobile
+        const tooltipWidth = Math.min(220, viewportWidth * 0.8);
+        const tooltipHeight = 160; // Reduced estimated height
         
         // Calculate initial position centered on touch point
         let left = position.x - (tooltipWidth / 2);
