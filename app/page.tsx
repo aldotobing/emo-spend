@@ -29,29 +29,30 @@ import { SpendingByDay } from "@/components/spending-by-day";
 import { Gamification } from "@/components/gamification";
 import { IncomeExpenseChart } from "@/components/income-expense-chart";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarIcon, TrendingUp } from "lucide-react";
+import { CalendarIcon, TrendingUp, HeartPulse } from "lucide-react";
 import { EnhancedCalendar } from "@/components/enhanced-calendar";
+import { FinancialHealthCard } from "@/components/financial-health-card";
+import { FinancialHealthButton } from "@/components/financial-health-button";
+import { calculateFinancialHealth, type FinancialHealthScore } from "@/lib/financial-health";
+import { useUser } from "@/hooks";
 
 export default function Dashboard() {
-  // State for expenses and loading
+  // State for data loading and management
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  // State for period selection
-  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">(
-    "month"
-  );
-  const { sync } = useSync();
-
-  // State for animated total
-  const [animatedTotal, setAnimatedTotal] = useState(0);
-
-  // State for calendar visibility
+  const [isHealthLoading, setIsHealthLoading] = useState(true);
+  const [financialHealth, setFinancialHealth] = useState<FinancialHealthScore | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
-
-  // State for mood filter
+  const [animatedTotal, setAnimatedTotal] = useState(0);
+  
+  // Period and filter state
+  const [period, setPeriod] = useState<"day" | "week" | "month" | "year">("month");
   const [selectedMood, setSelectedMood] = useState<MoodType | "all">("all");
+  
+  // Hooks
+  const { user } = useUser();
+  const { sync } = useSync();
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -75,6 +76,25 @@ export default function Dashboard() {
       setIsLoading(false);
     }
   }, [period, sync]);
+
+  // Calculate financial health when expenses or incomes change
+  useEffect(() => {
+    const calculateHealth = async () => {
+      if (!user?.id || expenses.length === 0) return;
+      
+      setIsHealthLoading(true);
+      try {
+        const health = await calculateFinancialHealth(user.id, 3);
+        setFinancialHealth(health);
+      } catch (error) {
+        console.error('Error calculating financial health:', error);
+      } finally {
+        setIsHealthLoading(false);
+      }
+    };
+
+    calculateHealth();
+  }, [user?.id, expenses, incomes]);
 
   // Initial data fetch
   useEffect(() => {
@@ -139,6 +159,17 @@ export default function Dashboard() {
           setExpenses(expensesData);
           setIncomes(incomesData);
         }
+        
+        // Calculate financial health score
+        try {
+          setIsHealthLoading(true);
+          const healthData = await calculateFinancialHealth('current-user', 3); // 3 months lookback
+          setFinancialHealth(healthData);
+        } catch (error) {
+          console.error("Error calculating financial health:", error);
+        } finally {
+          setIsHealthLoading(false);
+        }
       } catch (error) {
         console.error("Error fetching data after change:", error);
       }
@@ -179,15 +210,25 @@ export default function Dashboard() {
             Dashboard
           </h1>
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2 h-10 px-4 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
-              onClick={() => setShowCalendar(!showCalendar)}
-            >
-              <CalendarIcon className="h-4 w-4" />
-              {showCalendar ? "Hide Calendar" : "Show Calendar"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 h-10 px-4 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm"
+                onClick={() => setShowCalendar(!showCalendar)}
+              >
+                <CalendarIcon className="h-4 w-4" />
+                {showCalendar ? "Hide Calendar" : "Show Calendar"}
+              </Button>
+              <div className="h-8 w-px bg-border mx-1"></div>
+              <div className="flex items-center">
+                {isHealthLoading ? (
+                  <div className="h-8 w-8 rounded-full bg-muted animate-pulse"></div>
+                ) : financialHealth ? (
+                  <FinancialHealthButton financialHealth={financialHealth} />
+                ) : null}
+              </div>
+            </div>
             <Link href="/add">
               <Button size="sm" className="h-10 px-4 gap-2">
                 <PlusCircle className="h-4 w-4" />
@@ -208,15 +249,25 @@ export default function Dashboard() {
             <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
               Dashboard
             </h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-10 px-3 rounded-lg gap-2"
-              onClick={() => setShowCalendar(!showCalendar)}
-            >
-              <CalendarIcon className="h-5 w-5" />
-              <span className="text-sm font-medium">Calendar</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {financialHealth && (
+                  <FinancialHealthButton 
+                    financialHealth={financialHealth} 
+                    className="h-8 w-8 text-xs"
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setShowCalendar(!showCalendar)}
+                >
+                  <CalendarIcon className="h-4 w-4" />
+                  <span className="sr-only">Calendar</span>
+                </Button>
+              </div>
+            </div>
           </motion.div>
         </div>
 
@@ -234,22 +285,22 @@ export default function Dashboard() {
                 <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium">Calendar View</h3>
-                        <select
-                          value={selectedMood}
-                          onChange={(e) =>
-                            setSelectedMood(e.target.value as MoodType | "all")
-                          }
-                          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
-                        >
-                          <option value="all">All Moods</option>
-                          {moods.map((mood) => (
-                            <option key={mood.id} value={mood.id}>
-                              {mood.emoji} {mood.label}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-semibold">Calendar</h2>
+                        <div className="flex items-center space-x-2">
+                          <select
+                            value={selectedMood}
+                            onChange={(e) => setSelectedMood(e.target.value as MoodType)}
+                            className="text-sm rounded-md border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          >
+                            <option value="all">All Moods</option>
+                            {moods.map((mood) => (
+                              <option key={mood.id} value={mood.id}>
+                                {mood.emoji} {mood.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
                       <EnhancedCalendar
                         expenses={expenses}
@@ -303,52 +354,51 @@ export default function Dashboard() {
                         transition={{ duration: 0.3, ease: "easeOut" }}
                         className="space-y-6"
                       >
-                        <SummaryCards
-                          isLoading={isLoading}
-                          totalSpent={animatedTotal}
-                          expensesByMood={expensesByMood}
-                          expenses={expenses}
-                        />
-                        <DashboardCharts
-                          isLoading={isLoading}
-                          expenses={expenses}
-                          incomes={incomes}
-                          period={period}
-                        />
-                        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 w-full">
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="w-full"
-                          >
-                            <RecentExpenses
-                              isLoading={isLoading}
-                              expenses={expenses}
-                              onExpenseDeleted={async () => {
-                                // Refresh the dashboard data when an expense is deleted
-                                const { start, end } =
-                                  getDateRangeForPeriod(period);
-                                const data = await getExpensesByDateRange(
-                                  start,
-                                  end
-                                );
-                                setExpenses(data);
-                              }}
-                            />
-                          </motion.div>
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="w-full"
-                          >
-                            <Gamification
-                              className="h-full"
-                              expenses={expenses}
-                              isLoading={isLoading}
-                            />
-                          </motion.div>
+                        <div className="space-y-6">
+                          <SummaryCards
+                            isLoading={isLoading}
+                            totalSpent={animatedTotal}
+                            expensesByMood={expensesByMood}
+                            expenses={expenses}
+                          />
+
+                          <DashboardCharts
+                            isLoading={isLoading}
+                            expenses={expenses}
+                            incomes={incomes}
+                            period={period}
+                          />
+
+                          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2 }}
+                              className="w-full"
+                            >
+                              <RecentExpenses
+                                isLoading={isLoading}
+                                expenses={expenses}
+                                onExpenseDeleted={async () => {
+                                  const { start, end } = getDateRangeForPeriod(period);
+                                  const data = await getExpensesByDateRange(start, end);
+                                  setExpenses(data);
+                                }}
+                              />
+                            </motion.div>
+                            <motion.div
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.3 }}
+                              className="w-full"
+                            >
+                              <Gamification
+                                className="h-full"
+                                expenses={expenses}
+                                isLoading={isLoading}
+                              />
+                            </motion.div>
+                          </div>
                         </div>
                       </motion.div>
                     </TabsContent>

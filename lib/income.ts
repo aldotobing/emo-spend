@@ -230,7 +230,11 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
         });
         syncedCount++;
       } catch (error) {
-        console.error(`Error syncing income ${income.id}:`, error);
+        console.error(`Error syncing income ${income.id}:`, {
+          error: error instanceof Error ? error.message : error,
+          incomeData: income,
+          timestamp: new Date().toISOString()
+        });
         errorCount++;
       }
     }

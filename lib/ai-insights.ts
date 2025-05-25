@@ -293,7 +293,9 @@ function prepareContextForAI(
     ([categoryId, categoryExpenses]) => {
       const category = getCategory(categoryId);
       const total = categoryExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-      context += `- **Kategori: ${category.name} ${category.icon}**\n`;
+      const categoryName = category?.name || 'Tidak Diketahui';
+      const categoryIcon = category?.icon || '❓';
+      context += `- **Kategori: ${categoryName} ${categoryIcon}**\n`;
       context += `  - Jumlah Transaksi: ${categoryExpenses.length}\n`;
       context += `  - Total Pengeluaran: Rp${total.toLocaleString("id-ID")}\n`;
     }
@@ -305,7 +307,7 @@ function prepareContextForAI(
   const sampleExpenses = expenses.slice(0, Math.min(10, expenses.length));
   sampleExpenses.forEach((expense, index) => {
     const mood = getMood(expense.mood);
-    const category = getCategory(expense.category);
+    const category = getCategory(expense.category) || { name: 'Tidak Diketahui', icon: '❓' };
     const date = new Date(expense.date).toLocaleDateString("id-ID", {
       year: "numeric",
       month: "long",

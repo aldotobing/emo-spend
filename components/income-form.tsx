@@ -71,8 +71,15 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
 
   // Parse Indonesian formatted number
   const parseIDRNumber = (value: string): number => {
+    if (!value) return 0;
+    // Remove all non-digit characters except commas
     const cleaned = value.replace(/[^\d,]/g, '');
-    const parsed = parseFloat(cleaned.replace(/\./g, '').replace(',', '.'));
+    // Handle empty string case
+    if (!cleaned) return 0;
+    // Replace all dots and then replace comma with dot for decimal
+    const numberString = cleaned.replace(/\./g, '').replace(',', '.');
+    // Use Number() instead of parseFloat for better handling of large numbers
+    const parsed = Number(numberString);
     return isNaN(parsed) ? 0 : parsed;
   };
 
@@ -183,8 +190,8 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
             value={amount}
             onChange={(e) => {
               const value = e.target.value;
-              // Allow only numbers and decimal separators
-              if (/^\d*[.,]?\d*$/.test(value) || value === '') {
+              // Allow numbers with optional thousands separators and decimal part
+              if (/^[0-9,.]*$/.test(value) || value === '') {
                 // Format the number as the user types
                 const num = parseIDRNumber(value);
                 if (!isNaN(num) && num >= 0) {

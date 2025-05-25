@@ -42,13 +42,13 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
 
         // Update stats if we have them
         if (
-          result.syncedLocal !== undefined ||
-          result.syncedRemote !== undefined
+          result.syncedExpenses !== undefined ||
+          result.syncedIncomes !== undefined
         ) {
           setStats((prev) => ({
             ...prev,
-            syncedLocal: result.syncedLocal ?? 0,
-            syncedRemote: result.syncedRemote ?? 0,
+            syncedLocal: (result.syncedExpenses ?? 0) + (result.syncedIncomes ?? 0),
+            syncedRemote: 0, // This might need adjustment based on your sync logic
             skipped: result.skipped ?? 0,
           }));
         }

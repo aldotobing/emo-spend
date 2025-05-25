@@ -13,7 +13,7 @@ export function BottomNavigation() {
 
   const navItems = [
     { href: "/", icon: Home, label: "", id: "dashboard" },
-    { href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true },
+    ...(!["/add", "/income"].includes(pathname) ? [{ href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true }] : []),
     { href: "/insights", icon: BarChart, label: "", id: "insights" },
   ];
 
