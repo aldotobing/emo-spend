@@ -52,6 +52,8 @@ export default function IncomePage() {
 
   const handleIncomeAdded = async () => {
     try {
+      // Trigger a sync after adding income
+      await sync({ silent: true });
       const data = await getIncomesByDateRange(dateRange.start, dateRange.end);
       setIncomes(data);
       setActiveTab('list');
@@ -69,9 +71,25 @@ export default function IncomePage() {
   // Helper function to sync data after successful deletion
   async function performPostDeleteSync() {
     try {
+      // Dispatch sync start event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sync:start', { 
+          detail: { operation: 'push' } 
+        }));
+      }
+      
       // Use the sync system which handles both pull and push
       await sync({ silent: true });
+      
+      // Dispatch sync end event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sync:end'));
+      }
     } catch (error) {
+      // Ensure sync end event is dispatched even on error
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sync:end'));
+      }
       console.error('Error during post-delete sync:', error);
       throw error; // Re-throw to handle in the calling function
     }

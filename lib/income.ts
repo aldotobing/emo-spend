@@ -19,6 +19,13 @@ export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updat
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   
+  // Dispatch sync start event
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('sync:start', { 
+      detail: { operation: 'push' } 
+    }));
+  }
+  
   // Create a properly typed income object with synced field
   const newIncome = {
     ...income,
@@ -57,8 +64,16 @@ export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updat
       await db.incomes.update(id, { synced: true });
     }
     
+    // Dispatch sync end event on success
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sync:end'));
+    }
     return id;
   } catch (error) {
+    // Dispatch sync end event on error
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sync:end'));
+    }
     console.error('Error adding income:', error);
     return null;
   }

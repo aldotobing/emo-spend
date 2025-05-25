@@ -58,6 +58,13 @@ export function useSync() {
       }
 
       isSyncingRef.current = true;
+      
+      // Dispatch sync start event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('sync:start', { 
+          detail: { operation: 'push' } 
+        }));
+      }
 
       try {
         if (!silent) {
@@ -84,12 +91,20 @@ export function useSync() {
           skipped: totalSkipped
         };
       } catch (error) {
+        // Dispatch sync end event on error
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sync:end'));
+        }
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         console.error("[useSync] Sync failed:", error);
         return { success: false, error: errorMessage };
       } finally {
         isSyncingRef.current = false;
+        // Dispatch sync end event on success
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sync:end'));
+        }
       }
     },
     []
