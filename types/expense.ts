@@ -24,3 +24,32 @@ export interface Category {
   name: string
   icon: string
 }
+
+export interface Income {
+  id: string;
+  user_id: string;
+  amount: number;
+  source: string;
+  description?: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+  synced?: boolean; // For local database sync status
+}
+
+export type Transaction = {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: 'expense' | 'income';
+  category: string | number; // category_id for expenses, source for incomes
+  description: string | null;
+  date: string;
+  created_at: string;
+  updated_at: string;
+  // Additional fields that might be present based on the type
+  mood?: MoodType;
+  moodReason?: string;
+  notes?: string;
+  source?: string; // For income transactions
+};

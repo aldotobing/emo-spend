@@ -17,22 +17,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDb, getExpensesByDateRange } from "@/lib/db";
-import type { Expense } from "@/types/expense";
 import { formatCurrency, getDateRangeForPeriod } from "@/lib/utils";
+import { getIncomesByDateRange } from "@/lib/income";
 import { moods } from "@/data/moods";
+import type { Expense, Income } from "@/types/expense";
 import { ExpenseList } from "@/components/expense-list";
 import { SpendingByMoodChart } from "@/components/spending-by-mood-chart";
 import { SpendingByCategory } from "@/components/spending-by-category";
 import { SpendingOverTime } from "@/components/spending-over-time";
 import { SpendingByDay } from "@/components/spending-by-day";
 import { Gamification } from "@/components/gamification";
+import { IncomeExpenseChart } from "@/components/income-expense-chart";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, TrendingUp } from "lucide-react";
 import { EnhancedCalendar } from "@/components/enhanced-calendar";
 
 export default function Dashboard() {
   // State for expenses and loading
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [incomes, setIncomes] = useState<Income[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // State for period selection
@@ -54,13 +57,20 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const { start, end } = getDateRangeForPeriod(period);
-      const data = await getExpensesByDateRange(start, end);
-      setExpenses(data);
+      
+      // Fetch both expenses and incomes in parallel
+      const [expensesData, incomesData] = await Promise.all([
+        getExpensesByDateRange(start, end),
+        getIncomesByDateRange(start, end)
+      ]);
+      
+      setExpenses(expensesData);
+      setIncomes(incomesData);
 
       // Trigger a sync when data is loaded (in case there are pending changes)
       await sync({ silent: true });
     } catch (err) {
-      console.error("Error fetching expenses:", err);
+      console.error("Error fetching data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -112,34 +122,49 @@ export default function Dashboard() {
     const db = getDb();
     let mounted = true;
 
-    const handleExpenseChange = async () => {
+    const handleDataChange = async () => {
       if (!mounted) return;
       try {
-        // Trigger a sync when expenses change
+        // Trigger a sync when data changes
         await sync({ silent: true });
         const { start, end } = getDateRangeForPeriod(period);
-        const data = await getExpensesByDateRange(start, end);
+        
+        // Fetch both expenses and incomes
+        const [expensesData, incomesData] = await Promise.all([
+          getExpensesByDateRange(start, end),
+          getIncomesByDateRange(start, end)
+        ]);
+        
         if (mounted) {
-          setExpenses(data);
+          setExpenses(expensesData);
+          setIncomes(incomesData);
         }
       } catch (error) {
-        console.error("Error fetching expenses after change:", error);
+        console.error("Error fetching data after change:", error);
       }
     };
 
-    // Subscribe to changes
-    const unsubscribe = db.expenses.hook(
+    // Subscribe to changes in both expenses and incomes
+    const unsubscribeExpenses = db.expenses.hook(
       "creating",
-      handleExpenseChange as any
+      handleDataChange as any
+    ) as unknown as (() => void) | undefined;
+      
+    const unsubscribeIncomes = db.incomes?.hook(
+      "creating",
+      handleDataChange as any
     ) as unknown as (() => void) | undefined;
 
     // Initial fetch
-    handleExpenseChange();
+    handleDataChange();
 
     return () => {
       mounted = false;
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
+      if (typeof unsubscribeExpenses === "function") {
+        unsubscribeExpenses();
+      }
+      if (typeof unsubscribeIncomes === "function") {
+        unsubscribeIncomes();
       }
     };
   }, [period]);
@@ -287,6 +312,8 @@ export default function Dashboard() {
                         <DashboardCharts
                           isLoading={isLoading}
                           expenses={expenses}
+                          incomes={incomes}
+                          period={period}
                         />
                         <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 w-full">
                           <motion.div
@@ -497,39 +524,65 @@ function SummaryCards({
   );
 }
 
-function DashboardCharts({
-  isLoading,
-  expenses,
-}: {
+interface DashboardChartsProps {
   isLoading: boolean;
   expenses: Expense[];
-}) {
+  incomes: Income[];
+  period: 'day' | 'week' | 'month' | 'year';
+}
+
+function DashboardCharts({
+  isLoading,
+  expenses = [],
+  incomes = [],
+  period,
+}: DashboardChartsProps) {
   const chartConfigs = [
     {
+      title: "Pemasukan vs Pengeluaran",
+      className: 'md:col-span-3', // Full width on medium screens and up
+      Comp: (
+        <IncomeExpenseChart 
+          expenses={expenses} 
+          incomes={incomes} 
+          period={period} 
+          isLoading={isLoading}
+        />
+      ),
+    },
+    {
       title: "Pengeluaran berdasarkan Mood",
+      className: 'md:col-span-1', // Half width on medium screens, full on small
       Comp: <SpendingByMoodChart expenses={expenses} />,
     },
     {
       title: "Pengeluaran berdasarkan Kategori",
+      className: 'md:col-span-2', // Half width on medium screens, full on small
       Comp: <SpendingByCategory expenses={expenses} />,
     },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {chartConfigs.map(({ title, Comp }, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
+            className={chartConfigs[i].className || ''}
           >
-            <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-sm sm:text-base">{title}</CardTitle>
+            <Card className="flex flex-col h-full hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                  {title.includes('Pemasukan') && (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  )}
+                  {title}
+                </CardTitle>
               </CardHeader>
-              <CardContent className="h-[250px] sm:h-[300px]">
+              <CardContent className="h-[250px] sm:h-[300px] flex-1">
                 {isLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <motion.div
@@ -552,7 +605,7 @@ function DashboardCharts({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

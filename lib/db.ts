@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Expense as AppExpense, MoodType } from "@/types/expense";
+import type { Expense as AppExpense, MoodType, Income as AppIncome } from "@/types/expense";
 import { getSupabaseBrowserClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
 
@@ -19,6 +19,10 @@ export interface SyncedExpense extends AppExpense {
   synced: boolean;
 }
 
+export interface SyncedIncome extends AppIncome {
+  synced: boolean;
+}
+
 export interface SyncStatusEntry {
   id: string;
   synced: boolean;
@@ -27,52 +31,143 @@ export interface SyncStatusEntry {
 
 export class EmoSpendDatabase extends Dexie {
   expenses!: Table<SyncedExpense, string>;
+  incomes!: Table<SyncedIncome, string>;
   syncStatus!: Table<SyncStatusEntry, string>;
+  categories!: Table<{ id: string; name: string; icon: string; color: string }, string>;
+  moods!: Table<{ id: string; name: string; emoji: string; color: string }, string>;
+  syncQueue!: Table<{
+    id?: number;
+    table_name: string;
+    record_id: string;
+    action: 'create' | 'update' | 'delete';
+    data: any;
+    created_at: string;
+  }, number>;
 
   constructor() {
     super("emoSpendDb");
 
-    try {
-      this.version(5)
-        .stores({
-          expenses: "++id, amount, category, mood, date, createdAt, synced",
-          syncStatus: "id, synced, lastAttempt",
-        })
-        .upgrade(async (tx) => {
-          // Check if the expenses table exists
-          if (tx.table("expenses")) {
-            await tx
-              .table<SyncedExpense>("expenses")
-              .toCollection()
-              .modify((expense) => {
-                if (expense.synced === undefined) {
-                  expense.synced = false;
-                }
-              })
-              .catch((err) =>
-                console.error("Error during expenses table upgrade:", err)
-              );
-          }
-        });
-    } catch (e: any) {
-      console.error("Error during EmoSpendDatabase construction:", e);
-      throw e;
-    }
+    // Version 1 - Initial schema
+    this.version(1).stores({
+      expenses: 'id, user_id, date, category, mood, [user_id+date]',
+      incomes: 'id, user_id, date, source, [user_id+date]',
+      categories: 'id, user_id, name, icon, color',
+      moods: 'id, user_id, name, emoji, color',
+      syncStatus: 'id, synced, lastAttempt',
+      syncQueue: '++id, table_name, record_id, action, created_at'
+    });
+
+    // Version 2 - Add indexes for better date-based queries
+    this.version(2)
+      .stores({
+        expenses: 'id, user_id, date, category, mood, [user_id+date], [date]',
+        incomes: 'id, user_id, date, source, [user_id+date], [date]',
+        categories: 'id, user_id, name, icon, color',
+        moods: 'id, user_id, name, emoji, color',
+        syncStatus: 'id, synced, lastAttempt',
+        syncQueue: '++id, table_name, record_id, action, created_at'
+      })
+      .upgrade(tx => {
+        // Migration code if needed
+        return Promise.resolve();
+      });
+
+    // Version 3 - Add synced flag to all tables
+    this.version(3)
+      .stores({
+        expenses: 'id, user_id, date, category, mood, [user_id+date], [date], synced',
+        incomes: 'id, user_id, date, source, [user_id+date], [date], synced',
+        categories: 'id, user_id, name, icon, color, synced',
+        moods: 'id, user_id, name, emoji, color, synced',
+        syncStatus: 'id, synced, lastAttempt',
+        syncQueue: '++id, table_name, record_id, action, created_at'
+      })
+      .upgrade(async tx => {
+        // Add synced flag to existing records
+        const tables = ['expenses', 'incomes', 'categories', 'moods'];
+        for (const table of tables) {
+          await tx.table(table).toCollection().modify(record => {
+            if (record.synced === undefined) {
+              record.synced = true; // Mark existing records as synced
+            }
+          }).catch(console.error);
+        }
+      });
   }
 }
 
 let dbInstance: EmoSpendDatabase | null = null;
+
 export function getDb(): EmoSpendDatabase {
   if (!dbInstance) {
     try {
+      console.log('[DB] Initializing database...');
       dbInstance = new EmoSpendDatabase();
-    } catch (e: any) {
-      console.error("Error creating EmoSpendDatabase instance:", e);
-      throw e;
+      
+      // Set up version change handler
+      dbInstance.on('versionchange', (event: any) => {
+        console.log('[DB] Database version change detected:', event);
+        // Close the database to allow the upgrade to proceed
+        dbInstance?.close();
+        dbInstance = null;
+        // Notify the user if needed
+        if (event.newVersion !== null) { // null means database is being deleted
+          console.log('[DB] Database is being upgraded. Please refresh the page when complete.');
+        }
+      });
+      
+      // Log successful initialization
+      dbInstance.open().then(() => {
+        console.log('[DB] Database opened successfully');
+      }).catch((error: any) => {
+        console.error('[DB] Error opening database:', error);
+      });
+      
+    } catch (e) {
+      console.error("[DB] Failed to initialize database:", e);
+      
+      // Try to recover by deleting the database and recreating it
+      if (typeof window !== 'undefined' && window.indexedDB && window.indexedDB.deleteDatabase) {
+        console.log('[DB] Attempting to reset database...');
+        
+        // Close any existing connection first
+        if (dbInstance) {
+          dbInstance.close();
+          dbInstance = null;
+        }
+        
+        // Delete and recreate
+        const deleteRequest = window.indexedDB.deleteDatabase("emoSpendDb");
+        
+        deleteRequest.onsuccess = () => {
+          console.log("[DB] Database deleted successfully, recreating...");
+          try {
+            dbInstance = new EmoSpendDatabase();
+          } catch (innerError) {
+            console.error("[DB] Failed to recreate database:", innerError);
+          }
+        };
+        
+        deleteRequest.onerror = (event: any) => {
+          console.error("[DB] Failed to delete database:", event.target?.error);
+        };
+      }
+      
+      // If we still don't have a database instance, throw an error
+      if (!dbInstance) {
+        const error = new Error("Failed to initialize database");
+        console.error(error);
+        throw error;
+      }
     }
-  } else {
-    // console.log("--- [DB getDb()] --- Returning existing dbInstance."); // Bisa dikurangi lognya jika terlalu verbose
   }
+  
+  if (!dbInstance) {
+    const error = new Error("Database instance is not available");
+    console.error(error);
+    throw error;
+  }
+  
   return dbInstance;
 }
 
@@ -221,31 +316,62 @@ export async function getExpensesByDateRange(
 ): Promise<SyncedExpense[]> {
   const db = getDb();
   try {
-    const allExpenses = await db.expenses.toArray();
-    
-    // Parse the dates once for comparison
+    // First, try to use an indexed query if possible
     const start = new Date(startDate);
     const end = new Date(endDate);
     
-    // Filter expenses that fall within the date range
-    const filteredExpenses = allExpenses.filter(expense => {
-      try {
-        const expenseDate = new Date(expense.date);
-        return expenseDate >= start && expenseDate <= end;
-      } catch (e) {
-        console.error('Error parsing expense date:', expense.date, e);
-        return false;
-      }
-    });
+    // Use Dexie's where clause to filter by date range using the index
+    const expenses = await db.expenses
+      .where('date')
+      .between(
+        start.toISOString(), 
+        end.toISOString(), 
+        true,  // include lower bound
+        true   // include upper bound
+      )
+      .toArray();
     
-    return filteredExpenses;
+    // If no results, try the old method as fallback
+    if (!expenses.length) {
+      const allExpenses = await db.expenses.toArray();
+      return allExpenses.filter(expense => {
+        try {
+          const expenseDate = new Date(expense.date);
+          return expenseDate >= start && expenseDate <= end;
+        } catch (e) {
+          console.error('Error parsing expense date:', expense.date, e);
+          return false;
+        }
+      });
+    }
+    
+    return expenses;
   } catch (error: any) {
     console.error(
-      "--- [DB getExpensesByDateRange() ERROR] --- Error getting expenses by date range:",
+      "[DB getExpensesByDateRange ERROR] Error getting expenses by date range:",
       error.message,
       error.stack
     );
-    return [];
+    
+    // If there's an error with the indexed query, fall back to client-side filtering
+    try {
+      const allExpenses = await db.expenses.toArray();
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      return allExpenses.filter(expense => {
+        try {
+          const expenseDate = new Date(expense.date);
+          return expenseDate >= start && expenseDate <= end;
+        } catch (e) {
+          console.error('Error parsing expense date (fallback):', expense.date, e);
+          return false;
+        }
+      });
+    } catch (fallbackError) {
+      console.error('[DB getExpensesByDateRange FALLBACK ERROR]', fallbackError);
+      return [];
+    }
   }
 }
 
@@ -928,6 +1054,8 @@ function calculateStreak(expenses: SyncedExpense[]): number {
   
   return streak;
 }
+
+
 
 // Helper function to calculate badges
 function calculateBadges(expenses: SyncedExpense[], streak: number): {
