@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { format, parseISO, startOfDay, endOfDay, eachDayOfInterval, isWithinInterval, differenceInDays, addMonths, subMonths, startOfMonth, endOfMonth, isSameMonth, isSameYear } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +28,9 @@ type ChartDataPoint = {
 
 export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = false, period }: IncomeExpenseChartProps) {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [animatedIncome, setAnimatedIncome] = useState(0);
+  const [animatedExpenses, setAnimatedExpenses] = useState(0);
+  const [animatedDifference, setAnimatedDifference] = useState(0);
   
   const handlePrevMonth = () => {
     setCurrentDate(subMonths(currentDate, 1));
@@ -107,6 +110,29 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
     return { totalIncome, totalExpenses, difference, isPositive, hasData };
   }, [chartData]);
 
+  // Animate the summary values
+  useEffect(() => {
+    if (isLoading) return;
+    
+    const duration = 800;
+    const start = performance.now();
+    
+    const animate = (now: number) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      
+      setAnimatedIncome(Math.floor(animatedIncome + (totalIncome - animatedIncome) * eased));
+      setAnimatedExpenses(Math.floor(animatedExpenses + (totalExpenses - animatedExpenses) * eased));
+      setAnimatedDifference(Math.floor(animatedDifference + (difference - animatedDifference) * eased));
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [totalIncome, totalExpenses, difference, isLoading]);
+
   // Calculate max value for Y-axis
   const maxValue = useMemo(() => {
     const maxAmount = Math.max(
@@ -181,7 +207,7 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
           <CardHeader className="pb-2">
             <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Income</p>
             <CardTitle className="text-xl sm:text-2xl font-bold text-green-500">
-              {formatCurrency(totalIncome)}
+              {formatCurrency(animatedIncome)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -191,7 +217,7 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
           <CardHeader className="pb-2">
             <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Expenses</p>
             <CardTitle className="text-xl sm:text-2xl font-bold text-red-500">
-              {formatCurrency(totalExpenses)}
+              {formatCurrency(animatedExpenses)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -202,7 +228,7 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
             <p className="text-xs sm:text-sm font-medium text-muted-foreground">Net Difference</p>
             <div className="flex items-center justify-between">
               <CardTitle className={`text-xl sm:text-2xl font-bold ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
-                {isPositive ? '+' : ''}{formatCurrency(difference)}
+                {isPositive && animatedDifference > 0 ? '+' : ''}{formatCurrency(animatedDifference)}
               </CardTitle>
               {isPositive ? (
                 <div className="p-1.5 sm:p-2 rounded-full bg-green-500/10">
