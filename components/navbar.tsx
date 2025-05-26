@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, PieChart, TrendingUp, Settings, LogOut, LogIn, Menu, X } from "lucide-react"
+import { Home, PieChart, TrendingUp, Settings, LogOut, LogIn, Menu, X, FileText } from "lucide-react"
 import { SyncIndicator } from "./sync-indicator"
 import { ModeToggle } from "./mode-toggle"
 import { cn } from "@/lib/utils"
@@ -39,6 +39,7 @@ export default function Navbar() {
     { href: "/", label: "Dashboard", icon: Home },
     { href: "/income", label: "Income", icon: TrendingUp },
     { href: "/insights", label: "Insights", icon: PieChart },
+    { href: "/reports", label: "Reports", icon: FileText },
     { href: "/settings", label: "Settings", icon: Settings },
   ]
 

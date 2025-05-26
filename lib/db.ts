@@ -316,16 +316,23 @@ export async function getExpensesByDateRange(
 ): Promise<SyncedExpense[]> {
   const db = getDb();
   try {
-    // First, try to use an indexed query if possible
+    // Parse dates and set to start/end of day in local timezone
     const start = new Date(startDate);
-    const end = new Date(endDate);
+    start.setHours(0, 0, 0, 0); // Start of day
     
-    // Use Dexie's where clause to filter by date range using the index
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999); // End of day
+    
+    // Convert to ISO strings for comparison
+    const startISO = start.toISOString();
+    const endISO = end.toISOString();
+    
+    // First, try to use an indexed query if possible
     const expenses = await db.expenses
       .where('date')
       .between(
-        start.toISOString(), 
-        end.toISOString(), 
+        startISO, 
+        endISO, 
         true,  // include lower bound
         true   // include upper bound
       )

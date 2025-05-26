@@ -32,7 +32,7 @@ type ExcelCellStyle = {
   numFmt?: string;
 };
 
-import { getExpenses } from "@/lib/db";
+import { getExpenses, getExpensesByDateRange } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 import { getCategory } from "@/data/categories";
 import { getMood } from "@/data/moods";
@@ -50,13 +50,27 @@ type WorksheetCell = {
 
 /**
  * Exports expenses to an Excel file with proper formatting
+ * @param startDate Optional start date for filtering expenses (inclusive)
+ * @param endDate Optional end date for filtering expenses (inclusive)
  */
-export async function exportExpensesToExcel(): Promise<Blob> {
-  // Get all expenses
-  const expenses = await getExpenses();
-
-  // Sort by date (oldest first - ascending)
-  expenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+export async function exportExpensesToExcel(
+  startDate?: Date,
+  endDate?: Date
+): Promise<Blob> {
+  // Get expenses based on date range if provided
+  let expenses;
+  if (startDate && endDate) {
+    // Use the date range filter
+    expenses = await getExpensesByDateRange(
+      startDate.toISOString(),
+      endDate.toISOString()
+    );
+  } else {
+    // Get all expenses if no date range is provided
+    expenses = await getExpenses();
+    // Sort by date (oldest first - ascending)
+    expenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }
 
   // Get current date for report generation timestamp
   const generationDate = new Date();
@@ -68,44 +82,211 @@ export async function exportExpensesToExcel(): Promise<Blob> {
     minute: '2-digit'
   });
 
+  // Format date range for display
+  let dateRangeText = 'All Time';
+  if (startDate && endDate) {
+    const formatDate = (date: Date) => date.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    dateRangeText = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+  }
+
   // Create title rows
   const titleRow = ["Spent Report"];
-  const generatedDateRow = [`Generated Date : ${formattedGenerationDate}`];
+  const dateRangeRow = [`Date Range: ${dateRangeText}`];
+  const generatedDateRow = [`Generated: ${formattedGenerationDate}`];
   const emptyRow = [""];
 
-  // Create worksheet data - moved Amount to the end after Notes
-  const header = ["Date", "Category", "Mood", "Mood Reason", "Notes", "Amount"];
+  // Define styles
+  const headerStyle: ExcelCellStyle = {
+    font: { bold: true, color: { rgb: 'FFFFFF' } },
+    fill: { fgColor: { rgb: '4F46E5' }, patternType: 'solid' },
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: {
+      top: { style: 'thin', color: { rgb: '3B3B3B' } },
+      bottom: { style: 'thin', color: { rgb: '3B3B3B' } },
+      left: { style: 'thin', color: { rgb: '3B3B3B' } },
+      right: { style: 'thin', color: { rgb: '3B3B3B' } }
+    }
+  };
+
+  const amountStyle: ExcelCellStyle = {
+    numFmt: '#,##0.00',
+    alignment: { horizontal: 'right' }
+  };
+
+  const dateStyle: ExcelCellStyle = {
+    numFmt: 'yyyy-mm-dd',
+    alignment: { horizontal: 'left' }
+  };
+
+  // Create worksheet data with headers
+  const header = [
+    { v: "Date", t: 's', s: headerStyle },
+    { v: "Category", t: 's', s: headerStyle },
+    { v: "Mood", t: 's', s: headerStyle },
+    { v: "Mood Reason", t: 's', s: headerStyle },
+    { v: "Notes", t: 's', s: headerStyle },
+    { 
+      v: "Amount", 
+      t: 's', 
+      s: { 
+        ...headerStyle, 
+        alignment: { 
+          horizontal: 'right', 
+          vertical: 'middle' 
+        } 
+      } 
+    }
+  ] as const;
   
-  // Create rows with data - moved Amount to the end
+  // Create rows with data and apply styles
   const rows = expenses.map((expense: Expense) => {
     const category = getCategory(expense.category);
     const mood = getMood(expense.mood);
+    const categoryName = category?.name || 'Uncategorized';
+    const moodLabel = mood?.label || 'Neutral';
+    const amount = parseFloat(expense.amount.toString());
+    const isNegative = amount < 0;
 
+    // Create row with styled cells
     return [
-      formatDate(expense.date),
-      category.name,
-      mood.label,
-      expense.moodReason || "",
-      expense.notes || "",
-      parseFloat(expense.amount.toString()), // Convert to number for Excel
+      { v: new Date(expense.date), t: 'd', s: dateStyle },
+      { 
+        v: categoryName, 
+        t: 's', 
+        s: { 
+          fill: { 
+            fgColor: { 
+              rgb: category && 'color' in category ? 
+                (category as any).color : 'F3F4F6' 
+            }, 
+            patternType: 'solid' 
+          },
+          border: {
+            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+          }
+        } 
+      },
+      { 
+        v: moodLabel, 
+        t: 's',
+        s: { 
+          font: { italic: true },
+          border: {
+            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+          }
+        } 
+      },
+      { 
+        v: expense.moodReason || "-", 
+        t: 's',
+        s: { 
+          border: {
+            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+          }
+        } 
+      },
+      { 
+        v: expense.notes || "-", 
+        t: 's',
+        s: { 
+          border: {
+            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+          }
+        } 
+      },
+      { 
+        v: amount, 
+        t: 'n', 
+        s: { 
+          ...amountStyle,
+          font: { 
+            color: { rgb: isNegative ? 'DC2626' : '10B981' },
+            bold: isNegative
+          },
+          border: {
+            top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+            right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+          }
+        } 
+      },
     ];
   });
 
   // Calculate total amount
-  const totalAmount = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  
-  // Add a total row with Amount at the end
-  const totalRow = ["", "", "", "", "Total", totalAmount];
-  
-  // Combine all data
-  const wsData = [
-    titleRow,
-    generatedDateRow,
-    emptyRow,
-    header,
-    ...rows,
-    totalRow
+  const totalAmount = expenses.reduce((sum: number, expense: Expense) => sum + expense.amount, 0);
+  const isNegativeTotal = totalAmount < 0;
+
+  // Add total row with proper typing
+  const totalRow: any[] = [
+    { 
+      v: "TOTAL", 
+      t: 's', 
+      s: { 
+        font: { bold: true, color: { rgb: '1F2937' } },
+        fill: { fgColor: { rgb: 'F3F4F6' }, patternType: 'solid' },
+        border: {
+          top: { style: 'medium', color: { rgb: '9CA3AF' } },
+          bottom: { style: 'double', color: { rgb: '9CA3AF' } },
+          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+          right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+        },
+        alignment: { horizontal: 'right' }
+      } 
+    },
+    { v: "", t: 's', s: { fill: { fgColor: { rgb: 'F3F4F6' }, patternType: 'solid' } } },
+    { v: "", t: 's', s: { fill: { fgColor: { rgb: 'F3F4F6' }, patternType: 'solid' } } },
+    { v: "", t: 's', s: { fill: { fgColor: { rgb: 'F3F4F6' }, patternType: 'solid' } } },
+    { 
+      v: "", 
+      t: 's', 
+      s: { 
+        fill: { fgColor: { rgb: 'F3F4F6' }, patternType: 'solid' },
+        border: {
+          right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+        }
+      } 
+    },
+    { 
+      v: totalAmount, 
+      t: 'n', 
+      s: { 
+        font: { 
+          bold: true, 
+          color: { rgb: isNegativeTotal ? 'DC2626' : '10B981' },
+          size: 12
+        },
+        fill: { fgColor: { rgb: 'F3F4F6' }, patternType: 'solid' },
+        numFmt: '#,##0.00',
+        alignment: { horizontal: 'right' },
+        border: {
+          top: { style: 'medium', color: { rgb: '9CA3AF' } },
+          bottom: { style: 'double', color: { rgb: '9CA3AF' } },
+          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+          right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+        }
+      } 
+    }
   ];
+  
+  rows.push(totalRow);
 
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
@@ -122,126 +303,57 @@ export async function exportExpensesToExcel(): Promise<Blob> {
   };
 
   // Prepare data with styles
-  const wsDataWithStyles: WorksheetCell[][] = wsData.map((row, rowIndex) => 
-    row.map((cell, colIndex) => ({
-      v: cell,
-      t: typeof cell === 'number' ? 'n' : 's',
-      s: { ...defaultCellStyle }
-    }))
+  const wsDataWithStyles: WorksheetCell[][] = [header as any, ...rows].map(row => 
+    row.map((cell: WorksheetCell) => ({
+      v: cell.v,
+      t: typeof cell.v === 'number' ? 'n' : 's',
+      s: { ...defaultCellStyle, ...cell.s }
+    } as WorksheetCell))
   );
 
-  // Title styling - override the default style for the title cell
-  const titleCell = wsDataWithStyles[0][0];
-  titleCell.s = {
-    font: {
-      bold: true,
-      sz: 16,
-      name: 'Arial'
-    },
-    alignment: {
-      horizontal: 'left',
-      vertical: 'middle'
-    },
-    border: {
-      top: { style: 'thin' },
-      bottom: { style: 'thin' },
-      left: { style: 'thin' },
-      right: { style: 'thin' }
-    }
-  };
-
-  // Generation date styling
-  const generationDateCell = wsDataWithStyles[1][0];
-  generationDateCell.s = {
-    font: { italic: true },
-    alignment: { horizontal: 'left' },
-    border: {
-      top: { style: 'none', color: { rgb: '00000000' } },
-      bottom: { style: 'none', color: { rgb: '00000000' } },
-      left: { style: 'none', color: { rgb: '00000000' } },
-      right: { style: 'none', color: { rgb: '00000000' } }
-    }
-  };
-
-  // Header row styling
-  const headerRowIndex = 3; // Title + Generated Date + Empty row
-  wsDataWithStyles[headerRowIndex].forEach(cell => {
-    cell.s = {
-      fill: { fgColor: { rgb: 'BFBFBF' }, patternType: 'solid' },
-      font: { bold: true, sz: 11 },
-      alignment: { horizontal: 'center', vertical: 'middle' },
-      border: {
-        top: { style: 'thin' },
-        bottom: { style: 'thin' },
-        left: { style: 'thin' },
-        right: { style: 'thin' }
-      }
-    };
-  });
-
-  // Amount column formatting (last column)
-  for (let i = headerRowIndex + 1; i < wsDataWithStyles.length - 1; i++) {
-    const amountCell = wsDataWithStyles[i][5];
-    if (amountCell) {
-      amountCell.s = {
-        ...amountCell.s,
-        numFmt: '"Rp"#,##0.00'
-      };
-    }
-  }
-
-  // Total row styling
-  const totalRowIndex = wsDataWithStyles.length - 1;
-  
-  // Style the "Total" text cell (column E)
-  wsDataWithStyles[totalRowIndex][4].s = {
-    font: { bold: true, sz: 11 },
-    alignment: { horizontal: 'right' },
-    fill: { fgColor: { rgb: 'E6E6E6' }, patternType: 'solid' },
-    border: {
-      top: { style: 'thin' },
-      bottom: { style: 'double' },
-      left: { style: 'thin' },
-      right: { style: 'thin' }
-    }
-  };
-  
-  // Style the total amount cell (column F)
-  wsDataWithStyles[totalRowIndex][5].s = {
-    font: { bold: true, sz: 11 },
-    fill: { fgColor: { rgb: 'E6E6E6' }, patternType: 'solid' },
-    border: {
-      top: { style: 'thin' },
-      bottom: { style: 'double' },
-      left: { style: 'thin' },
-      right: { style: 'thin' }
-    },
-    numFmt: '"Rp"#,##0.00'
-  };
-
-  // Create worksheet from styled data
-  const ws = XLSX.utils.aoa_to_sheet(wsDataWithStyles.map(row => 
-    row.map(cell => cell.v)
-  ));
-
-  // Apply styles to worksheet
-  wsDataWithStyles.forEach((row, rowIndex) => {
-    row.forEach((cell, colIndex) => {
-      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
-      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-      ws[cellRef].s = cell.s;
-    });
-  });
+  // Create worksheet with data
+  const ws = XLSX.utils.aoa_to_sheet([header as any, ...rows]);
 
   // Set column widths
-  ws['!cols'] = [
-    { wch: 15 }, // Date
-    { wch: 15 }, // Category
-    { wch: 15 }, // Mood
-    { wch: 25 }, // Mood Reason
-    { wch: 30 }, // Notes
-    { wch: 15 }, // Amount
+  const colWidths = [
+    { wch: 12 }, // Date
+    { wch: 18 }, // Category
+    { wch: 14 }, // Mood
+    { wch: 28 }, // Mood Reason
+    { wch: 40 }, // Notes
+    { wch: 16 }, // Amount
   ];
+  ws['!cols'] = colWidths;
+
+  // Freeze header row
+  ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activePane: 'bottomRight' };
+  
+  // Add filter to header row
+  ws['!autofilter'] = { ref: 'A1:F1' };
+  
+  // Add conditional formatting for negative numbers (red) and positive numbers (green)
+  if (ws['!ref']) {
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    const lastRow = range.e.r;
+    const amountCol = 5; // Column F (0-based index)
+    
+    // Apply number format to amount column
+    for (let i = 1; i <= lastRow; i++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: i, c: amountCol });
+      if (!ws[cellAddress]) continue;
+      
+      // Skip header and total rows
+      if (i === 0 || i === lastRow) continue;
+      
+      const cell = ws[cellAddress] as XLSX.CellObject;
+      if (!cell.s) cell.s = {};
+      
+      // Apply conditional number format
+      if (typeof cell.v === 'number') {
+        cell.s.numFmt = cell.v < 0 ? '#,##0.00;[Red]-#,##0.00' : '#,##0.00;[Green]#,##0.00';
+      }
+    }
+  }
 
   // Add the worksheet to the workbook
   XLSX.utils.book_append_sheet(wb, ws, 'Expense Report');

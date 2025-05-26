@@ -17,7 +17,6 @@ import { Separator } from "@/components/ui/separator";
 import { useTheme } from "next-themes";
 import { clearLocalUserData } from "@/lib/db";
 import { useToast } from "@/components/ui/use-toast";
-import { exportExpensesToExcel, downloadExcel } from "@/lib/excel-export";
 import { useAuth } from "@/context/auth-context";
 import {
   AlertDialog,
@@ -43,7 +42,6 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isClearing, setIsClearing] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
 
@@ -94,26 +92,7 @@ export default function SettingsPage() {
     // Don't set isClearing to false on success as we're redirecting
   };
 
-  const handleExportExcel = async () => {
-    setIsExporting(true);
-    try {
-      const excelBlob = await exportExpensesToExcel();
-      downloadExcel(excelBlob, "EmoSpend-Expense-Report.xlsx");
-      toast({
-        title: "Export successful",
-        description: "Your expense data has been exported to Excel.",
-      });
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: "Export failed",
-        description: "Failed to export data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsExporting(false);
-    }
-  };
+
 
   return (
     <div className="space-y-6">
@@ -202,23 +181,7 @@ export default function SettingsPage() {
             </AlertDialog>
           </div>
 
-          <Separator />
 
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium">Export Data</h3>
-              <p className="text-sm text-muted-foreground">
-                Export your expense data as a formatted Excel report
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleExportExcel}
-              disabled={isExporting}
-            >
-              {isExporting ? "Exporting..." : "Export to Excel"}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
