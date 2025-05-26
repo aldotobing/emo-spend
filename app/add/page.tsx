@@ -149,150 +149,155 @@ export default function AddExpensePage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center py-4 md:py-10 bg-gradient-to-b from-background to-primary/5 px-4 md:px-0">
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center py-4 lg:py-6 xl:py-8 bg-gradient-to-b from-background to-primary/5 px-4 mb-8 sm:mb-0">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-sm lg:max-w-md xl:max-w-lg"
       >
-        <div className="bg-card rounded-2xl md:rounded-3xl overflow-hidden shadow-lg border border-primary/20">
-          {/* Header Section */}
-          <div className="bg-primary/10 p-4 md:p-6 text-center relative overflow-hidden">
+        <div className="bg-card rounded-2xl lg:rounded-2xl overflow-hidden shadow-lg border border-primary/20">
+          {/* Header Section - More compact on desktop */}
+          <div className="bg-primary/10 p-3 lg:p-4 xl:p-5 text-center relative overflow-hidden">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 100 }}
-              className="absolute top-3 right-3 md:top-4 md:right-4"
+              className="absolute top-2 right-2 lg:top-3 lg:right-3"
             >
-              <Sparkles className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+              <Sparkles className="h-4 w-4 lg:h-5 lg:w-5 text-primary" />
             </motion.div>
 
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
-              className="h-16 w-16 md:h-20 md:w-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4"
+              className="h-12 w-12 lg:h-14 lg:w-14 xl:h-16 xl:w-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2 lg:mb-3"
             >
-              <PiggyBank className="h-8 w-8 md:h-10 md:w-10 text-primary" />
+              <PiggyBank className="h-6 w-6 lg:h-7 lg:w-7 xl:h-8 xl:w-8 text-primary" />
             </motion.div>
 
-            <h1 className="text-xl md:text-2xl font-bold mb-1">Tambah Pengeluaran Baru</h1>
-            <p className="text-sm md:text-base text-muted-foreground">
+            <h1 className="text-lg lg:text-xl xl:text-2xl font-bold mb-1">Tambah Pengeluaran Baru</h1>
+            <p className="text-xs lg:text-sm xl:text-base text-muted-foreground">
               Catat pengeluaran dan perasaanmu
             </p>
           </div>
 
-          {/* Form Section */}
-          <div className="p-4 md:p-6">
+          {/* Form Section - Tighter spacing on desktop */}
+          <div className="p-4 lg:p-5 xl:p-6">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4 md:space-y-6"
+                className="space-y-3 lg:space-y-4 xl:space-y-5"
               >
-                {/* Amount Field */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <FormField
-                    control={form.control}
-                    name="amount"
-                    render={({ field }) => {
-                      const [displayValue, setDisplayValue] = useState(
-                        field.value ? formatToIDR(field.value) : ""
-                      );
+                {/* Two-column layout for amount and category on larger screens */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
+                  {/* Amount Field */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="lg:col-span-1"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="amount"
+                      render={({ field }) => {
+                        const [displayValue, setDisplayValue] = useState(
+                          field.value ? formatToIDR(field.value) : ""
+                        );
 
-                      // Sync local displayValue if field.value changes externally
-                      useEffect(() => {
-                        if (!field.value) {
-                          setDisplayValue("");
-                        } else {
-                          setDisplayValue(formatToIDR(field.value));
-                        }
-                      }, [field.value]);
+                        // Sync local displayValue if field.value changes externally
+                        useEffect(() => {
+                          if (!field.value) {
+                            setDisplayValue("");
+                          } else {
+                            setDisplayValue(formatToIDR(field.value));
+                          }
+                        }, [field.value]);
 
-                      return (
-                        <FormItem>
-                          <FormLabel className="text-foreground/80 text-sm md:text-base">
-                            Jumlah
-                          </FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input
-                                placeholder="0"
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const inputValue = e.target.value;
-                                  const numericValue = parseIDRNumber(inputValue);
-                                  
-                                  // Update display with formatted value
-                                  if (inputValue === "") {
-                                    setDisplayValue("");
-                                    field.onChange(0);
-                                  } else {
-                                    setDisplayValue(formatToIDR(numericValue));
-                                    field.onChange(numericValue);
-                                  }
-                                }}
-                                className="pl-12 md:pl-10 rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50 font-semibold text-base md:text-base h-12 md:h-auto"
-                                inputMode="numeric"
-                                autoComplete="off"
-                              />
-                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none text-base font-medium">
-                                Rp
-                              </span>
-                            </div>
-                          </FormControl>
-                          <FormMessage className="text-xs md:text-sm" />
-                        </FormItem>
-                      );
-                    }}
-                  />
-                </motion.div>
-
-                {/* Category Field */}
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-foreground/80 text-sm md:text-base">
-                          Kategori
-                        </FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-12 md:h-auto">
-                              <SelectValue placeholder="Pilih kategori" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.id} value={category.id}>
-                                <span className="flex items-center">
-                                  <span className="mr-2">{category.icon}</span>
-                                  <span>{category.name}</span>
+                        return (
+                          <FormItem>
+                            <FormLabel className="text-foreground/80 text-sm lg:text-sm">
+                              Jumlah
+                            </FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Input
+                                  placeholder="0"
+                                  value={displayValue}
+                                  onChange={(e) => {
+                                    const inputValue = e.target.value;
+                                    const numericValue = parseIDRNumber(inputValue);
+                                    
+                                    // Update display with formatted value
+                                    if (inputValue === "") {
+                                      setDisplayValue("");
+                                      field.onChange(0);
+                                    } else {
+                                      setDisplayValue(formatToIDR(numericValue));
+                                      field.onChange(numericValue);
+                                    }
+                                  }}
+                                  className="pl-10 lg:pl-9 rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 font-semibold text-sm lg:text-base h-10 lg:h-9 xl:h-10"
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                />
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none text-sm font-medium">
+                                  Rp
                                 </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage className="text-xs md:text-sm" />
-                      </FormItem>
-                    )}
-                  />
-                </motion.div>
+                              </div>
+                            </FormControl>
+                            <FormMessage className="text-xs" />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  </motion.div>
 
-                {/* Date Field */}
+                  {/* Category Field */}
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="lg:col-span-1"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="category"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-foreground/80 text-sm lg:text-sm">
+                            Kategori
+                          </FormLabel>
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10 lg:h-9 xl:h-10">
+                                <SelectValue placeholder="Pilih kategori" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories.map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  <span className="flex items-center">
+                                    <span className="mr-2">{category.icon}</span>
+                                    <span>{category.name}</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </motion.div>
+                </div>
+
+                {/* Date Field - Full width */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -306,7 +311,7 @@ export default function AddExpensePage() {
                       
                       return (
                         <FormItem className="flex flex-col">
-                          <FormLabel className="text-foreground/80 text-sm md:text-base">
+                          <FormLabel className="text-foreground/80 text-sm lg:text-sm">
                             Tanggal
                           </FormLabel>
                           <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
@@ -315,7 +320,7 @@ export default function AddExpensePage() {
                                 <Button
                                   variant={"outline"}
                                   className={cn(
-                                    "w-full pl-3 text-left font-normal rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-12 md:h-auto",
+                                    "w-full pl-3 text-left font-normal rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10 lg:h-9 xl:h-10",
                                     !field.value && "text-muted-foreground"
                                   )}
                                   onClick={() => setIsCalendarOpen(true)}
@@ -379,7 +384,7 @@ export default function AddExpensePage() {
                               />
                             </PopoverContent>
                           </Popover>
-                          <FormMessage className="text-xs md:text-sm" />
+                          <FormMessage className="text-xs" />
                         </FormItem>
                       );
                     }}
@@ -397,7 +402,7 @@ export default function AddExpensePage() {
                     name="mood"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-foreground/80 text-sm md:text-base">
+                        <FormLabel className="text-foreground/80 text-sm lg:text-sm">
                           Bagaimana perasaanmu?
                         </FormLabel>
                         <FormControl>
@@ -409,13 +414,13 @@ export default function AddExpensePage() {
                             }}
                           />
                         </FormControl>
-                        <FormMessage className="text-xs md:text-sm" />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
                 </motion.div>
 
-                {/* Notes Field */}
+                {/* Notes Field - Smaller on desktop */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -426,34 +431,34 @@ export default function AddExpensePage() {
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-foreground/80 text-sm md:text-base">
+                        <FormLabel className="text-foreground/80 text-sm lg:text-sm">
                           Catatan (Opsional)
                         </FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Tambahkan detail lainnya..."
-                            className="resize-none rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50 min-h-[80px] md:min-h-[100px]"
+                            className="resize-none rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 min-h-[60px] lg:min-h-[70px] xl:min-h-[80px] text-sm"
                             {...field}
                           />
                         </FormControl>
-                        <FormMessage className="text-xs md:text-sm" />
+                        <FormMessage className="text-xs" />
                       </FormItem>
                     )}
                   />
                 </motion.div>
 
-                {/* Submit Button */}
+                {/* Submit Button - More compact on desktop */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 }}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="pt-2"
+                  className="pt-1 lg:pt-2"
                 >
                   <Button
                     type="submit"
-                    className="w-full rounded-xl py-6 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary h-12 md:h-auto md:py-6"
+                    className="w-full rounded-lg py-5 lg:py-4 xl:py-5 text-sm lg:text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary h-11 lg:h-10 xl:h-11"
                     disabled={isSubmitting}
                   >
                     {isSubmitting ? (
@@ -466,10 +471,10 @@ export default function AddExpensePage() {
                         }}
                         className="mr-2"
                       >
-                        <Sparkles className="h-5 w-5" />
+                        <Sparkles className="h-4 w-4 lg:h-5 lg:w-5" />
                       </motion.div>
                     ) : (
-                      <ArrowRight className="mr-2 h-5 w-5" />
+                      <ArrowRight className="mr-2 h-4 w-4 lg:h-5 lg:w-5" />
                     )}
                     {isSubmitting ? "Menyimpan..." : "Simpan Pengeluaran"}
                   </Button>
