@@ -7,43 +7,76 @@ import { FinancialHealthScore } from '@/lib/financial-health';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
 
+import { useUser } from "@/hooks/use-user";
+import { Button } from "./ui/button";
+import Link from "next/link";
+
 interface FinancialHealthCardProps extends FinancialHealthScore {
   className?: string;
 }
 
 export function FinancialHealthCard({ score, status, summary, recommendations, metrics, className }: FinancialHealthCardProps) {
-  const getStatusColor = () => {
-    switch (status) {
-      case 'Excellent':
-        return 'bg-green-500';
-      case 'Good':
-        return 'bg-blue-500';
-      case 'Fair':
-        return 'bg-yellow-500';
-      case 'Needs Improvement':
-        return 'bg-orange-500';
-      case 'Poor':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-500';
-    }
+  const { user, isLoading: isUserLoading } = useUser();
+
+  if (!user && !isUserLoading) {
+    return (
+      <Card className={cn("w-full max-w-2xl mx-auto", className)}>
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Financial Health Score</CardTitle>
+          <CardDescription>
+            Track your financial health and get personalized recommendations
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+          <div className="text-center space-y-2">
+            <p className="text-muted-foreground">Please log in to view your financial health score</p>
+            <Button asChild>
+              <Link href="/auth/login">Login</Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  // Calculate color based on score for a smooth gradient from red to green
+  const getScoreColor = (value: number) => {
+    // Normalize the score to a 0-1 range
+    const normalizedScore = value / 100;
+    
+    // Calculate RGB values for a smooth gradient from red (0) to green (1)
+    const r = Math.round(255 * (1 - normalizedScore * 0.8));
+    const g = Math.round(255 * (normalizedScore * 0.8));
+    const b = 0;
+    
+    // Calculate text color (dark for light backgrounds, light for dark backgrounds)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    const textColor = brightness > 128 ? 'text-gray-900' : 'text-white';
+    
+    return {
+      bg: `rgb(${r}, ${g}, ${b})`,
+      text: textColor,
+      ring: `ring-rgb(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, 0)`
+    };
   };
 
+  const scoreColor = getScoreColor(score);
+  
+  // For the circular progress indicator
+  const getStatusColor = () => {
+    if (score >= 80) return 'bg-green-500';
+    if (score >= 60) return 'bg-blue-500';
+    if (score >= 40) return 'bg-yellow-500';
+    if (score >= 20) return 'bg-orange-500';
+    return 'bg-red-500';
+  };
+  
+  // For text and other elements that need status-based colors
   const getStatusTextColor = () => {
-    switch (status) {
-      case 'Excellent':
-        return 'text-green-600';
-      case 'Good':
-        return 'text-blue-600';
-      case 'Fair':
-        return 'text-yellow-600';
-      case 'Needs Improvement':
-        return 'text-orange-600';
-      case 'Poor':
-        return 'text-red-600';
-      default:
-        return 'text-gray-600';
-    }
+    if (score >= 80) return 'text-green-700';
+    if (score >= 60) return 'text-blue-700';
+    if (score >= 40) return 'text-yellow-700';
+    if (score >= 20) return 'text-orange-700';
+    return 'text-red-700';
   };
 
   return (
@@ -51,14 +84,23 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
       <CardHeader>
         <CardTitle className="text-2xl font-bold">Financial Health Score</CardTitle>
         <CardDescription>
-          Your financial health overview based on your recent transactions
+          {user ? 'Your financial health overview based on your recent transactions' : 'Loading...'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <div className="text-5xl font-bold">{score}</div>
-            <div className={`text-lg font-medium ${getStatusTextColor()}`}>{status}</div>
+            <div 
+              className="text-5xl font-bold transition-colors duration-300"
+              style={{ color: scoreColor.bg }}
+            >
+              {score}
+            </div>
+            <div 
+              className={`text-lg font-medium ${getStatusTextColor()} transition-colors duration-300`}
+            >
+              {status}
+            </div>
           </div>
           <div className="w-24 h-24 relative">
             <svg className="w-full h-full" viewBox="0 0 100 100">
@@ -72,19 +114,22 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
                 cy="50"
               />
               <circle
-                className={getStatusColor()}
                 strokeWidth="8"
                 strokeLinecap="round"
-                stroke="currentColor"
+                stroke={scoreColor.bg}
                 fill="transparent"
                 r="40"
                 cx="50"
                 cy="50"
                 strokeDasharray={`${(score / 100) * 251.2} 251.2`}
                 transform="rotate(-90 50 50)"
+                className="transition-all duration-1000 ease-out"
               />
             </svg>
-            <div className="absolute inset-0 flex items-center justify-center text-lg font-bold">
+            <div 
+              className="absolute inset-0 flex items-center justify-center text-lg font-bold transition-colors duration-300"
+              style={{ color: scoreColor.bg }}
+            >
               {score}/100
             </div>
           </div>

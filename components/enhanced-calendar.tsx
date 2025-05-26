@@ -643,10 +643,9 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm sm:text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-              Kalender
-              <span className="hidden xs:inline"> Pengeluaran</span>
+              Ringkasan Bulan Ini
             </h3>
-            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">Lacak pengeluaran harian</p>
+            <p className="text-[10px] xs:text-xs text-muted-foreground mt-0.5">Ikhtisar pengeluaran Anda</p>
           </div>
           <div className="flex items-center gap-1 xs:gap-2 bg-white/50 dark:bg-gray-800/50 rounded-lg p-0.5 xs:p-1 border border-gray-100 dark:border-gray-700">
             <Button 
@@ -776,11 +775,82 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                   'bg-blue-400 dark:bg-blue-600/50'
                 ][intensity];
                 
-                return (
-                  <CalendarTooltip 
-                    key={dateKey} 
-                    content={
-                      hasExpenses && dayData ? (
+                // Create the calendar day content
+                const calendarDayContent = (
+                  <div 
+                    key={dateKey}
+                    className={cn(
+                      "aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 transform",
+                      // Add hover effect only for days with expenses
+                      hasExpenses ? "hover:scale-105 hover:shadow-md" : "",
+                      // Background only for current day or empty cells
+                      isCurrentDay 
+                        ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-blue-400 shadow-lg bg-muted/10 dark:bg-muted/20" 
+                        : !hasExpenses 
+                          ? "bg-muted/10 dark:bg-muted/20 hover:bg-muted/20 dark:hover:bg-muted/30" 
+                          : "hover:bg-muted/5 dark:hover:bg-muted/10",
+                      // Weekend styling for empty cells
+                      isWeekend && !hasExpenses && !isCurrentDay && "bg-muted/5 dark:bg-muted/10",
+                      "group"
+                    )}
+                  >
+                    <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-1">
+                      {/* On mobile: Show only emoji if exists, otherwise show date */}
+                      <div className="sm:hidden">
+                        {hasExpenses && mood ? (
+                          <span className={cn(
+                            "text-xl transform transition-transform duration-300",
+                            hasExpenses && "group-hover:scale-110",
+                            isCurrentDay && "text-2xl"
+                          )}>
+                            {mood.emoji}
+                          </span>
+                        ) : (
+                          <span className={cn(
+                            "text-xs font-medium",
+                            isCurrentDay 
+                              ? "text-blue-700 dark:text-blue-300 font-bold" 
+                              : isWeekend 
+                                ? "text-red-500 dark:text-red-400" 
+                                : "text-muted-foreground"
+                          )}>
+                            {getDate(date)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* On desktop: Always show date, and show emoji if exists */}
+                      <div className="hidden sm:flex flex-col items-center">
+                        <span className={cn(
+                          "text-sm font-medium transition-all duration-200",
+                          isCurrentDay 
+                            ? "text-blue-700 dark:text-blue-300 font-bold text-base" 
+                            : isWeekend 
+                              ? "text-red-500 dark:text-red-400" 
+                              : "text-muted-foreground"
+                        )}>
+                          {getDate(date)}
+                        </span>
+                        {hasExpenses && mood && (
+                          <span className={cn(
+                            "text-xl mt-1 transform transition-transform duration-300",
+                            hasExpenses && "group-hover:scale-110",
+                            isCurrentDay && "text-2xl"
+                          )}>
+                            {mood.emoji}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+
+                // Only show tooltip for dates with expenses
+                if (hasExpenses && dayData) {
+                  return (
+                    <CalendarTooltip 
+                      key={dateKey}
+                      content={
                         <div className="max-w-[240px] p-0">
                           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 text-white">
                             <div className="flex items-center justify-between">
@@ -802,10 +872,8 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Kategori Pengeluaran</p>
                                 <div className="space-y-2">
                                   {Object.entries(dayData.categoryCounts)
-                                    .sort((a, b) => b[1].amount - a[1].amount) // Sort by amount (highest first)
+                                    .sort((a, b) => b[1].amount - a[1].amount)
                                     .map(([category, { count, amount }]) => {
-                                      // Get the appropriate emoji for the category
-                                      // First try to find by ID (category is stored as ID in the expense)
                                       const categoryObj = categories.find(cat => cat.id === category) || 
                                                          categories.find(cat => cat.name === category) || 
                                                          categories.find(c => c.id === 'other');
@@ -832,79 +900,15 @@ export function EnhancedCalendar({ selectedMood, expenses, isLoading }: Enhanced
                             )}
                           </div>
                         </div>
-                      ) : (
-                        <div className="text-center py-1">
-                          <p className="font-medium text-xs">{format(date, "d MMMM yyyy", { locale: id })}</p>
-                          <p className="text-xs text-muted-foreground mt-1">Tidak ada pengeluaran</p>
-                        </div>
-                      )
-                    }
-                  >
-                    <div 
-                      key={dateKey}
-                      className={cn(
-                        "aspect-square rounded-lg sm:rounded-xl flex flex-col items-center justify-center relative overflow-hidden transition-all duration-300 transform hover:scale-105",
-                        // Background only for current day or empty cells
-                        isCurrentDay 
-                          ? "ring-2 ring-offset-2 ring-blue-500 dark:ring-blue-400 shadow-lg bg-muted/10 dark:bg-muted/20" 
-                          : !hasExpenses 
-                            ? "bg-muted/10 dark:bg-muted/20 hover:bg-muted/20 dark:hover:bg-muted/30" 
-                            : "hover:bg-muted/5 dark:hover:bg-muted/10",
-                        // Weekend styling for empty cells
-                        isWeekend && !hasExpenses && !isCurrentDay && "bg-muted/5 dark:bg-muted/10",
-                        "group"
-                      )}
+                      }
                     >
-                      <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-1">
-                        {/* On mobile: Show only emoji if exists, otherwise show date */}
-                        <div className="sm:hidden">
-                          {hasExpenses && mood ? (
-                            <span className={cn(
-                              "text-xl transform transition-transform duration-300 group-hover:scale-110",
-                              isCurrentDay && "text-2xl"
-                            )}>
-                              {mood.emoji}
-                            </span>
-                          ) : (
-                            <span className={cn(
-                              "text-xs font-medium",
-                              isCurrentDay 
-                                ? "text-blue-700 dark:text-blue-300 font-bold" 
-                                : isWeekend 
-                                  ? "text-red-500 dark:text-red-400" 
-                                  : "text-muted-foreground"
-                            )}>
-                              {getDate(date)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* On desktop: Always show date, and show emoji if exists */}
-                        <div className="hidden sm:flex flex-col items-center">
-                          <span className={cn(
-                            "text-sm font-medium transition-all duration-200",
-                            isCurrentDay 
-                              ? "text-blue-700 dark:text-blue-300 font-bold text-base" 
-                              : isWeekend 
-                                ? "text-red-500 dark:text-red-400" 
-                                : "text-muted-foreground"
-                          )}>
-                            {getDate(date)}
-                          </span>
-                          {hasExpenses && mood && (
-                            <span className={cn(
-                              "text-xl mt-1 transform transition-transform duration-300 group-hover:scale-110",
-                              isCurrentDay && "text-2xl"
-                            )}>
-                              {mood.emoji}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CalendarTooltip>
-
-                );
+                      {calendarDayContent}
+                    </CalendarTooltip>
+                  );
+                }
+                
+                // Return without tooltip for dates without expenses
+                return calendarDayContent;
               })}
               
               {/* Empty cells for days after the last day of the month */}

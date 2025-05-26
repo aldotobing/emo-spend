@@ -442,12 +442,13 @@ export async function deleteExpense(id: string): Promise<boolean> {
 export async function clearLocalUserData(): Promise<void> {
   const db = getDb();
   try {
-    // Clear the expenses and syncStatus tables for the current user's data
+    // Clear the expenses, incomes, and syncStatus tables for the current user's data
     // Assuming a single-user app for now, clearing all tables is safe.
     // If you had multiple users on the same browser AND stored data per user,
     // you'd need to filter by user_id before clearing.
-    await db.transaction("rw", db.expenses, db.syncStatus, async () => {
+    await db.transaction("rw", db.expenses, db.incomes, db.syncStatus, async () => {
       await db.expenses.clear(); // Clears all expenses
+      await db.incomes.clear();  // Clears all incomes
       await db.syncStatus.clear(); // Clears all sync statuses
     });
   } catch (error: any) {

@@ -172,14 +172,18 @@ redirectTo: `${window.location.origin}/`,
     // Router and toast are now variables in the scope of AuthProvider,
     // so they are accessible here without calling hooks again.
     try {
-      await clearLocalUserData(); // Use the imported function
+      await clearLocalUserData(); // Clear local database
+
+      // Clear any cached financial data from session/local storage
+      // This ensures no stale data remains after logout
+      sessionStorage.removeItem('financialHealth');
+      localStorage.removeItem('financialHealth');
 
       const { error } = await supabase.auth.signOut();
 
       if (error) {
         console.error("[Logout] Supabase sign out error:", error.message);
         toast({
-          // <-- This is using the `toast` variable from above
           title: "Logout Warning",
           description:
             "Failed to sign out from Supabase. You might still be logged in remotely.",
@@ -187,16 +191,14 @@ redirectTo: `${window.location.origin}/`,
         });
       } else {
         toast({
-          // <-- This is using the `toast` variable from above
           title: "Logged Out",
           description: "You have been successfully logged out.",
           variant: "default",
         });
       }
 
-      setTimeout(() => {
-        window.location.href = "/auth/login";
-      }, 500);
+      // Clear any remaining state by forcing a full page reload
+      window.location.href = "/auth/login";
     } catch (error: any) {
       console.error(
         "[Logout] Unexpected error during logout process:",

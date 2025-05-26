@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -8,48 +8,117 @@ import { cn } from '@/lib/utils';
 import { FinancialHealthScore } from '@/lib/financial-health';
 import { FinancialHealthCard } from './financial-health-card';
 
-interface FinancialHealthButtonProps {
-  financialHealth: FinancialHealthScore;
-  className?: string;
+type StatusVariant = 'excellent' | 'good' | 'fair' | 'needsImprovement' | 'poor';
+
+interface StatusStyle {
+  bg: string;
+  text: string;
+  hover: string;
+  ring: string;
 }
 
-export function FinancialHealthButton({ financialHealth, className }: FinancialHealthButtonProps) {
-  const [open, setOpen] = useState(false);
+const statusStyles: Record<StatusVariant, StatusStyle> = {
+  excellent: {
+    bg: 'bg-green-100',
+    text: 'text-green-800',
+    hover: 'hover:bg-green-200',
+    ring: 'ring-green-400',
+  },
+  good: {
+    bg: 'bg-blue-100',
+    text: 'text-blue-800',
+    hover: 'hover:bg-blue-200',
+    ring: 'ring-blue-400',
+  },
+  fair: {
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-800',
+    hover: 'hover:bg-yellow-200',
+    ring: 'ring-yellow-400',
+  },
+  needsImprovement: {
+    bg: 'bg-orange-100',
+    text: 'text-orange-800',
+    hover: 'hover:bg-orange-200',
+    ring: 'ring-orange-400',
+  },
+  poor: {
+    bg: 'bg-red-100',
+    text: 'text-red-800',
+    hover: 'hover:bg-red-200',
+    ring: 'ring-red-400',
+  },
+} as const;
 
-  const getStatusColor = () => {
-    switch (financialHealth.status) {
-      case 'Excellent':
-        return 'bg-green-100 text-green-800 hover:bg-green-200';
-      case 'Good':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200';
-      case 'Fair':
-        return 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200';
-      case 'Needs Improvement':
-        return 'bg-orange-100 text-orange-800 hover:bg-orange-200';
-      case 'Poor':
-        return 'bg-red-100 text-red-800 hover:bg-red-200';
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200';
-    }
-  };
+interface FinancialHealthButtonProps {
+  /** The financial health score and status to display */
+  financialHealth: FinancialHealthScore;
+  /** Additional class names to apply to the button */
+  className?: string;
+  /** Custom label for accessibility (default: 'View financial health score') */
+  'aria-label'?: string;
+}
+
+/**
+ * A button that displays a financial health score with a color-coded status.
+ * Clicking the button opens a popover with detailed financial health information.
+ */
+const ButtonContent = memo(({ financialHealth }: { financialHealth: FinancialHealthScore }) => {
+  const statusVariant = useMemo<StatusVariant>(() => {
+    const status = financialHealth.status.toLowerCase();
+    if (status.includes('excellent')) return 'excellent';
+    if (status.includes('good')) return 'good';
+    if (status.includes('fair')) return 'fair';
+    if (status.includes('improve')) return 'needsImprovement';
+    if (status.includes('poor')) return 'poor';
+    return 'fair';
+  }, [financialHealth.status]);
+
+  const { bg, text, hover, ring } = statusStyles[statusVariant];
+  
+  return (
+    <div className={cn(
+      'h-10 w-10 p-0 rounded-full flex items-center justify-center font-semibold text-base',
+      'md:h-9 md:w-9 md:text-sm',
+      'focus-visible:ring-2 focus-visible:ring-offset-2',
+      'transition-colors duration-200',
+      bg,
+      text,
+      hover,
+      `focus-visible:${ring}`
+    )}>
+      {Math.round(financialHealth.score)}
+    </div>
+  );
+});
+
+ButtonContent.displayName = 'ButtonContent';
+
+export function FinancialHealthButton({
+  financialHealth,
+  className,
+  'aria-label': ariaLabel = 'View financial health score',
+}: FinancialHealthButtonProps) {
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className={cn(
-            'h-10 w-10 p-0 rounded-full flex items-center justify-center font-semibold text-base',
-            'md:h-9 md:w-9 md:text-sm',
-            getStatusColor(),
-            className
-          )}
-          aria-label="View financial health score"
+          className={cn('p-0 bg-transparent border-0 hover:bg-transparent', className)}
+          aria-label={ariaLabel}
+          aria-expanded={isOpen}
+          aria-haspopup="dialog"
         >
-          {financialHealth.score}
+          <ButtonContent financialHealth={financialHealth} />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end">
+      <PopoverContent 
+        className="w-96 p-0" 
+        align="end"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <Card className="border-0 shadow-none">
           <FinancialHealthCard {...financialHealth} />
         </Card>

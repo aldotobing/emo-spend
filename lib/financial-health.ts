@@ -34,6 +34,25 @@ export async function calculateFinancialHealth(
   const totalExpenses = expenses.reduce((sum: number, expense: Expense) => sum + expense.amount, 0);
   const savings = totalIncome - totalExpenses;
   
+  // If there's no data, return a score of 0
+  if (totalIncome === 0 && totalExpenses === 0) {
+    return {
+      score: 0,
+      status: 'Poor',
+      summary: 'No financial data available. Start adding your income and expenses to track your financial health.',
+      recommendations: [
+        'Add your income sources to get started.',
+        'Track your expenses to understand your spending habits.'
+      ],
+      metrics: {
+        savingsRate: 0,
+        expenseToIncomeRatio: 0,
+        emergencyFundMonths: 0,
+        discretionarySpending: 0,
+      },
+    };
+  }
+  
   // Calculate metrics
   const savingsRate = totalIncome > 0 ? (savings / totalIncome) * 100 : 0;
   const expenseToIncomeRatio = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
@@ -96,7 +115,8 @@ export async function calculateFinancialHealth(
   // Generate recommendations
   const recommendations: string[] = [];
   
-  if (savingsRate < 20) {
+  // Only show savings rate recommendation if there's income
+  if (totalIncome > 0 && savingsRate < 20) {
     recommendations.push('Aim to save at least 20% of your income each month.');
   }
   

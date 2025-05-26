@@ -80,7 +80,11 @@ export default function Dashboard() {
   // Calculate financial health when expenses or incomes change
   useEffect(() => {
     const calculateHealth = async () => {
-      if (!user?.id || expenses.length === 0) return;
+      if (!user?.id) {
+        // If user is not logged in, reset financial health
+        setFinancialHealth(null);
+        return;
+      }
       
       setIsHealthLoading(true);
       try {
@@ -88,6 +92,7 @@ export default function Dashboard() {
         setFinancialHealth(health);
       } catch (error) {
         console.error('Error calculating financial health:', error);
+        setFinancialHealth(null);
       } finally {
         setIsHealthLoading(false);
       }
@@ -250,22 +255,33 @@ export default function Dashboard() {
               Dashboard
             </h1>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
                 {financialHealth && (
                   <FinancialHealthButton 
                     financialHealth={financialHealth} 
                     className="h-8 w-8 text-xs"
                   />
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setShowCalendar(!showCalendar)}
-                >
-                  <CalendarIcon className="h-4 w-4" />
-                  <span className="sr-only">Calendar</span>
-                </Button>
+                <div className="relative group">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className={`h-9 w-9 p-0 rounded-full flex items-center justify-center transition-all duration-200 ${showCalendar ? 'bg-accent/50 border-primary/50' : 'bg-background/80 hover:bg-accent/30'}`}
+                    onClick={() => setShowCalendar(!showCalendar)}
+                  >
+                    <motion.div
+                      animate={showCalendar ? { rotate: 90 } : { rotate: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <CalendarIcon className={`h-4 w-4 ${showCalendar ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </motion.div>
+                    <span className="sr-only">Calendar</span>
+                  </Button>
+                  <div className="absolute right-0 mt-1 w-24 px-2 py-1 bg-foreground text-background text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                    {showCalendar ? 'Hide calendar' : 'Show calendar'}
+                    <div className="absolute -top-1 right-2 w-2 h-2 bg-foreground transform rotate-45"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -423,7 +439,10 @@ function SummaryCards({
   expensesByMood: any[];
   expenses: any[];
 }) {
-  const topMood = [...expensesByMood].sort((a, b) => b.total - a.total)[0];
+  // Get top mood, but only if there are expenses with mood data
+  const topMood = expensesByMood.length > 0 
+    ? [...expensesByMood].sort((a, b) => b.total - a.total)[0] 
+    : null;
 
   // Calculate expenses by category
   const { categories } = require("@/data/categories");
@@ -445,15 +464,35 @@ function SummaryCards({
     })
     .filter((item: any) => item.total > 0);
 
-  const topCategory = [...expensesByCategory].sort(
-    (a, b) => b.total - a.total
-  )[0];
+  // Get top category, but only if there are expenses with category data
+  const topCategory = expensesByCategory.length > 0 
+    ? [...expensesByCategory].sort((a, b) => b.total - a.total)[0]
+    : null;
 
   const cards = [
     {
       title: "Total Pengeluaran",
       content: isLoading ? (
         <Skeleton className="h-8 w-[120px]" />
+      ) : expenses.length === 0 ? (
+        <div className="flex flex-col items-center justify-center w-full space-y-2 py-2">
+          <span className="text-2xl">💰</span>
+          <div className="text-center">
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              No expenses yet
+            </div>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="h-auto p-0 text-xs text-blue-600 hover:underline"
+              asChild
+            >
+              <Link href="/add-expense">
+                Add your first expense
+              </Link>
+            </Button>
+          </div>
+        </div>
       ) : (
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
@@ -469,6 +508,25 @@ function SummaryCards({
       title: "Transaksi",
       content: isLoading ? (
         <Skeleton className="h-8 w-[60px]" />
+      ) : expenses.length === 0 ? (
+        <div className="flex flex-col items-center justify-center w-full space-y-2 py-2">
+          <span className="text-2xl">📊</span>
+          <div className="text-center">
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              No transactions yet
+            </div>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="h-auto p-0 text-xs text-blue-600 hover:underline"
+              asChild
+            >
+              <Link href="/add-expense">
+                Add your first expense
+              </Link>
+            </Button>
+          </div>
+        </div>
       ) : (
         <motion.div
           initial={{ scale: 0.5, opacity: 0 }}
@@ -489,6 +547,25 @@ function SummaryCards({
       title: "Mood Teratas",
       content: isLoading ? (
         <Skeleton className="h-8 w-[120px]" />
+      ) : !topMood || expenses.length === 0 ? (
+        <div className="flex flex-col items-center justify-center w-full space-y-2 py-2">
+          <span className="text-2xl">😐</span>
+          <div className="text-center">
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              {expenses.length === 0 ? 'No expenses yet' : 'No mood data'}
+            </div>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="h-auto p-0 text-xs text-blue-600 hover:underline"
+              asChild
+            >
+              <Link href="/add-expense">
+                {expenses.length === 0 ? 'Add your first expense' : 'Add more expenses'}
+              </Link>
+            </Button>
+          </div>
+        </div>
       ) : (
         <motion.div
           initial={{ x: -20, opacity: 0 }}
@@ -501,15 +578,14 @@ function SummaryCards({
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
             className="text-2xl mr-3"
           >
-            {topMood?.emoji}
+            {topMood.emoji}
           </motion.span>
           <div>
             <div className="font-bold text-xs sm:text-sm lg:text-base">
-              {topMood?.label}
+              {topMood.label}
             </div>
             <div className="text-xs sm:text-xs lg:text-sm text-muted-foreground">
-              {formatCurrency(topMood?.total)} ({topMood?.percentage.toFixed(0)}
-              %)
+              {formatCurrency(topMood.total)} ({topMood.percentage.toFixed(0)}%)
             </div>
           </div>
         </motion.div>
@@ -519,6 +595,25 @@ function SummaryCards({
       title: "Kategori Teratas",
       content: isLoading ? (
         <Skeleton className="h-8 w-[120px]" />
+      ) : !topCategory || expenses.length === 0 ? (
+        <div className="flex flex-col items-center justify-center w-full space-y-2 py-2">
+          <span className="text-2xl">🏷️</span>
+          <div className="text-center">
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              {expenses.length === 0 ? 'No expenses yet' : 'No category data'}
+            </div>
+            <Button 
+              variant="link" 
+              size="sm" 
+              className="h-auto p-0 text-xs text-blue-600 hover:underline"
+              asChild
+            >
+              <Link href="/add-expense">
+                {expenses.length === 0 ? 'Add your first expense' : 'Categorize expenses'}
+              </Link>
+            </Button>
+          </div>
+        </div>
       ) : (
         <motion.div
           initial={{ x: -20, opacity: 0 }}
@@ -531,16 +626,14 @@ function SummaryCards({
             transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
             className="text-2xl mr-3"
           >
-            {topCategory?.icon}
+            {topCategory.icon}
           </motion.span>
           <div>
             <div className="font-bold text-xs sm:text-sm lg:text-base">
-              {topCategory?.name}
+              {topCategory.name}
             </div>
             <div className="text-xs sm:text-xs lg:text-sm text-muted-foreground">
-              {formatCurrency(topCategory?.total)} (
-              {topCategory?.percentage.toFixed(0)}
-              %)
+              {formatCurrency(topCategory.total)} ({topCategory.percentage.toFixed(0)}%)
             </div>
           </div>
         </motion.div>
@@ -549,7 +642,7 @@ function SummaryCards({
   ];
 
   return (
-    <div className="grid gap-3 xs:gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 xs:gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
       {cards.map((card, index) => (
         <motion.div
           key={index}
