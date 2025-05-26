@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import { getExpensesByDateRange } from "@/lib/db";
 import type { Expense, MoodType } from "@/types/expense";
 import { getDateRangeForPeriod } from "@/lib/utils";
@@ -29,13 +30,16 @@ import {
   Brain,
   SearchCheck, // For detailed analysis button
   MessageSquareText, // For model used
+  ArrowRight,
+  Zap,
+  Loader2,
 } from "lucide-react";
 import { moods } from "@/data/moods";
 import { EnhancedCalendar } from "@/components/enhanced-calendar";
 import { Gamification } from "@/components/gamification";
 import { generateAIInsights, generateDetailedAnalysis } from "@/lib/ai-insights";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { renderFormattedResponse } from "@/lib/text-formatter";
 import type { AIInsightResponse, AIDetailedAnalysisResponse } from "@/types/ai";
 
@@ -70,6 +74,23 @@ export default function InsightsPage() {
   const [detailedAnalysisResult, setDetailedAnalysisResult] =
     useState<AIDetailedAnalysisResponse | null>(null);
   const [isGeneratingDetailed, setIsGeneratingDetailed] = useState(false);
+  const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const getLoadingMessage = (seconds: number) => {
+    if (seconds < 5) return "Menganalisis data transaksi Anda...";
+    if (seconds < 15) return "Mengidentifikasi pola pengeluaran...";
+    if (seconds < 25) return "Menyusun rekomendasi personal...";
+    return "Hampir selesai...";
+  };
+
+  const getLoadingSubMessage = (seconds: number) => {
+    if (seconds < 5) return "Ini mungkin memakan waktu beberapa saat...";
+    if (seconds < 15) return "Menganalisis lebih dalam...";
+    if (seconds < 25) return "Hanya beberapa detik lagi...";
+    return "Menyelesaikan analisis...";
+  };
 
   const geminiApiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   const deepSeekApiKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY;
@@ -78,9 +99,14 @@ export default function InsightsPage() {
 
   // --- Effects -----------------------------------------------------------------
   useEffect(() => {
-    // Initial data load for the default period (month)
-    if (Object.keys(cachedData).length === 0) {
+    // Initial data load for the default period (month) if not already in cache
+    if (!cachedData[period]) {
+      console.log('Initial page load - fetching data for period:', period);
       fetchDataForPeriod(period);
+    } else {
+      console.log('Using cached data for initial load:', period);
+      setExpenses(cachedData[period] || []);
+      setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on component mount
@@ -88,27 +114,24 @@ export default function InsightsPage() {
   // Effect to handle period changes
   useEffect(() => {
     console.log(`Period changed to: ${period}`);
-    console.log('Current cached data:', cachedData);
-    console.log('Insights generated for periods:', insightsGenerated);
+    
+    // Clear any existing insights when period changes
+    setAiInsightResult({
+      insights: [],
+      modelUsed: ""
+    });
     
     // If we already have data for this period, use it
     if (cachedData[period]) {
       console.log(`Using cached data for ${period}`);
       setExpenses(cachedData[period] || []);
-      
-      // If we haven't generated insights for this period yet, do it now
-      if (!insightsGenerated[period]) {
-        console.log(`Generating insights for ${period} using cached data`);
-        generateInsightsForPeriod(cachedData[period] || []);
-      }
-      
       setIsLoading(false);
     } else {
       // Otherwise fetch it
       console.log(`Fetching new data for ${period}`);
       fetchDataForPeriod(period);
     }
-  }, [period, insightsGenerated]);  // Include insightsGenerated in dependencies
+  }, [period]); // Only depend on period
 
   // Separate useEffect for API keys changes
   useEffect(() => {
@@ -142,9 +165,10 @@ export default function InsightsPage() {
         return newCache;
       });
       
-      // Always generate insights for newly fetched data
-      console.log(`Generating insights for newly fetched ${currentPeriod} data:`, expenseData);
-      await generateInsightsForPeriod(expenseData);
+      console.log('Data fetched and cached for period:', currentPeriod);
+      
+      // Clear any previous insights when data is loaded
+      // The UI will show the default message since insights are empty
     } catch (error) {
       console.error(`Failed to load data for ${currentPeriod}:`, error);
       setAiInsightResult({
@@ -225,57 +249,61 @@ export default function InsightsPage() {
       return;
     }
     
-    console.log('Generate Insights clicked - clearing all cached data and insights');
-    // Clear cached data and insights generated tracking
-    setCachedData({});
-    setInsightsGenerated({});
+    console.log('Generate Insights clicked for period:', period);
     
     setIsGeneratingInsights(true);
     setDetailedAnalysisResult(null); // Reset detailed analysis
     
     try {
-      // Fetch fresh data for the current period
-      const { start, end } = getDateRangeForPeriod(period);
-      console.log(`Regenerating insights for ${period} from ${start} to ${end}`);
+      // Use cached data if available, otherwise fetch fresh data
+      let expenseData = cachedData[period];
       
-      const expenseData = await getExpensesByDateRange(start, end);
-      console.log(`Received ${expenseData.length} expenses for regeneration:`, expenseData);
+      if (!expenseData) {
+        const { start, end } = getDateRangeForPeriod(period);
+        console.log(`Fetching fresh data for ${period} from ${start} to ${end}`);
+        expenseData = await getExpensesByDateRange(start, end);
+        console.log(`Received ${expenseData.length} expenses:`, expenseData);
+        
+        // Update the expenses and cache
+        setExpenses(expenseData);
+        setCachedData(prev => ({
+          ...prev,
+          [period]: expenseData
+        }));
+      } else {
+        console.log(`Using cached data for ${period} with ${expenseData.length} expenses`);
+      }
       
-      // Update the expenses state with the fetched data
-      setExpenses(expenseData);
-      
-      // Cache only the current period data - using direct assignment to ensure clean state
-      const newCache = { [period]: expenseData };
-      console.log('New cache after regeneration:', newCache);
-      setCachedData(newCache);
-      
-      // Generate insights using the fetched expense data
+      // Check if we have enough data
       if (expenseData.length < 3) {
-        console.warn(`Not enough expenses for AI insights regeneration: only ${expenseData.length} available`);
+        console.warn(`Not enough expenses for AI insights: only ${expenseData.length} available`);
         setAiInsightResult({
-          insights: ["Tidak cukup data untuk menghasilkan wawasan. Tambahkan lebih banyak pengeluaran."],
+          insights: ["Data Tidak Cukup\nAnda membutuhkan minimal 3 pengeluaran untuk dianalisis. Tambahkan lebih banyak pengeluaran terlebih dahulu."],
           modelUsed: "None",
           error: "Not enough data",
         });
         return;
       }
       
-      // Generate new AI insights with the fetched expense data
-      console.log('Calling generateAIInsights for regeneration with expenses:', expenseData);
+      // Generate AI insights with the current expense data
+      console.log('Calling generateAIInsights with expenses:', expenseData);
       const newResult = await generateAIInsights(
         geminiApiKey,
         deepSeekApiKey,
-        expenseData // Pass the fetched expense data directly
+        expenseData
       );
-      console.log('Received regenerated AI insights result:', newResult);
+      console.log('Received AI insights result:', newResult);
       setAiInsightResult(newResult);
       
-      // Mark insights as generated for current period only
-      setInsightsGenerated({ [period]: true });
+      // Mark insights as generated for current period
+      setInsightsGenerated(prev => ({
+        ...prev,
+        [period]: true
+      }));
     } catch (error) {
       console.error("Failed to generate insights:", error);
       setAiInsightResult({
-        insights: ["Gagal membuat wawasan baru. Periksa koneksi Anda."],
+        insights: ["Gagal Mendapatkan Wawasan\nTerjadi kesalahan. Silakan coba lagi nanti atau periksa koneksi Anda."],
         modelUsed: "None (Error)",
         error: (error as Error).message,
       });
@@ -299,6 +327,16 @@ export default function InsightsPage() {
       return;
     }
     setIsGeneratingDetailed(true);
+    const startTime = Date.now();
+    setAnalysisStartTime(startTime);
+    setElapsedTime(0);
+    
+    // Start the timer
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setElapsedTime(prev => prev + 1);
+    }, 1000);
+    
     try {
       const analysisResult = await generateDetailedAnalysis(
         geminiApiKey,
@@ -308,13 +346,18 @@ export default function InsightsPage() {
       setDetailedAnalysisResult(analysisResult);
     } catch (error) {
       console.error("Failed to generate detailed analysis:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       setDetailedAnalysisResult({
-        analysis: "Gagal membuat analisis mendalam. Periksa koneksi Anda.",
+        analysis: "Gagal menghasilkan analisis mendalam. Silakan coba lagi nanti.",
         modelUsed: "None (Error)",
-        error: (error as Error).message,
+        error: errorMessage,
       });
     } finally {
       setIsGeneratingDetailed(false);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
   };
 
@@ -388,12 +431,12 @@ export default function InsightsPage() {
                     ease: "linear",
                   }}
                 >
-                  <Sparkles className="h-4 w-4" />
+                  <Zap className="h-4 w-4" />
                 </motion.div>
               ) : (
-                <Brain className="h-4 w-4" />
+                <Zap className="h-4 w-4" />
               )}
-              {isGeneratingInsights ? "Menganalisis..." : "Analisis Ulang AI"}
+              {isGeneratingInsights ? "Menganalisis..." : "Analisa AI"}
             </Button>
           </div>
 
@@ -411,6 +454,8 @@ export default function InsightsPage() {
             isLoading={isLoading || isGeneratingInsights}
             insights={aiInsightResult.insights}
             error={aiInsightResult.error}
+            expenses={expenses}
+            period={period}
           />
 
           {/* Detailed Analysis Section */}
@@ -451,18 +496,38 @@ export default function InsightsPage() {
                       </>
                     )}
                     {isGeneratingDetailed && (
-                      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{
-                            duration: 1,
-                            repeat: Infinity,
-                            ease: "linear",
-                          }}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                        </motion.div>
-                        <span>Menganalisis lebih dalam...</span>
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2 text-sm">
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{
+                              duration: 1,
+                              repeat: Infinity,
+                              ease: "linear",
+                            }}
+                          >
+                            <Zap className="h-4 w-4 text-primary" />
+                          </motion.div>
+                          <div className="space-y-1">
+                          <p className="font-medium">
+                            {getLoadingMessage(elapsedTime)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {getLoadingSubMessage(elapsedTime)}
+                          </p>
+                        </div>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-primary/80 rounded-full"
+                            initial={{ width: '0%' }}
+                            animate={{ width: '100%' }}
+                            transition={{ 
+                              duration: 30, // Total duration of the progress bar
+                              ease: 'linear' 
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
                     {!detailedAnalysisResult && !isGeneratingDetailed && (
@@ -563,11 +628,15 @@ export default function InsightsPage() {
 function AIInsightCards({
   isLoading,
   insights,
-  error, // Add error prop
+  error,
+  expenses,
+  period
 }: {
   isLoading: boolean;
   insights: string[];
-  error?: string; // Optional error from AIInsightResponse
+  error?: string;
+  expenses: any[];
+  period: string;
 }) {
   const icons = [Lightbulb, TrendingUp, AlertTriangle, Brain, Sparkles];
 
@@ -602,12 +671,38 @@ function AIInsightCards({
       ].some((kw) => insight.toLowerCase().includes(kw))
     );
 
-  if (insights.length === 0 || hasError) {
-    let title = "Belum Ada Wawasan";
-    let description =
-      "Tambahkan lebih banyak pengeluaran atau coba analisis AI untuk mendapatkan wawasan tentang pola belanjamu.";
+  // Check if there's any data for the current period
+  const hasData = expenses.length > 0;
+  
+  // Show appropriate message based on data availability
+  const showDefaultMessage = insights.length === 0 || 
+    (insights.length === 1 && insights[0].startsWith("Belum Ada Wawasan"));
 
-    if (insights.length > 0) {
+  if (showDefaultMessage || hasError) {
+    let title = hasData 
+      ? <div className="flex items-center gap-2">
+          <motion.div
+            animate={{ x: [0, 4, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Zap className="h-5 w-5 text-green-500" />
+          </motion.div>
+          <span>Data Siap Dianalisis</span>
+        </div>
+      : "Data Kosong";
+      
+    let description = hasData
+      ? <>
+          <p className="mb-2">Kami menemukan <span className="font-semibold">{expenses.length} transaksi</span> yang siap dianalisis.</p>
+          <p>Klik tombol <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 rounded-md text-sm">
+            <Zap className="h-3 w-3" /> Analisa AI
+          </span> untuk mendapatkan wawasan tentang pola belanja emosional Anda.</p>
+        </>
+      : `Tidak ditemukan data pengeluaran untuk ${period === 'week' ? 'minggu ini' : period === 'month' ? 'bulan ini' : 'tahun ini'}. ` +
+        `Sistem tidak dapat menganalisis apa pun tanpa data. ` +
+        `Silakan tambahkan pengeluaran Anda terlebih dahulu atau pilih periode lain yang memiliki data.`;
+
+    if (hasError && insights.length > 0) {
       // Even if there's an error, display the insights (which might be error messages)
       title = "Informasi Wawasan";
       description = insights.join("\n"); // Use newline for potentially multiple error messages
@@ -617,23 +712,35 @@ function AIInsightCards({
       ) {
         title = "Konfigurasi Diperlukan";
       } else if (error?.toLowerCase().includes("not enough data")) {
-        title = "Data Tidak Cukup";
+        title = "Data Tidak Mencukupi";
+        description = "Data pengeluaran Anda belum cukup untuk dianalisis. " +
+          "Anda membutuhkan minimal 3 transaksi untuk mendapatkan wawasan yang bermakna. " +
+          "Silakan tambahkan lebih banyak pengeluaran dan coba lagi.";
       } else if (hasError) {
-        title = "Gagal Mendapatkan Wawasan";
+        title = "Gagal Memproses Permintaan";
+        description = "Terjadi kesalahan saat memproses data Anda. " +
+          "Ini bisa terjadi karena masalah koneksi atau masalah teknis. " +
+          "Silakan periksa koneksi internet Anda dan coba lagi nanti. " +
+          "Jika masalah berlanjut, harap laporkan ke tim dukungan kami.";
       }
     } else if (error) {
       // No insights, but there is an error string
-      title = "Gagal Mendapatkan Wawasan";
-      description =
-        "Terjadi kesalahan. Silakan coba lagi nanti atau periksa konfigurasi.";
+      title = "Terjadi Kesalahan";
+      description = "Sistem mengalami kendala saat memproses permintaan Anda. " +
+        "Ini bisa disebabkan oleh beberapa hal:\n\n" +
+        "• Koneksi internet yang tidak stabil\n" +
+        "• Masalah pada server\n" +
+        "• Format data yang tidak sesuai\n\n" +
+        "Silakan periksa koneksi Anda dan coba lagi. Jika masalah berlanjut, " +
+        "Anda dapat menghubungi tim dukungan kami untuk bantuan lebih lanjut.";
     }
 
     return (
-      <Card className="border-dashed border-2 border-destructive/30">
+      <Card className={`border-dashed border-2 ${hasData ? 'border-green-500/30' : 'border-destructive/30'}`}>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardDescription className="prose-sm dark:prose-invert">
-            {renderFormattedResponse(description)}
+            {typeof description === 'string' ? renderFormattedResponse(description) : description}
           </CardDescription>
         </CardHeader>
       </Card>

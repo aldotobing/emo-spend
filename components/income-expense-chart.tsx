@@ -247,7 +247,7 @@ export function IncomeExpenseChart({ expenses = [], incomes = [], isLoading = fa
       {/* Chart */}
       <div>
         <div className="pb-2 flex flex-row items-center justify-between">
-          <CardTitle className="text-base sm:text-lg font-semibold">Income vs Expenses</CardTitle>
+          <CardTitle className="text-base sm:text-lg font-semibold"></CardTitle>
           {/* Date Navigation - Always visible */}
           <div className="flex items-center space-x-2">
             <Button 

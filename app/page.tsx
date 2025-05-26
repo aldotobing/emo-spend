@@ -651,13 +651,13 @@ function SummaryCards({
           transition={{ delay: index * 0.1, duration: 0.3 }}
           className="h-full"
         >
-          <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm">
-            <CardHeader className="flex justify-between items-center pb-2 xs:pb-3 px-3 sm:px-4 pt-3 sm:pt-4">
+          <Card className="flex flex-col hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur-sm h-full min-h-[140px] flex justify-between">
+            <CardHeader className="flex justify-between items-center pb-1 px-4 pt-3">
               <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
                 {card.title}
               </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0 px-3 sm:px-4 pb-3 sm:pb-4">
+            <CardContent className="flex-1 flex items-center justify-center px-4 pb-3 pt-0">
               {card.content}
             </CardContent>
           </Card>

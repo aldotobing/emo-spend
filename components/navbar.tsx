@@ -138,14 +138,14 @@ export default function Navbar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+                    "inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 sm:px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
                     pathname === item.href
                       ? "bg-primary text-primary-foreground shadow-md"
                       : "hover:bg-primary/10 hover:text-primary",
                   )}
                 >
-                  <item.icon className="h-4 w-4 mr-2" />
-                  <span>{item.label}</span>
+                  <item.icon className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{item.label}</span>
                 </Link>
               </motion.div>
             ))}
@@ -204,21 +204,33 @@ export default function Navbar() {
                 </Link>
               </motion.div>
             )}
-
-            <ModeToggle />
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center space-x-2">
+          <div className="flex md:hidden items-center space-x-1">
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-9 w-9 rounded-full",
+                pathname === "/income" 
+                  ? "bg-primary/10 text-primary" 
+                  : "text-muted-foreground hover:bg-primary/10 hover:text-primary"
+              )}
+            >
+              <Link href="/income" aria-label="Income">
+                <TrendingUp className="h-4 w-4" />
+              </Link>
+            </Button>
             <SyncIndicator />
-            <ModeToggle />
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="h-9 w-9 rounded-full"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
             >
-              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
             </Button>
           </div>
         </nav>
