@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format, subMonths, startOfMonth, endOfMonth, isBefore, isAfter, isSameDay, startOfYear } from "date-fns";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileSpreadsheet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,47 +130,62 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="text-muted-foreground">Generate and export your financial reports</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 space-y-6 max-w-4xl">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Reports</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
+            Generate and export your financial reports
+          </p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Export Reports</CardTitle>
-          <CardDescription>
-            Generate and download your financial data in various formats
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <div>
-              <h3 className="font-medium mb-2">Select Date Range</h3>
-              <div className="flex flex-col sm:flex-row gap-4">
+        {/* Main Export Card */}
+        <Card className="w-full">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg md:text-xl">Export Reports</CardTitle>
+            </div>
+            <CardDescription className="text-sm">
+              Generate and download your financial data in Excel format
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent className="space-y-6">
+            {/* Date Range Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-medium text-sm md:text-base">Select Date Range</h3>
+              </div>
+              
+              {/* Date Picker */}
+              <div className="w-full">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       id="date"
-                      variant={"outline"}
+                      variant="outline"
                       className={cn(
-                        "w-full sm:w-[300px] justify-start text-left font-normal",
+                        "w-full justify-start text-left font-normal h-10 md:h-11",
                         !dateRange && "text-muted-foreground"
                       )}
                     >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateRange?.from ? (
-                        dateRange.to ? (
-                          <>
-                            {format(dateRange.from, "LLL dd, y")} -{" "}
-                            {format(dateRange.to, "LLL dd, y")}
-                          </>
+                      <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="truncate">
+                        {dateRange?.from ? (
+                          dateRange.to ? (
+                            <>
+                              {format(dateRange.from, "MMM dd, y")} - {format(dateRange.to, "MMM dd, y")}
+                            </>
+                          ) : (
+                            format(dateRange.from, "MMM dd, y")
+                          )
                         ) : (
-                          format(dateRange.from, "LLL dd, y")
-                        )
-                      ) : (
-                        <span>Pick a date range</span>
-                      )}
+                          "Pick a date range"
+                        )}
+                      </span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -180,24 +195,30 @@ export default function ReportsPage() {
                       defaultMonth={dateRange?.from}
                       selected={dateRange}
                       onSelect={handleDateRangeSelect}
-                      numberOfMonths={2}
+                      numberOfMonths={window.innerWidth < 768 ? 1 : 2}
                       disabled={(date) =>
                         date > new Date() || date < new Date("1900-01-01")
                       }
                     />
                   </PopoverContent>
                 </Popover>
-                
-                <div className="flex flex-wrap gap-2">
+              </div>
+
+              {/* Quick Range Buttons */}
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Quick select:</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleQuickRange('thisMonth')}
                     disabled={isLoadingDates}
                     className={cn(
-                      "text-xs",
-                      dateRange?.from?.getMonth() === new Date().getMonth() &&
-                      dateRange?.from?.getFullYear() === new Date().getFullYear() ? "bg-accent" : ""
+                      "text-xs h-8",
+                      dateRange?.from && dateRange?.to &&
+                      isSameDay(dateRange.from, startOfMonth(new Date())) &&
+                      isSameDay(dateRange.to, endOfMonth(new Date())) 
+                        ? "bg-accent border-primary" : ""
                     )}
                   >
                     This Month
@@ -206,7 +227,8 @@ export default function ReportsPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleQuickRange('lastMonth')}
-                    className="text-xs"
+                    disabled={isLoadingDates}
+                    className="text-xs h-8"
                   >
                     Last Month
                   </Button>
@@ -214,7 +236,8 @@ export default function ReportsPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleQuickRange('last30Days')}
-                    className="text-xs"
+                    disabled={isLoadingDates}
+                    className="text-xs h-8"
                   >
                     Last 30 Days
                   </Button>
@@ -222,7 +245,8 @@ export default function ReportsPage() {
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleQuickRange('allTime')}
-                    className="text-xs"
+                    disabled={isLoadingDates}
+                    className="text-xs h-8"
                   >
                     All Time
                   </Button>
@@ -230,28 +254,62 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="space-y-2 pt-4">
-              <h3 className="font-medium">Export to Excel</h3>
-              <p className="text-sm text-muted-foreground">
-                Export your expense data as a formatted Excel report
-                {dateRange?.from && dateRange.to && (
-                  <span className="font-medium">
-                    {' '}from {format(dateRange.from, 'MMM d, yyyy')} to {format(dateRange.to, 'MMM d, yyyy')}
-                  </span>
-                )}
-              </p>
-              <Button
-                variant="outline"
-                onClick={handleExportExcel}
-                disabled={isExporting}
-                className="mt-2"
-              >
-                {isExporting ? "Exporting..." : "Export to Excel"}
-              </Button>
+            {/* Export Section */}
+            <div className="border-t pt-6">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Download className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="font-medium text-sm md:text-base">Export to Excel</h3>
+                </div>
+                
+                <div className="bg-muted/30 rounded-lg p-3 md:p-4">
+                  <p className="text-xs md:text-sm text-muted-foreground mb-3">
+                    Export your expense data as a formatted Excel report
+                    {dateRange?.from && dateRange.to && (
+                      <>
+                        <br className="md:hidden" />
+                        <span className="font-medium text-foreground">
+                          {' '}from {format(dateRange.from, 'MMM d, yyyy')} to {format(dateRange.to, 'MMM d, yyyy')}
+                        </span>
+                      </>
+                    )}
+                  </p>
+                  
+                  <Button
+                    onClick={handleExportExcel}
+                    disabled={isExporting || !dateRange?.from || !dateRange?.to}
+                    className="w-full md:w-auto"
+                    size="default"
+                  >
+                    {isExporting ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <FileSpreadsheet className="mr-2 h-4 w-4" />
+                        Export to Excel
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Help Text for Mobile */}
+        <div className="md:hidden">
+          <Card className="border-dashed">
+            <CardContent className="pt-4">
+              <p className="text-xs text-muted-foreground text-center">
+                💡 Tip: Use landscape mode for better calendar viewing experience
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
