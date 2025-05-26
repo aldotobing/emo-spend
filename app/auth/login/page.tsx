@@ -195,7 +195,9 @@ export default function LoginPage() {
         variant: "default",
       });
 
-      window.location.href = "/"; // hard reload biar semua state reset
+router.push("/");
+
+      //window.location.href = "/"; // hard reload biar semua state reset
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
