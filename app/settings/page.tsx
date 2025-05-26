@@ -205,7 +205,7 @@ export default function SettingsPage() {
           <CardTitle>About EmoSpend</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-sm">Version 1.0.0</p>
+          <p className="text-sm">Version 1.0.1</p>
           <p className="text-sm text-muted-foreground">
             EmoSpend helps you track your expenses and understand your emotional
             spending patterns.
