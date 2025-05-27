@@ -190,6 +190,8 @@ export default function InsightsPage() {
         geminiApiKey,
         deepSeekApiKey,
         aiInsightResult.insights,
+        undefined, // expenses
+        undefined, // incomes
         true // Enable streaming
       );
 

@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx-js-style';
 import type { CellStyleColor } from 'xlsx-js-style';
 import { getIncomesByDateRange } from './income';
 import { getExpensesByDateRange } from './db';
+import { calculateFinancialHealth } from './financial-health';
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
 import type { Expense } from "@/types/expense";
 import type { Income } from "@/types/expense";
@@ -54,6 +55,16 @@ interface FinancialSummary {
   expenseToIncomeRatio: number;
   avgMonthlyIncome: number;
   avgMonthlyExpenses: number;
+  financialHealthScore?: {
+    score: number;
+    status: string;
+    metrics: {
+      savingsRate: number;
+      expenseToIncomeRatio: number;
+      emergencyFundMonths: number;
+      discretionarySpending: number;
+    };
+  };
   topExpenseCategories: Array<{ category: string; amount: number; percentage: number }>;
   expensesByMood: Record<string, { amount: number; count: number; percentage: number }>;
   monthlyTrends: Array<{
@@ -299,6 +310,9 @@ async function generateEnhancedFinancialSummary(
     insights.push(`📈 At current rate, you'll save Rp${yearlyProjection.toFixed(0)} annually.`);
   }
 
+  // Calculate financial health score
+  const healthScore = await calculateFinancialHealth('current-user', 3); // Replace with actual user ID
+
   return {
     totalIncome,
     totalExpenses,
@@ -307,6 +321,11 @@ async function generateEnhancedFinancialSummary(
     expenseToIncomeRatio,
     avgMonthlyIncome,
     avgMonthlyExpenses,
+    financialHealthScore: {
+      score: healthScore.score,
+      status: getHealthGrade(healthScore.score),
+      metrics: healthScore.metrics
+    },
     topExpenseCategories,
     expensesByMood,
     monthlyTrends,
@@ -343,7 +362,8 @@ function createExecutiveSummaryWorksheet(summary: FinancialSummary, startDate: D
     ['Savings Rate', summary.savingsRate, '%'],
     ['Expense Ratio', summary.expenseToIncomeRatio, '%'],
     ['Avg Monthly Income', summary.avgMonthlyIncome, '$'],
-    ['Avg Monthly Expenses', summary.avgMonthlyExpenses, '$']
+    ['Avg Monthly Expenses', summary.avgMonthlyExpenses, '$'],
+    ['Financial Health Score', summary.financialHealthScore?.score, ''],
   ];
 
   kpiData.forEach(([label, value, unit]) => {
@@ -770,59 +790,61 @@ function createDashboardWorksheet(summary: FinancialSummary, startDate: Date, en
   const ws: XLSX.WorkSheet = {};
   const rows: any[][] = [];
 
-  // Dashboard Header
+  // Header
   rows.push([createTitleCell('FINANCIAL DASHBOARD')]);
   rows.push([{ v: '', t: 's' }]);
 
-  // Create a visual dashboard layout
-  rows.push([
-    createSubHeaderCell('FINANCIAL HEALTH SCORE'),
-    { v: '', t: 's' },
-    createSubHeaderCell('SPENDING BREAKDOWN')
-  ]);
-  rows.push([{ v: '', t: 's' }]);
-
-  // Calculate Financial Health Score (0-100)
-  let healthScore = 0;
-  healthScore += Math.min(summary.savingsRate * 2, 40); // Max 40 points for savings rate
-  healthScore += summary.expenseToIncomeRatio < 80 ? 30 : summary.expenseToIncomeRatio < 90 ? 20 : 10; // Expense control
-  healthScore += summary.totalIncome > summary.totalExpenses ? 30 : 0; // Positive cash flow
-
-  const healthGrade = healthScore >= 90 ? 'A+' : healthScore >= 80 ? 'A' : healthScore >= 70 ? 'B' : healthScore >= 60 ? 'C' : 'D';
-  const healthColor = healthScore >= 80 ? COLORS.success : healthScore >= 60 ? COLORS.warning : COLORS.accent;
-
-  rows.push([
-    createCell(Math.round(healthScore), {
-      font: { bold: true, sz: 36, color: { rgb: healthColor } },
-      alignment: { horizontal: 'center' }
-    }),
-    { v: '', t: 's' },
-    createMetricLabelCell('Top Categories:')
-  ]);
-
-  rows.push([
-    createCell(`Grade: ${healthGrade}`, {
-      font: { bold: true, sz: 14, color: { rgb: healthColor } },
-      alignment: { horizontal: 'center' }
-    }),
-    { v: '', t: 's' },
-    createCell(`1. ${summary.topExpenseCategories[0]?.category || 'N/A'}`, {
-      font: { sz: 10 }
-    })
-  ]);
-
-  // Add more category breakdown
-  for (let i = 1; i < Math.min(5, summary.topExpenseCategories.length); i++) {
+  // Financial Health Score
+  if (summary.financialHealthScore) {
+    rows.push([createSubHeaderCell('FINANCIAL HEALTH SCORE')]);
+    rows.push([{ v: '', t: 's' }]);
+    
+    const healthGrade = getHealthGrade(summary.financialHealthScore.score);
+    const healthColor = getHealthScoreColor(summary.financialHealthScore.score);
+    
     rows.push([
+      createMetricLabelCell('Overall Score'),
       { v: '', t: 's' },
+      createCell(summary.financialHealthScore.score, {
+        font: { bold: true, sz: 24, color: { rgb: healthColor } },
+        alignment: { horizontal: 'center' }
+      }),
       { v: '', t: 's' },
-      createCell(`${i + 1}. ${summary.topExpenseCategories[i].category}`, {
-        font: { sz: 10 }
+      createCell(`Grade: ${healthGrade}`, {
+        font: { bold: true, color: { rgb: healthColor } },
+        alignment: { horizontal: 'center' }
       })
     ]);
+    
+    rows.push([{ v: '', t: 's' }]);
+    
+    // Metrics breakdown
+    rows.push([
+      createMetricLabelCell('Savings Rate'),
+      { v: '', t: 's' },
+      createCell(`${summary.financialHealthScore.metrics.savingsRate}%`)
+    ]);
+    
+    rows.push([
+      createMetricLabelCell('Expense Ratio'),
+      { v: '', t: 's' },
+      createCell(`${summary.financialHealthScore.metrics.expenseToIncomeRatio}%`)
+    ]);
+    
+    rows.push([
+      createMetricLabelCell('Emergency Fund'),
+      { v: '', t: 's' },
+      createCell(`${summary.financialHealthScore.metrics.emergencyFundMonths} months`)
+    ]);
+    
+    rows.push([
+      createMetricLabelCell('Discretionary'),
+      { v: '', t: 's' },
+      createCell(`${summary.financialHealthScore.metrics.discretionarySpending}%`)
+    ]);
+    
+    rows.push([{ v: '', t: 's' }]);
   }
-
-  rows.push([{ v: '', t: 's' }]);
 
   // Monthly Performance Chart Data
   rows.push([createSubHeaderCell('MONTHLY PERFORMANCE CHART DATA')]);
@@ -869,8 +891,8 @@ function createDashboardWorksheet(summary: FinancialSummary, startDate: Date, en
       rows.push([
         createCell(mood),
         createValueCell(data.amount, '"Rp"#,##0'),
-createCell(data.count),
-createValueCell(avgPerTransaction, '"Rp"#,##0'),
+        createCell(data.count),
+        createValueCell(avgPerTransaction, '"Rp"#,##0'),
         createValueCell(data.percentage / 100, '0.0%')
       ]);
     });
@@ -893,6 +915,24 @@ createValueCell(avgPerTransaction, '"Rp"#,##0'),
   ];
   
   return ws;
+}
+
+// Helper function for health grade
+function getHealthGrade(score: number): string {
+  if (score >= 90) return 'A+';
+  if (score >= 80) return 'A';
+  if (score >= 70) return 'B';
+  if (score >= 60) return 'C';
+  if (score >= 50) return 'D';
+  return 'F';
+}
+
+// Helper function for health score colors
+function getHealthScoreColor(score: number): string {
+  if (score >= 80) return COLORS.success;
+  if (score >= 65) return COLORS.secondary;
+  if (score >= 50) return COLORS.warning;
+  return COLORS.accent;
 }
 
 // Create budget vs actual comparison worksheet
