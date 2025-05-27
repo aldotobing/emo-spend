@@ -22,18 +22,53 @@ export default function Document() {
         <script
           dangerouslySetInnerHTML={{
             __html: `
+              console.log('Checking for service worker support...');
               if ('serviceWorker' in navigator) {
+                console.log('Service Worker is supported');
                 window.addEventListener('load', function() {
+                  console.log('Registering service worker...');
                   navigator.serviceWorker.register('/sw.js').then(
                     function(registration) {
                       console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                      // Debug beforeinstallprompt event
+                      window.addEventListener('beforeinstallprompt', (e) => {
+                        console.log('beforeinstallprompt event fired');
+                        // Show your custom install button here if needed
+                      });
                     },
                     function(err) {
-                      console.log('ServiceWorker registration failed: ', err);
+                      console.error('ServiceWorker registration failed: ', err);
                     }
                   );
                 });
+              } else {
+                console.log('Service Worker is not supported in this browser');
               }
+            `,
+          }}
+        />
+        {/* Debug PWA Install Prompt */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('beforeinstallprompt', (e) => {
+                console.log('beforeinstallprompt event fired');
+                // You can uncomment the following line to see the install prompt
+                // e.prompt();
+              });
+              
+              // Log PWA installation
+              window.addEventListener('appinstalled', (evt) => {
+                console.log('App was installed', evt);
+              });
+              
+              // Check if app is running in standalone mode
+              const isInStandalone = () => 
+                (window.matchMedia('(display-mode: standalone)').matches) || 
+                (window.navigator.standalone) ||
+                document.referrer.includes('android-app://');
+                
+              console.log('Is running in standalone mode:', isInStandalone());
             `,
           }}
         />
