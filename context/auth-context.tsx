@@ -41,16 +41,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
       if (event === "SIGNED_IN") {
-        // You might trigger a data sync here as well, if needed
-        // For Google SSO, the redirect handles this after login, so it's already in the login flow.
+        try {
+          toast({
+            title: "Welcome back! ",
+            description: "Syncing your latest data...",
+            variant: "default",
+          });
+          await performPostLoginSync();
+          toast({
+            title: "Welcome back! ",
+            description: "Data kamu sudah tersinkronisasi! ",
+            variant: "default",
+          });
+        } catch (error) {
+          console.error("[Auth] Error during post-login sync:", error);
+        }
       } else if (event === "SIGNED_OUT") {
-        // Optionally, add a safety net clear here if `signOut` is not always called directly.
-        // await clearLocalUserData();
+        await clearLocalUserData();
       }
     });
 
@@ -146,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/`,
           //redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
