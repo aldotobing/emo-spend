@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,8 +35,18 @@ export default function LoginPage() {
   const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [redirectTo, setRedirectTo] = useState("/");
+
+  // Get the redirect URL from the query parameters
+  useEffect(() => {
+    const nextUrl = searchParams.get("next");
+    if (nextUrl && nextUrl.startsWith("/")) {
+      setRedirectTo(nextUrl);
+    }
+  }, [searchParams]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -106,8 +116,8 @@ export default function LoginPage() {
       variant: "default",
     });
 
-    // Navigasi ke home page
-    router.push("/");
+    // Redirect to the original requested page or home
+    router.push(redirectTo);
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -131,47 +141,21 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     try {
-      // Mulai proses login via Google (akan redirect balik ke app)
+      // Start Google OAuth flow
       await signInWithGoogle();
-
-      // Polling sampai session siap (max 10x percobaan dengan delay 300ms)
-      const maxRetries = 10;
-      let retries = 0;
-      let sessionReady = false;
-
-      while (retries < maxRetries) {
-        const { data: sessionData } = await supabase.auth.getSession();
-
-        if (sessionData.session) {
-          sessionReady = true;
-          break;
-        }
-
-        retries++;
-        await new Promise((res) => setTimeout(res, 300));
-      }
-
-      if (!sessionReady) {
-        throw new Error("Gagal mendapatkan session dari Supabase");
-      }
-
-      // Kalau session udah siap, lanjut sync
-      // Animasi titik berjalan
+      
+      // Show sync toast
       const baseText = "Syncing your latest data";
       const dots = ["", ".", "..", "..."];
       let dotIndex = 0;
       let isSyncing = true;
-      let toastId: string | undefined = undefined;
-
-      // Tampilkan toast pertama kali
+      
       const toastObj = toast({
         title: "Welcome back! 🎉",
         description: `${baseText}...`,
         variant: "default",
       });
-      toastId = toastObj.id;
 
-      // Interval untuk update animasi
       const interval = setInterval(() => {
         if (!isSyncing) return;
         toastObj.update({
@@ -183,11 +167,13 @@ export default function LoginPage() {
         dotIndex = (dotIndex + 1) % dots.length;
       }, 500);
 
+      // Wait for sync to complete
       await performPostLoginSync();
+      
+      // Update toast to show completion
       isSyncing = false;
       clearInterval(interval);
-
-      // Update toast menjadi selesai
+      
       toastObj.update({
         id: toastObj.id,
         title: "Welcome back! 🎉",
@@ -195,9 +181,8 @@ export default function LoginPage() {
         variant: "default",
       });
 
-router.push("/");
-
-      //window.location.href = "/"; // hard reload biar semua state reset
+      // Redirect to the original requested page or home
+      router.push(redirectTo);
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
