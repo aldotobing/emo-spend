@@ -4,7 +4,7 @@ export const renderFormattedResponse = (text: string) => {
   const lines = text.split("\n");
 
   const parseInlineFormatting = (line: string) => {
-    return line
+    const formatted = line
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(/~~(.*?)~~/g, "<del>$1</del>")
@@ -13,6 +13,12 @@ export const renderFormattedResponse = (text: string) => {
         /\[(.*?)\]\((.*?)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
       );
+
+    // Add line break after any line ending with colon
+    if (/:$/.test(line.trim())) {
+      return formatted + '<br />';
+    }
+    return formatted;
   };
 
   const isTableDivider = (line: string) => /^(\|\s*:?-+:?\s*)+\|$/.test(line);
