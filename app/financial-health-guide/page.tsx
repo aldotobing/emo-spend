@@ -14,7 +14,7 @@ export default function FinancialHealthGuide() {
             Back to Dashboard
           </Link>
         </Button>
-        
+
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold tracking-tight mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Financial Health Guide
@@ -34,7 +34,7 @@ export default function FinancialHealthGuide() {
             </div>
             <CardTitle className="text-2xl">How Your Score is Calculated</CardTitle>
             <CardDescription className="text-lg">
-              Your financial health score (0-100) is calculated using data from the last 3 months, 
+              Your financial health score (0-100) is calculated using data from the last 3 months,
               combining four key financial metrics with specific weightings.
             </CardDescription>
           </CardHeader>
@@ -57,42 +57,47 @@ export default function FinancialHealthGuide() {
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 rounded-full bg-green-500"></div>
                   <Badge variant="secondary" className="bg-green-100 text-green-800">90-100</Badge>
+                  <Badge variant="secondary" className="bg-green-200 text-green-900 font-bold">A+ to A-</Badge>
                 </div>
                 <h4 className="font-semibold text-green-800">Excellent</h4>
                 <p className="text-sm text-green-700">Outstanding financial health with strong savings and low expenses.</p>
               </div>
-              
+
               <div className="p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 rounded-full bg-blue-500"></div>
                   <Badge variant="secondary" className="bg-blue-100 text-blue-800">80-89</Badge>
+                  <Badge variant="secondary" className="bg-blue-200 text-blue-900 font-bold">B+ to B-</Badge>
                 </div>
                 <h4 className="font-semibold text-blue-800">Good</h4>
                 <p className="text-sm text-blue-700">Solid financial foundation with room for minor improvements.</p>
               </div>
-              
+
               <div className="p-4 rounded-lg border-2 border-yellow-200 bg-yellow-50">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 rounded-full bg-yellow-500"></div>
                   <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">65-79</Badge>
+                  <Badge variant="secondary" className="bg-yellow-200 text-yellow-900 font-bold">C+ to D+</Badge>
                 </div>
                 <h4 className="font-semibold text-yellow-800">Fair</h4>
                 <p className="text-sm text-yellow-700">Decent financial health but with clear areas for improvement.</p>
               </div>
-              
+
               <div className="p-4 rounded-lg border-2 border-orange-200 bg-orange-50">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 rounded-full bg-orange-500"></div>
                   <Badge variant="secondary" className="bg-orange-100 text-orange-800">30-64</Badge>
+                  <Badge variant="secondary" className="bg-orange-200 text-orange-900 font-bold">D to F</Badge>
                 </div>
                 <h4 className="font-semibold text-orange-800">Needs Improvement</h4>
                 <p className="text-sm text-orange-700">Financial stability at risk, requires attention and action.</p>
               </div>
-              
+
               <div className="p-4 rounded-lg border-2 border-red-200 bg-red-50">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-4 h-4 rounded-full bg-red-500"></div>
                   <Badge variant="secondary" className="bg-red-100 text-red-800">0-29</Badge>
+                  <Badge variant="secondary" className="bg-red-200 text-red-900 font-bold">F</Badge>
                 </div>
                 <h4 className="font-semibold text-red-800">Poor</h4>
                 <p className="text-sm text-red-700">Critical financial situation requiring immediate attention.</p>
@@ -119,7 +124,7 @@ export default function FinancialHealthGuide() {
                   (Total Income - Total Expenses) / Total Income × 100
                 </code>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Scoring System:</h4>
                 <ul className="space-y-2 text-sm">
@@ -133,7 +138,7 @@ export default function FinancialHealthGuide() {
                   </li>
                 </ul>
               </div>
-              
+
               <div className="bg-green-50 p-3 rounded-lg border border-green-200">
                 <p className="text-sm font-medium text-green-800">💡 Target: 20% or higher savings rate</p>
               </div>
@@ -156,7 +161,7 @@ export default function FinancialHealthGuide() {
                   (Total Expenses / Total Income) × 100
                 </code>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Scoring Tiers:</h4>
                 <div className="space-y-2 text-sm">
@@ -178,7 +183,7 @@ export default function FinancialHealthGuide() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                 <p className="text-sm font-medium text-blue-800">💡 Target: Keep expenses below 70% of income</p>
               </div>
@@ -204,7 +209,7 @@ export default function FinancialHealthGuide() {
                   Where savings = Total Income - Total Expenses over 3 months
                 </p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Scoring Tiers:</h4>
                 <div className="space-y-2 text-sm">
@@ -226,7 +231,7 @@ export default function FinancialHealthGuide() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
                 <p className="text-sm font-medium text-purple-800">💡 Target: 3-6 months of expenses saved</p>
               </div>
@@ -249,7 +254,7 @@ export default function FinancialHealthGuide() {
                   (Non-Essential Expenses / Total Expenses) × 100
                 </code>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Essential vs. Non-Essential Categories:</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -273,7 +278,7 @@ export default function FinancialHealthGuide() {
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold mb-2">Scoring Tiers:</h4>
                 <div className="space-y-2 text-sm">
@@ -291,7 +296,7 @@ export default function FinancialHealthGuide() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
                 <p className="text-sm font-medium text-orange-800">💡 Target: Keep discretionary spending under 30%</p>
               </div>
@@ -321,7 +326,7 @@ export default function FinancialHealthGuide() {
                   System fetches your income and expense records from the last 3 months using secure database queries.
                 </p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-purple-600 font-bold">2</span>
@@ -331,7 +336,7 @@ export default function FinancialHealthGuide() {
                   Each financial metric is calculated using your actual transaction data and categorized spending.
                 </p>
               </div>
-              
+
               <div className="text-center">
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                   <span className="text-green-600 font-bold">3</span>
@@ -342,7 +347,7 @@ export default function FinancialHealthGuide() {
                 </p>
               </div>
             </div>
-            
+
             <div className="bg-white p-4 rounded-lg border">
               <h4 className="font-semibold mb-3">Data Sources:</h4>
               <div className="grid md:grid-cols-2 gap-4 text-sm">
@@ -393,7 +398,7 @@ export default function FinancialHealthGuide() {
                   </li>
                 </ul>
               </div>
-              
+
               <div className="space-y-4">
                 <h4 className="font-semibold text-emerald-800">Long-term Strategies:</h4>
                 <ul className="space-y-3 text-sm">
