@@ -123,12 +123,12 @@ export const metadata: Metadata = {
     title: "EmoSpend",
     startupImage: [
       {
-        url: "/icons/apple-splash-2048-2732.jpg",
+        url: "/icons/apple-touch-icon.jpg",
         media:
           "(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
       },
       {
-        url: "/icons/apple-splash-1668-2224.jpg",
+        url: "/icons/apple-touch-icon.jpg",
         media:
           "(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
       },
@@ -165,7 +165,7 @@ export default function RootLayout({
 
         {/* Icons and PWA */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.jpg" />
         <link rel="manifest" href="/site.webmanifest" />
 
         {/* Preconnect for performance */}
