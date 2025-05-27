@@ -82,6 +82,13 @@ export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updat
 export async function getIncomesByDateRange(startDate: string, endDate: string): Promise<Income[]> {
   const db = getDb();
   try {
+    // Check if the incomes table exists and is accessible
+    const tableNames = await db.tables.map(t => t.name);
+    if (!tableNames.includes('incomes')) {
+      console.warn('Incomes table does not exist in the database yet');
+      return [];
+    }
+
     const incomes = await db.incomes
       .where('date')
       .between(startDate, endDate, true, true)
@@ -96,7 +103,12 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
       // Ensure all required fields are present
       synced: income.synced ?? true,
     }));
-  } catch (error) {
+  } catch (error: unknown) {
+    const err = error as Error;
+    if (err.name === 'NotFoundError' || err.message?.includes('object store was not found')) {
+      console.warn('Incomes table not found in database. This is normal if no incomes have been added yet.');
+      return [];
+    }
     console.error('Error getting incomes by date range:', error);
     return [];
   }

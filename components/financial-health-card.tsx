@@ -5,9 +5,14 @@ import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { FinancialHealthScore } from '@/lib/financial-health';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
-
+import { Info, InfoIcon } from 'lucide-react';
 import { useUser } from "@/hooks/use-user";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "./ui/button";
 import Link from "next/link";
 
@@ -81,11 +86,28 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
 
   return (
     <Card className={cn("w-full max-w-2xl mx-auto", className)}>
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold">Financial Health Score</CardTitle>
-        <CardDescription>
-          {user ? 'Your financial health overview based on your recent transactions' : 'Loading...'}
-        </CardDescription>
+      <CardHeader className="relative">
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-2xl font-bold">Financial Health Score</CardTitle>
+            <CardDescription>
+              {user ? 'Your financial health overview based on your recent transactions' : 'Loading...'}
+            </CardDescription>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/financial-health-guide" className="text-muted-foreground hover:text-foreground transition-colors">
+                  <InfoIcon className="h-5 w-5" />
+                  <span className="sr-only">Learn more about financial health score</span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="left" className="max-w-[300px]">
+                <p>Click to learn more about how your financial health score is calculated and what it means.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex items-center justify-between">

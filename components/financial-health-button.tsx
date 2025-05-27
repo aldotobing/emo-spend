@@ -63,6 +63,22 @@ interface FinancialHealthButtonProps {
  * A button that displays a financial health score with a color-coded status.
  * Clicking the button opens a popover with detailed financial health information.
  */
+const getLetterGrade = (score: number): string => {
+  if (score >= 97) return 'A+';
+  if (score >= 93) return 'A';
+  if (score >= 90) return 'A-';
+  if (score >= 87) return 'B+';
+  if (score >= 83) return 'B';
+  if (score >= 80) return 'B-';
+  if (score >= 77) return 'C+';
+  if (score >= 73) return 'C';
+  if (score >= 70) return 'C-';
+  if (score >= 67) return 'D+';
+  if (score >= 63) return 'D';
+  if (score >= 60) return 'D-';
+  return 'F';
+};
+
 const ButtonContent = memo(({ financialHealth }: { financialHealth: FinancialHealthScore }) => {
   const statusVariant = useMemo<StatusVariant>(() => {
     const status = financialHealth.status.toLowerCase();
@@ -75,6 +91,7 @@ const ButtonContent = memo(({ financialHealth }: { financialHealth: FinancialHea
   }, [financialHealth.status]);
 
   const { bg, text, hover, ring } = statusStyles[statusVariant];
+  const letterGrade = getLetterGrade(financialHealth.score);
   
   return (
     <div className={cn(
@@ -87,7 +104,7 @@ const ButtonContent = memo(({ financialHealth }: { financialHealth: FinancialHea
       hover,
       `focus-visible:${ring}`
     )}>
-      {Math.round(financialHealth.score)}
+      {letterGrade}
     </div>
   );
 });

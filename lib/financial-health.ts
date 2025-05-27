@@ -62,7 +62,8 @@ export async function calculateFinancialHealth(
   const emergencyFundMonths = monthlyExpenses > 0 ? savings / monthlyExpenses : 0;
   
   // Calculate discretionary spending (non-essential expenses)
-  const essentialCategories = ['Housing', 'Utilities', 'Groceries', 'Transportation', 'Insurance'];
+  // Essential categories: Bills & Utilities, Transportation, Health & Fitness
+  const essentialCategories = ['bills', 'transport', 'health'];
   const discretionaryExpenses = expenses
     .filter((expense: Expense) => !essentialCategories.includes(expense.category))
     .reduce((sum: number, exp: Expense) => sum + exp.amount, 0);
