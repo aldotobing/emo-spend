@@ -45,10 +45,12 @@ const nextConfig = {
   // Configure rewrites if needed for API routes
   async rewrites() {
     return [
-      {
-        source: '/api/:path*',
-        destination: process.env.NEXT_PUBLIC_APP_URL + '/api/:path*',
-      },
+      // Handle API routes - no rewrite needed as they're handled internally
+      // This ensures API routes work in all environments
+      // {
+      //   source: '/api/:path*',
+      //   destination: '/api/:path*',
+      // },
     ];
   },
 };
