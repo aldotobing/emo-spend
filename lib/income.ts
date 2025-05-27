@@ -36,12 +36,19 @@ export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updat
   } as const;
 
   try {
-    console.log('Adding to local database'); // Debug log
-    await db.incomes.add({
+    console.log('Adding to local database with data:', {
+      ...newIncome,
+      createdAt: newIncome.created_at,
+      updatedAt: newIncome.updated_at,
+    });
+    
+    const result = await db.incomes.add({
       ...newIncome,
       createdAt: newIncome.created_at,
       updatedAt: newIncome.updated_at,
     } as SyncedIncome);
+    
+    console.log('Local DB add result:', result);
     
     console.log('Attempting Supabase sync'); // Debug log
     const { data: { user } } = await supabase.auth.getUser();
@@ -188,61 +195,86 @@ export async function getTransactionsByDateRange(startDate: string, endDate: str
 export async function syncIncomes(): Promise<{ synced: number; errors: number }> {
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
-  const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) {
-    console.error('User not authenticated');
-    return { synced: 0, errors: 0 };
+  // Clear any stale sync status older than 5 minutes
+  const existingSync = await db.syncStatus.get('incomes');
+  if (existingSync && !existingSync.synced) {
+    const lastAttempt = new Date(existingSync.lastAttempt || 0);
+    if (Date.now() - lastAttempt.getTime() > 5 * 60 * 1000) {
+      await db.syncStatus.delete('incomes');
+    }
   }
 
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { synced: 0, errors: 0 };
+
   try {
-    // Get all unsynced incomes
-    const unsyncedIncomes = await db.incomes
-      .filter(income => !income.synced)
-      .toArray();
+    await db.syncStatus.put({ 
+      id: 'incomes', 
+      synced: false, 
+      lastAttempt: new Date().toISOString() 
+    });
+    
+    // Add 30s timeout for sync operation
+    const timeoutPromise = new Promise<{ synced: number; errors: number }>((_, reject) => 
+      setTimeout(() => reject(new Error('Sync timeout')), 30000)
+    );
+    
+    const syncPromise = (async (): Promise<{ synced: number; errors: number }> => {
+      // Get all unsynced incomes
+      const unsyncedIncomes = await db.incomes
+        .filter(income => !income.synced)
+        .toArray();
 
-    let syncedCount = 0;
-    let errorCount = 0;
+      let syncedCount = 0;
+      let errorCount = 0;
 
-    // Sync each unsynced income
-    for (const income of unsyncedIncomes) {
-      try {
-        // Create a new object without the 'synced' field for Supabase
-        const { synced, ...incomeForSupabase } = income;
-        
-        const { error } = await supabase
-          .from('incomes')
-          .upsert({
-            ...incomeForSupabase,
-            created_at: incomeForSupabase.created_at,
-            updated_at: incomeForSupabase.updated_at,
-            description: incomeForSupabase.description || null,
-            // Remove any undefined values
-          } as Record<string, any>)
-          .select();
+      // Sync each unsynced income
+      for (const income of unsyncedIncomes) {
+        try {
+          // Create a new object without the 'synced' field for Supabase
+          const { synced, ...incomeForSupabase } = income;
+          
+          const { error } = await supabase
+            .from('incomes')
+            .upsert({
+              ...incomeForSupabase,
+              created_at: incomeForSupabase.created_at,
+              updated_at: incomeForSupabase.updated_at,
+              description: incomeForSupabase.description || null,
+              // Remove any undefined values
+            } as Record<string, any>)
+            .select();
 
-        if (error) throw error;
+          if (error) throw error;
 
-        // Mark as synced in local DB
-        await db.incomes.update(income.id, { 
-          synced: true,
-          // Ensure we have the latest timestamps
-          updated_at: new Date().toISOString()
-        });
-        syncedCount++;
-      } catch (error) {
-        console.error(`Error syncing income ${income.id}:`, {
-          error: error instanceof Error ? error.message : error,
-          incomeData: income,
-          timestamp: new Date().toISOString()
-        });
-        errorCount++;
+          // Mark as synced in local DB
+          await db.incomes.update(income.id, { 
+            synced: true,
+            // Ensure we have the latest timestamps
+            updated_at: new Date().toISOString()
+          });
+          syncedCount++;
+        } catch (error) {
+          console.error(`Error syncing income ${income.id}:`, error);
+          errorCount++;
+        }
       }
-    }
 
-    return { synced: syncedCount, errors: errorCount };
+      return { synced: syncedCount, errors: errorCount };
+    })();
+    
+    const result = await Promise.race([syncPromise, timeoutPromise]);
+    
+    // Mark sync as completed
+    await db.syncStatus.put({ id: 'incomes', synced: true });
+    
+    // Force refresh all income data after sync
+    await db.incomes.toArray();
+    return result;
   } catch (error) {
-    console.error('Error in syncIncomes:', error);
-    return { synced: 0, errors: 0 };
+    console.error('Sync failed:', error);
+    await db.syncStatus.delete('incomes');
+    return { synced: 0, errors: 1 };
   }
 }

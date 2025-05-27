@@ -140,32 +140,30 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
         throw new Error('Failed to add income (no ID returned)');
       }
 
-      console.log('Income added successfully, syncing'); // Debug log
+      console.log('Income added successfully'); // Debug log
+      // Force refresh of income data
+      router.refresh();
+      
       // Show success message
       toast({
         title: "Pendapatan ditambahkan!",
-        description: "Pendapatan berhasil dicatat dan sedang disinkronisasi.",
+        description: "Pendapatan berhasil dicatat.",
         variant: "default",
       });
 
-      // Then sync
-      await performPostSubmitSync();
-
-      // Call success callback if provided
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error('Income submission error:', error);
+      // Reset form
+      setAmount('');
+      setDescription('');
+      setDate(new Date(new Date().setHours(0, 0, 0, 0)));
       
-      // Show detailed error message
+      if (onSuccess) onSuccess();
+    } catch (error) {
+      console.error('Income submission error:', error);
       toast({
-        title: "Gagal menambahkan pendapatan",
-        description: error?.message || "Terjadi kesalahan saat menyimpan pendapatan",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Gagal menambahkan pendapatan",
         variant: "destructive",
       });
-      
-      setError(error?.message || 'Failed to add income');
     } finally {
       setIsSubmitting(false);
     }
