@@ -29,18 +29,7 @@ const nextConfig = {
   },
   // Configure domains for different environments
   env: {
-    NEXT_PUBLIC_APP_URL: (() => {
-      // For local development
-      if (process.env.NODE_ENV === 'development') {
-        return 'http://localhost:3000';
-      }
-      // For production
-      if (process.env.VERCEL_ENV === 'production') {
-        return 'https://spend.aldotobing.online';
-      }
-      // For preview/staging
-      return 'https://spendbeta.aldotobing.online';
-    })(),
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
   },
   // Configure rewrites if needed for API routes
   async rewrites() {
