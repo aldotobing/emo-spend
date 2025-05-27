@@ -16,15 +16,15 @@ type IncomeWithSync = Omit<Income, 'synced'> & { synced: boolean };
 export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updatedAt' | 'synced'>): Promise<string | null> {
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
-  const id = crypto.randomUUID();
+  
+  // More reliable UUID generation
+  const id = typeof crypto !== 'undefined' && crypto.randomUUID 
+    ? crypto.randomUUID() 
+    : Date.now().toString(36) + Math.random().toString(36).substring(2);
+    
   const now = new Date().toISOString();
   
-  // Dispatch sync start event
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('sync:start', { 
-      detail: { operation: 'push' } 
-    }));
-  }
+  console.log('Adding income with ID:', id); // Debug log
   
   // Create a properly typed income object with synced field
   const newIncome = {
@@ -36,45 +36,35 @@ export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updat
   } as const;
 
   try {
-    // Add to local IndexedDB with camelCase fields
+    console.log('Adding to local database'); // Debug log
     await db.incomes.add({
       ...newIncome,
-      // Map back to camelCase for local storage
       createdAt: newIncome.created_at,
       updatedAt: newIncome.updated_at,
     } as SyncedIncome);
     
-    // Sync with Supabase if online
+    console.log('Attempting Supabase sync'); // Debug log
     const { data: { user } } = await supabase.auth.getUser();
     if (user && navigator.onLine) {
-      // Create a new object without the 'synced' field for Supabase
       const { synced, ...incomeForSupabase } = newIncome;
       
       const { error } = await supabase
         .from('incomes')
         .insert({
           ...incomeForSupabase,
-          // Ensure we're not sending any undefined values
           description: incomeForSupabase.description || null,
         });
       
       if (error) throw error;
       
-      // Update local record to mark as synced
+      console.log('Supabase sync successful, updating local record'); // Debug log
       await db.incomes.update(id, { synced: true });
     }
     
-    // Dispatch sync end event on success
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sync:end'));
-    }
+    console.log('Income addition completed successfully'); // Debug log
     return id;
   } catch (error) {
-    // Dispatch sync end event on error
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sync:end'));
-    }
-    console.error('Error adding income:', error);
+    console.error('Error in addIncome:', error);
     return null;
   }
 }
@@ -98,8 +88,8 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     return incomes.map(income => ({
       ...income,
       // Map snake_case to camelCase for TypeScript
-      createdAt: income.createdAt || (income as any).created_at,
-      updatedAt: income.updatedAt || (income as any).updated_at,
+      createdAt: (income as any).createdAt || (income as any).created_at,
+      updatedAt: (income as any).updatedAt || (income as any).updated_at,
       // Ensure all required fields are present
       synced: income.synced ?? true,
     }));
@@ -224,9 +214,8 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
           .from('incomes')
           .upsert({
             ...incomeForSupabase,
-            // Map to snake_case for database
-            created_at: incomeForSupabase.createdAt || (incomeForSupabase as any).created_at,
-            updated_at: incomeForSupabase.updatedAt || (incomeForSupabase as any).updated_at,
+            created_at: incomeForSupabase.created_at,
+            updated_at: incomeForSupabase.updated_at,
             description: incomeForSupabase.description || null,
             // Remove any undefined values
           } as Record<string, any>)
@@ -238,7 +227,7 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
         await db.incomes.update(income.id, { 
           synced: true,
           // Ensure we have the latest timestamps
-          updatedAt: new Date().toISOString()
+          updated_at: new Date().toISOString()
         });
         syncedCount++;
       } catch (error) {

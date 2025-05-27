@@ -112,6 +112,7 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
     setIsSubmitting(true);
 
     try {
+      console.log('Starting income submission'); // Debug log
       const supabase = getSupabaseBrowserClient();
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
@@ -121,6 +122,7 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
         throw new Error('User not authenticated - please log in again');
       }
 
+      console.log('User authenticated, preparing income data'); // Debug log
       const incomeData = {
         user_id: user.id,
         amount: parseIDRNumber(amount),
@@ -131,13 +133,14 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
         updated_at: new Date().toISOString()
       };
 
-      const { data, error } = await supabase
-        .from('incomes')
-        .insert(incomeData)
-        .select();
-
-      if (error) throw error;
+      console.log('Calling addIncome with:', incomeData); // Debug log
+      const result = await addIncome(incomeData);
       
+      if (!result) {
+        throw new Error('Failed to add income (no ID returned)');
+      }
+
+      console.log('Income added successfully, syncing'); // Debug log
       // Show success message
       toast({
         title: "Pendapatan ditambahkan!",
