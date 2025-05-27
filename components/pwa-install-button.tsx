@@ -55,24 +55,14 @@ export function PWAInstallButton() {
 
   // Log the current state for debugging
   useEffect(() => {
-    console.log('PWA Install Button State:', {
-      showInstallButton,
-      isStandalone,
-      isVisible,
-      dismissed,
-      hasDeferredPrompt: !!deferredPrompt,
-      userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
-      pwaSupported: 'serviceWorker' in navigator && 'beforeinstallprompt' in window
-    });
+    
   }, [showInstallButton, isStandalone, isVisible, dismissed, deferredPrompt]);
 
   const handleInstallClick = async () => {
     try {
       setIsInstalling(true);
-      console.log('Install button clicked, calling installPWA...');
       
       if (deferredPrompt) {
-        console.log('Using deferredPrompt to show installation dialog');
         try {
           // Use the installPWA function from context which handles the prompt
           await installPWA();
@@ -93,7 +83,6 @@ export function PWAInstallButton() {
         // Check if the app is already installed
         if (window.matchMedia('(display-mode: standalone)').matches || 
             (window.navigator as any).standalone === true) {
-          console.log('App is already installed in standalone mode');
           setIsVisible(false);
           return;
         }
@@ -111,7 +100,6 @@ export function PWAInstallButton() {
   };
 
   const handleDismiss = () => {
-    console.log('Dismiss button clicked');
     setIsVisible(false);
     setDismissed(true);
     
@@ -126,16 +114,8 @@ export function PWAInstallButton() {
   // 2. The button was dismissed by the user
   // 3. The button is not visible yet
   if (isInstalled || dismissed || !isVisible) {
-    console.log('Not showing install button because:', {
-      isStandalone,
-      dismissed,
-      isVisible,
-      pwaSupported: 'serviceWorker' in navigator && 'beforeinstallprompt' in window
-    });
     return null;
   }
-
-  console.log('Rendering install button');
 
   return (
     <div 

@@ -58,7 +58,6 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
       } else if (result.error) {
         setLastError(result.error);
       } else if (result.message) {
-        console.log("[Sync]", result.message);
       }
 
       return result;
@@ -89,13 +88,11 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     if (typeof window === "undefined") return;
 
     const handleOnline = () => {
-      console.log("[Sync] Connection restored, syncing...");
       setIsOnline(true);
       performSync();
     };
 
     const handleOffline = () => {
-      console.log("[Sync] Connection lost");
       setIsOnline(false);
     };
 

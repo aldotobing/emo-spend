@@ -27,7 +27,6 @@ export function PWAProvider({ children }: { children: ReactNode }) {
         window.matchMedia('(display-mode: standalone)').matches || 
         (window.navigator as any).standalone === true ||
         document.referrer.includes('android-app://');
-      console.log('Is in standalone mode:', isStandalone);
       return isStandalone;
     };
 
@@ -36,14 +35,12 @@ export function PWAProvider({ children }: { children: ReactNode }) {
 
     // If already in standalone mode, no need to show install button
     if (standalone) {
-      console.log('App is in standalone mode, not showing install button');
       setShowInstallButton(false);
       return;
     }
 
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: any) => {
-      console.log('beforeinstallprompt event fired in context', e);
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later
@@ -52,12 +49,10 @@ export function PWAProvider({ children }: { children: ReactNode }) {
       setShowInstallButton(true);
       
       // For debugging
-      console.log('Install prompt available, showing install button');
     };
 
     // Check if the app was installed
     const handleAppInstalled = (evt: any) => {
-      console.log('App was installed', evt);
       setShowInstallButton(false);
     };
 
@@ -66,20 +61,16 @@ export function PWAProvider({ children }: { children: ReactNode }) {
       try {
         if ('getInstalledRelatedApps' in navigator) {
           const relatedApps = await (navigator as any).getInstalledRelatedApps();
-          console.log('Installed related apps:', relatedApps);
         }
       } catch (error) {
-        console.log('Could not get installed related apps:', error);
       }
     };
 
     // Debug function to manually trigger install prompt
     const debugInstallPrompt = () => {
-      console.log('Manually triggering install prompt for debugging');
       const fakeEvent = {
         preventDefault: () => {},
         prompt: () => {
-          console.log('Install prompt would be shown now');
           return Promise.resolve({ outcome: 'accepted' });
         },
         userChoice: Promise.resolve({ outcome: 'accepted' })
@@ -88,27 +79,14 @@ export function PWAProvider({ children }: { children: ReactNode }) {
     };
 
     // Add event listeners
-    console.log('Adding PWA event listeners');
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     // For debugging - expose function to manually trigger install prompt
     (window as any).debugInstallPrompt = debugInstallPrompt;
-    console.log('For debugging, you can call window.debugInstallPrompt() to manually trigger the install prompt');
 
     // Check PWA installable status
     checkPWAInstallable();
-
-    // Log the current installation status
-    console.log('PWA context initialized');
-    console.log('showInstallButton:', showInstallButton);
-    console.log('isStandalone:', standalone);
-    console.log('PWA installation criteria:', {
-      isSecureContext: window.isSecureContext,
-      serviceWorker: 'serviceWorker' in navigator,
-      beforeInstallPrompt: 'beforeinstallprompt' in window,
-      isInstalled: standalone
-    });
 
     // Clean up event listeners
     return () => {
@@ -132,7 +110,6 @@ export function PWAProvider({ children }: { children: ReactNode }) {
       const { outcome } = await deferredPrompt.userChoice;
       
       // Log the user's choice
-      console.log(`User response to the install prompt: ${outcome}`);
       
       // We've used the prompt, and can't use it again, throw it away
       setDeferredPrompt(null);

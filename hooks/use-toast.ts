@@ -145,10 +145,8 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
-  console.log('Creating toast with ID:', id, props)
 
   const update = (props: ToasterToast) => {
-    console.log('Updating toast:', id, props)
     dispatch({
       type: "UPDATE_TOAST",
       toast: { ...props, id },
@@ -156,7 +154,6 @@ function toast({ ...props }: Toast) {
   }
 
   const dismiss = () => {
-    console.log('Dismissing toast:', id)
     dispatch({ type: "DISMISS_TOAST", toastId: id })
   }
 
@@ -169,7 +166,6 @@ function toast({ ...props }: Toast) {
     },
   }
 
-  console.log('Dispatching ADD_TOAST with data:', toastData)
   dispatch({
     type: "ADD_TOAST",
     toast: toastData,
@@ -220,7 +216,6 @@ function useToast() {
 
   // Debug state changes
   React.useEffect(() => {
-    console.log('Toast state updated:', state)
   }, [state])
 
   return {

@@ -101,34 +101,27 @@ let dbInstance: EmoSpendDatabase | null = null;
 export function getDb(): EmoSpendDatabase {
   if (!dbInstance) {
     try {
-      console.log('[DB] Initializing database...');
       dbInstance = new EmoSpendDatabase();
       
       // Set up version change handler
       dbInstance.on('versionchange', (event: any) => {
-        console.log('[DB] Database version change detected:', event);
         // Close the database to allow the upgrade to proceed
         dbInstance?.close();
         dbInstance = null;
         // Notify the user if needed
         if (event.newVersion !== null) { // null means database is being deleted
-          console.log('[DB] Database is being upgraded. Please refresh the page when complete.');
         }
       });
       
       // Log successful initialization
       dbInstance.open().then(() => {
-        console.log('[DB] Database opened successfully');
       }).catch((error: any) => {
-        console.error('[DB] Error opening database:', error);
       });
       
     } catch (e) {
-      console.error("[DB] Failed to initialize database:", e);
       
       // Try to recover by deleting the database and recreating it
       if (typeof window !== 'undefined' && window.indexedDB && window.indexedDB.deleteDatabase) {
-        console.log('[DB] Attempting to reset database...');
         
         // Close any existing connection first
         if (dbInstance) {
@@ -140,7 +133,6 @@ export function getDb(): EmoSpendDatabase {
         const deleteRequest = window.indexedDB.deleteDatabase("emoSpendDb");
         
         deleteRequest.onsuccess = () => {
-          console.log("[DB] Database deleted successfully, recreating...");
           try {
             dbInstance = new EmoSpendDatabase();
           } catch (innerError) {
@@ -849,15 +841,9 @@ export async function setupSync(): Promise<void> {
   supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === "SIGNED_IN" || (event === "INITIAL_SESSION" && session)) {
       if (navigator.onLine) performFullSync(`Auth: ${event}`);
-      else console.log("[SyncSetup] User signed in but offline.");
+      else ;
     } else if (event === "SIGNED_OUT") {
-      console.log("[SyncSetup] User signed out. Clearing local data...");
-      // This is a good place to clear local data specific to the user.
-      // But it's often more robust to do it *explicitly* in the logout handler
-      // in auth-context, as onAuthStateChange might not always fire reliably
-      // *before* components try to render, or if the browser is closed immediately.
-      // However, as a safety net, it's not bad.
-      // await clearLocalUserData(); // Optional: Add this here for robustness
+
     }
   });
 }
@@ -875,12 +861,10 @@ export async function fixStreakBadge(): Promise<void> {
   }
 
   try {
-    console.log("[Badge Fix] Starting badge fix for user:", user.id);
     
     // Get local expenses for streak calculation
     const expenses = await getExpenses();
     const calculatedStreak = calculateStreak(expenses);
-    console.log("[Badge Fix] Calculated streak:", calculatedStreak);
     
     // Force add the 3-day streak badge if streak is >= 3
     if (calculatedStreak >= 3) {
