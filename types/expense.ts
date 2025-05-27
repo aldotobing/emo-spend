@@ -25,16 +25,16 @@ export interface Category {
   icon: string
 }
 
-export interface Income {
+export type Income = {
   id: string;
   user_id: string;
   amount: number;
   source: string;
   description?: string;
   date: string;
-  createdAt: string;
-  updatedAt: string;
-  synced?: boolean; // For local database sync status
+  created_at: string;
+  updated_at: string;
+  synced?: boolean;
 }
 
 export type Transaction = {

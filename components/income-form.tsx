@@ -113,10 +113,12 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
 
     try {
       const supabase = getSupabaseBrowserClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) throw authError;
       
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new Error('User not authenticated - please log in again');
       }
 
       const incomeData = {
@@ -125,47 +127,42 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
         source,
         description: description || undefined,
         date: format(date || new Date(), 'yyyy-MM-dd'),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
-      const result = await addIncome(incomeData);
+      const { data, error } = await supabase
+        .from('incomes')
+        .insert(incomeData)
+        .select();
+
+      if (error) throw error;
       
-      if (!result) {
-        throw new Error('Failed to add income');
-      }
-
-      // Then sync
-      await performPostSubmitSync();
-      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
-
-      // Show success toast
+      // Show success message
       toast({
         title: "Pendapatan ditambahkan!",
-        description: "Pendapatanmu berhasil dicatat dan sedang disinkronisasi.",
+        description: "Pendapatan berhasil dicatat dan sedang disinkronisasi.",
         variant: "default",
       });
 
-      // Reset form if this is a new income (not editing)
-      if (!initialData) {
-        setAmount('');
-        setDescription('');
-        setDate(new Date());
-      }
+      // Then sync
+      await performPostSubmitSync();
 
-      // Call onSuccess callback if provided
-      onSuccess?.();
+      // Call success callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error: any) {
+      console.error('Income submission error:', error);
       
-      // Refresh the page to reflect changes
-      router.refresh();
-    } catch (err) {
-      console.error('Error adding income:', err);
-      setError('Gagal menambahkan pendapatan. Silakan coba lagi.');
-      
-      // Show error toast
+      // Show detailed error message
       toast({
-        title: "Ups! Terjadi kesalahan",
-        description: "Gagal menambahkan pendapatan. Silakan coba lagi.",
+        title: "Gagal menambahkan pendapatan",
+        description: error?.message || "Terjadi kesalahan saat menyimpan pendapatan",
         variant: "destructive",
       });
+      
+      setError(error?.message || 'Failed to add income');
     } finally {
       setIsSubmitting(false);
     }

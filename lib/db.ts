@@ -29,6 +29,18 @@ export interface SyncStatusEntry {
   lastAttempt?: string;
 }
 
+export interface Income {
+  id: string;
+  user_id: string;
+  amount: number;
+  source: string;
+  description?: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+  synced?: boolean;
+}
+
 export class EmoSpendDatabase extends Dexie {
   expenses!: Table<SyncedExpense, string>;
   incomes!: Table<SyncedIncome, string>;
@@ -298,6 +310,22 @@ export async function getExpenses(): Promise<SyncedExpense[]> {
       error.message,
       error.stack
     );
+    return [];
+  }
+}
+
+export async function getIncomes(): Promise<Income[]> {
+  const supabase = getSupabaseBrowserClient();
+  try {
+    const { data, error } = await supabase
+      .from('incomes')
+      .select('*')
+      .order('date', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching incomes:', error);
     return [];
   }
 }
@@ -657,7 +685,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
     return { syncedLocal, syncedRemote, skipped };
     
   } catch (error: any) {
-    const errorMsg = `Unexpected error during sync: ${error.message}`;
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Sync]', errorMsg);
     window.dispatchEvent(new CustomEvent("sync:error", { 
       detail: { 

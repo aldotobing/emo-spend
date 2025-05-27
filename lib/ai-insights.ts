@@ -1,5 +1,5 @@
-import { getExpenses } from "@/lib/db";
-import type { Expense } from "@/types/expense";
+import { getExpenses, getIncomes } from "@/lib/db";
+import type { Expense, Income } from "@/types/expense";
 import type { AIInsightResponse, AIDetailedAnalysisResponse } from "@/types/ai";
 import { callGeminiAPI } from "./gemini-client";
 import { callDeepSeekAPI } from "./deepseek-client";
@@ -33,7 +33,8 @@ const notEnoughDataError = {
 export async function generateAIInsights(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
-  providedExpenses?: Expense[] // Add optional parameter for expenses
+  providedExpenses?: Expense[],
+  providedIncomes?: Income[]
 ): Promise<AIInsightResponse> {
   if (!geminiApiKey && !deepSeekApiKey) {
     console.error("Neither Gemini nor DeepSeek API key is configured.");
@@ -41,15 +42,14 @@ export async function generateAIInsights(
   }
 
   try {
-    // Use provided expenses if available, otherwise fetch all expenses
     const expenses = providedExpenses || await getExpenses();
-    console.log(`Generating insights with ${expenses.length} expenses`);
+    const incomes = providedIncomes || await getIncomes();
 
-    if (expenses.length < 3) {
+    if (expenses.length < 3 && incomes.length === 0) {
       return notEnoughDataError;
     }
 
-    const context = prepareContextForAI(expenses, false); // false for not detailed
+    const context = prepareContextForAI(expenses, incomes, false); // false for not detailed
     let result;
 
     if (geminiApiKey) {
@@ -101,6 +101,8 @@ export async function generateDetailedAnalysis(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
   currentInsights: string[],
+  providedExpenses?: Expense[],
+  providedIncomes?: Income[],
   stream: boolean = false
 ): Promise<AIDetailedAnalysisResponse> {
   console.log('Generating detailed analysis with stream:', stream);
@@ -115,8 +117,9 @@ export async function generateDetailedAnalysis(
   }
 
   try {
-    const expenses = await getExpenses();
-    if (expenses.length < 3) {
+    const expenses = providedExpenses || await getExpenses();
+    const incomes = providedIncomes || await getIncomes();
+    if (expenses.length < 3 && incomes.length === 0) {
       console.log('Not enough data for detailed analysis');
       return {
         analysis: "Data pengeluaran tidak cukup untuk analisis mendalam.",
@@ -125,7 +128,7 @@ export async function generateDetailedAnalysis(
       };
     }
 
-    const baseContext = prepareContextForAI(expenses, true);
+    const baseContext = prepareContextForAI(expenses, incomes, true);
     const detailedContext = getDetailedAnalysisPrompt(currentInsights);
 
     // Use DeepSeek directly for detailed analysis with streaming
