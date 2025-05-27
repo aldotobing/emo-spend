@@ -10,7 +10,8 @@ export interface AIDetailedAnalysisResponse {
   error?: string;
 }
 
-// Union type for client functions which can return either list of insights or single text
+// Union type for client functions which can return either list of insights, single text, or a stream
 export type AIResponse =
-  | { insights: string[]; modelUsed: string; error?: string; text?: never }
-  | { text: string; modelUsed: string; error?: string; insights?: never };
+  | { insights: string[]; modelUsed: string; error?: string; text?: never; stream?: never }
+  | { text: string; modelUsed: string; error?: string; insights?: never; stream?: never }
+  | { stream: ReadableStream<Uint8Array>; modelUsed: string; insights?: never; text?: never; error?: never };

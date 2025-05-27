@@ -1,44 +1,49 @@
 // /lib/deepseek-client.ts
-import type { AIResponse } from "@/types/ai";
+import type { AIResponse} from "@/types/ai";
+
+const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+interface DeepSeekMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
 
 export async function callDeepSeekAPI(
   apiKey: string,
-  context: string,
-  isDetailedAnalysis: boolean = false
+  prompt: string,
+  isDetailedAnalysis: boolean = false,
+  stream: boolean = false
 ): Promise<AIResponse> {
   // Adjust prompt for detailed analysis if needed, though DeepSeek might be less nuanced with system prompts.
   // For simplicity, we'll use the same context but expect potentially less depth.
   // The main 'context' already has instructions.
 
-  let finalContext = context;
+  let finalContext = prompt;
   if (isDetailedAnalysis) {
     finalContext +=
       "\n\nProvide a deeper psychoanalytical explanation of the user's emotional spending habits. Focus on underlying motivations, potential triggers, and offer actionable advice. Format as a cohesive paragraph or a few paragraphs. Return only the analysis text.";
   }
 
   try {
-    const response = await fetch(
-      "https://api.deepseek.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "user",
-              content: finalContext,
-            },
-          ],
-          temperature: 1.3,
-          max_tokens: isDetailedAnalysis ? 2000 : 500,
-          n: 1,
-        }),
-      }
-    );
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "user",
+            content: finalContext,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: isDetailedAnalysis ? 2000 : 500,
+        stream: stream,
+      }),
+    });
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -48,6 +53,16 @@ export async function callDeepSeekAPI(
       );
     }
 
+    // Handle streaming response
+    if (stream && response.body) {
+      const result: AIResponse = {
+        stream: response.body as ReadableStream<Uint8Array>,
+        modelUsed: "DeepSeek",
+      };
+      return result;
+    }
+
+    // Handle non-streaming response
     const data = await response.json();
 
     if (
@@ -89,3 +104,5 @@ export async function callDeepSeekAPI(
     };
   }
 }
+
+   

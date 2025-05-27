@@ -22,7 +22,7 @@ export async function exportExpensesToCSV(): Promise<string> {
     return [
       formatDate(expense.date),
       expense.amount.toString(),
-      category.name,
+      category?.name || "",
       mood.label,
       expense.moodReason || "",
       expense.notes || "",
