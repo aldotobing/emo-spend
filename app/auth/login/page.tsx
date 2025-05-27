@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,18 +35,8 @@ export default function LoginPage() {
   const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [redirectTo, setRedirectTo] = useState("/");
-
-  // Get the redirect URL from the query parameters
-  useEffect(() => {
-    const nextUrl = searchParams.get("next");
-    if (nextUrl && nextUrl.startsWith("/")) {
-      setRedirectTo(nextUrl);
-    }
-  }, [searchParams]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -116,8 +106,8 @@ export default function LoginPage() {
       variant: "default",
     });
 
-    // Redirect to the original requested page or home
-    router.push(redirectTo);
+    // Navigasi ke home page
+    router.push("/");
   }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -141,15 +131,14 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     try {
-      // Start Google OAuth flow
       await signInWithGoogle();
-      
-      // Show sync toast
+
+      // Show the sync toast
       const baseText = "Syncing your latest data";
       const dots = ["", ".", "..", "..."];
       let dotIndex = 0;
       let isSyncing = true;
-      
+
       const toastObj = toast({
         title: "Welcome back! 🎉",
         description: `${baseText}...`,
@@ -167,13 +156,12 @@ export default function LoginPage() {
         dotIndex = (dotIndex + 1) % dots.length;
       }, 500);
 
-      // Wait for sync to complete
+      // Wait for the sync to complete
       await performPostLoginSync();
-      
-      // Update toast to show completion
+
+      // Update the toast to show completion
       isSyncing = false;
       clearInterval(interval);
-      
       toastObj.update({
         id: toastObj.id,
         title: "Welcome back! 🎉",
@@ -181,14 +169,14 @@ export default function LoginPage() {
         variant: "default",
       });
 
-      // Redirect to the original requested page or home
-      router.push(redirectTo);
+      // Use client-side navigation instead of full page reload
+      router.push("/");
+
     } catch (error) {
       console.error("Google sign-in error:", error);
       toast({
         title: "Google sign-in failed",
-        description:
-          "An error occurred during Google sign-in. Please try again.",
+        description: "An error occurred during Google sign-in. Please try again.",
         variant: "destructive",
       });
     } finally {
