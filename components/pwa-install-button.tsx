@@ -6,11 +6,33 @@ import { usePWA } from '@/context/pwa-context';
 import { useEffect, useState } from 'react';
 
 export function PWAInstallButton() {
-  const { showInstallButton, installPWA, isStandalone, deferredPrompt } = usePWA();
+  const { 
+    showInstallButton, 
+    installPWA, 
+    isStandalone, 
+    deferredPrompt, 
+    setDeferredPrompt 
+  } = usePWA();
+  
   const [isVisible, setIsVisible] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [showDebugInfo, setShowDebugInfo] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+  
+  // Check if the app is already installed or was previously installed
+  useEffect(() => {
+    const checkIfInstalled = () => {
+      if (typeof window === 'undefined') return false;
+      
+      const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                          (window.navigator as any).standalone === true;
+      const wasInstalled = localStorage.getItem('pwaInstalled') === 'true';
+      return isInStandalone || wasInstalled || isStandalone;
+    };
+    
+    setIsInstalled(checkIfInstalled());
+  }, [isStandalone]);
 
   // Check if the button was previously dismissed
   useEffect(() => {
@@ -51,22 +73,35 @@ export function PWAInstallButton() {
       
       if (deferredPrompt) {
         console.log('Using deferredPrompt to show installation dialog');
-        await installPWA();
-      } else {
-        console.warn('No deferredPrompt available, trying manual installation');
-        // Fallback: Try to trigger installation manually
-        if ('serviceWorker' in navigator && 'beforeinstallprompt' in window) {
-          console.log('Attempting to trigger installation via beforeinstallprompt event');
-          const event = new Event('beforeinstallprompt');
-          window.dispatchEvent(event);
-        } else {
-          console.warn('Browser does not support PWA installation');
-          // Show instructions for manual installation
-          alert('Your browser does not support PWA installation. Please use Chrome, Edge, or another modern browser.');
+        try {
+          // Use the installPWA function from context which handles the prompt
+          await installPWA();
+          
+          // Hide the install button after successful installation
+          setIsVisible(false);
+          
+          // Store that the user has installed the app
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('pwaInstalled', 'true');
+          }
+        } catch (error) {
+          console.error('Installation failed:', error);
+          // Don't hide the button if installation failed
         }
+      } else {
+        console.warn('No deferredPrompt available, checking if app is already installed');
+        // Check if the app is already installed
+        if (window.matchMedia('(display-mode: standalone)').matches || 
+            (window.navigator as any).standalone === true) {
+          console.log('App is already installed in standalone mode');
+          setIsVisible(false);
+          return;
+        }
+        
+        // If we get here, we can't install the app
+        console.warn('Cannot install app: no installation method available');
+        alert('Your browser does not support installing this app. Please use Chrome, Edge, or another modern browser.');
       }
-      
-      console.log('Installation completed');
     } catch (error) {
       console.error('Installation failed:', error);
       alert('Failed to install the app. Please try again or use a different browser.');
@@ -86,8 +121,17 @@ export function PWAInstallButton() {
     }
   };
 
-  // Don't show the button if the app is already installed, was dismissed, or not in a browser that supports PWA
-  if (!isVisible || isStandalone || dismissed) {
+  // Don't show the button if:
+  // 1. The app is already installed or was previously installed
+  // 2. The button was dismissed by the user
+  // 3. The button is not visible yet
+  if (isInstalled || dismissed || !isVisible) {
+    console.log('Not showing install button because:', {
+      isStandalone,
+      dismissed,
+      isVisible,
+      pwaSupported: 'serviceWorker' in navigator && 'beforeinstallprompt' in window
+    });
     return null;
   }
 

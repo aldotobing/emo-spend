@@ -6,7 +6,8 @@ type PWAPromptContextType = {
   isStandalone: boolean;
   showInstallButton: boolean;
   deferredPrompt: any;
-  installPWA: () => void;
+  installPWA: () => Promise<void>;
+  setDeferredPrompt: (prompt: any) => void;
 };
 
 const PWAContext = createContext<PWAPromptContextType | undefined>(undefined);
@@ -117,23 +118,38 @@ export function PWAProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const installPWA = async () => {
-    if (!deferredPrompt) return;
+  const installPWA = async (): Promise<void> => {
+    if (!deferredPrompt) {
+      console.warn('No deferred prompt available');
+      return;
+    }
     
-    // Show the install prompt
-    deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    // Optionally, send analytics event with outcome of user choice
-    console.log(`User response to the install prompt: ${outcome}`);
-    
-    // We've used the prompt, and can't use it again, throw it away
-    setDeferredPrompt(null);
-    
-    // Hide the install button
-    setShowInstallButton(false);
+    try {
+      // Show the install prompt
+      deferredPrompt.prompt();
+      
+      // Wait for the user to respond to the prompt
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      // Log the user's choice
+      console.log(`User response to the install prompt: ${outcome}`);
+      
+      // We've used the prompt, and can't use it again, throw it away
+      setDeferredPrompt(null);
+      
+      // Hide the install button
+      setShowInstallButton(false);
+      
+      return outcome;
+    } catch (error) {
+      console.error('Error during installation:', error);
+      throw error;
+    }
+  };
+  
+  // Function to update the deferred prompt
+  const updateDeferredPrompt = (prompt: any) => {
+    setDeferredPrompt(prompt);
   };
 
   return (
@@ -143,6 +159,7 @@ export function PWAProvider({ children }: { children: ReactNode }) {
         showInstallButton,
         deferredPrompt,
         installPWA,
+        setDeferredPrompt: updateDeferredPrompt,
       }}
     >
       {children}
