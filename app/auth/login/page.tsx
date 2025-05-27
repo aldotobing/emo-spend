@@ -132,51 +132,10 @@ export default function LoginPage() {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-
-      // Show the sync toast
-      const baseText = "Syncing your latest data";
-      const dots = ["", ".", "..", "..."];
-      let dotIndex = 0;
-      let isSyncing = true;
-
-      const toastObj = toast({
-        title: "Welcome back! 🎉",
-        description: `${baseText}...`,
-        variant: "default",
-      });
-
-      const interval = setInterval(() => {
-        if (!isSyncing) return;
-        toastObj.update({
-          id: toastObj.id,
-          title: "Welcome back! 🎉",
-          description: `${baseText}${dots[dotIndex]}`,
-          variant: "default",
-        });
-        dotIndex = (dotIndex + 1) % dots.length;
-      }, 500);
-
-      // Wait for the sync to complete
-      await performPostLoginSync();
-
-      // Update the toast to show completion
-      isSyncing = false;
-      clearInterval(interval);
-      toastObj.update({
-        id: toastObj.id,
-        title: "Welcome back! 🎉",
-        description: "Data kamu sudah tersinkronisasi! 🚀",
-        variant: "default",
-      });
-
-      // Use client-side navigation instead of full page reload
-      router.push("/");
-
-    } catch (error) {
-      console.error("Google sign-in error:", error);
+    } catch (error: any) {
       toast({
         title: "Google sign-in failed",
-        description: "An error occurred during Google sign-in. Please try again.",
+        description: error?.message || "Please try again.",
         variant: "destructive",
       });
     } finally {

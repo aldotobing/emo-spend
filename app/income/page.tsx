@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, TrendingUp, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -23,6 +23,8 @@ import { IncomeForm } from '@/components/income-form';
 import { Income } from '@/types/expense';
 import { getIncomesByDateRange, deleteIncome } from '@/lib/income';
 import { format } from 'date-fns';
+import { getSupabaseBrowserClient } from '@/lib/supabase';
+import { getDb } from '@/lib/db';
 
 export default function IncomePage() {
   const router = useRouter();
@@ -33,8 +35,82 @@ export default function IncomePage() {
     start: format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd'),
     end: format(new Date(), 'yyyy-MM-dd')
   });
+  const supabase = getSupabaseBrowserClient();
+  const db = getDb();
+
+  const fetchIncomes = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const { data: supabaseIncomes, error } = await supabase
+        .from('incomes')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+      
+      // Map Supabase data to consistent format
+      const mappedIncomes = (supabaseIncomes || []).map(income => ({
+        ...income,
+        // Handle both createdAt/created_at formats
+        createdAt: income.created_at || income.createdAt,
+        updatedAt: income.updated_at || income.updatedAt,
+        // Ensure required fields
+        synced: true
+      }));
+      
+      // Get local unsynced incomes
+      const localIncomes = await db.incomes
+        .filter(income => !income.synced)
+        .toArray();
+      
+      // Combine and deduplicate
+      const allIncomes = [...mappedIncomes, ...localIncomes];
+      const uniqueIncomes = Array.from(new Map(allIncomes.map(item => [item.id, item])).values());
+      
+      setIncomes(uniqueIncomes);
+    } catch (error) {
+      console.error('Error fetching incomes:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [supabase]);
 
   useEffect(() => {
+    fetchIncomes();
+    
+    // Refresh data every 30 seconds
+    const interval = setInterval(fetchIncomes, 30000);
+    return () => clearInterval(interval);
+  }, [fetchIncomes]);
+
+  useEffect(() => {
+    const handleDelete = async (id: string) => {
+      try {
+        const success = await deleteIncome(id);
+        if (success) {
+          // Optimistic UI update
+          setIncomes(currentIncomes => currentIncomes.filter(income => income.id !== id));
+          toast({
+            title: 'Income deleted',
+            description: 'The income has been removed.',
+            variant: 'default',
+          });
+        } else {
+          throw new Error('Failed to delete income');
+        }
+      } catch (error) {
+        console.error('Error deleting income:', error);
+        // Refresh data to ensure consistency
+        fetchIncomes();
+        toast({
+          title: 'Error',
+          description: 'Failed to delete income. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    };
+
     const loadIncomes = async () => {
       try {
         setIsLoading(true);
@@ -288,7 +364,7 @@ export default function IncomePage() {
                               }).format(income.amount)}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1 transition-colors duration-200">
-                              Added: {new Date(income.createdAt).toLocaleDateString()}
+                              Added: {new Date(income.created_at).toLocaleDateString()}
                             </div>
                           </div>
                           <button

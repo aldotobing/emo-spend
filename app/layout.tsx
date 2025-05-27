@@ -13,6 +13,10 @@ import { ConditionalBottomNavigation } from "@/components/conditional-bottom-nav
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SyncManager } from "@/components/sync-manager";
+import { PWAProvider } from "@/context/pwa-context";
+import { PWAInstallButton } from "@/components/pwa-install-button";
+import { PWAUpdateNotification } from "@/components/pwa-update-notification";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -134,7 +138,7 @@ export const metadata: Metadata = {
       },
     ],
   },
-  manifest: "/api/site.webmanifest",
+  manifest: "/manifest.json",
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
@@ -152,7 +156,7 @@ export default function RootLayout({
 }) {
   // SyncManager component handles all client-side sync logic
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta
@@ -160,9 +164,16 @@ export default function RootLayout({
           content="width=device-width, initial-scale=1, viewport-fit=cover"
         />
         <meta name="theme-color" content="#6366f1" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="EmoSpend" />
+        <link rel="apple-touch-icon" href="/icons/favicon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="application-name" content="EmoSpend" />
         <meta name="msapplication-TileColor" content="#6366f1" />
+        <meta name="msapplication-tap-highlight" content="no" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
-
         {/* Icons and PWA */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.jpg" />
@@ -279,35 +290,41 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <SyncManager />
-        <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SyncStatusProvider>
-              <SyncProvider>
-                <AuthGuard>
-                  <div className="flex min-h-screen flex-col">
-                    <Navbar />
-                    <main
-                      className="flex-1 container mx-auto px-4 py-6"
-                      role="main"
-                    >
-                      {children}
-                      <Analytics />
-                      <SpeedInsights />
-                    </main>
-                    <ConditionalBottomNavigation />
-                  </div>
-                  <Toaster />
-                </AuthGuard>
-              </SyncProvider>
-            </SyncStatusProvider>
-          </ThemeProvider>
-        </AuthProvider>
+        <ErrorBoundary>
+          <SyncManager />
+          <PWAProvider>
+            <AuthProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="system"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <SyncStatusProvider>
+                  <SyncProvider>
+                    <AuthGuard>
+                      <div className="flex min-h-screen flex-col">
+                        <Navbar />
+                        <main
+                          className="flex-1 container mx-auto px-4 py-6"
+                          role="main"
+                        >
+                          {children}
+                          <Analytics />
+                          <SpeedInsights />
+                        </main>
+                        <ConditionalBottomNavigation />
+                      </div>
+                      <Toaster />
+                      <PWAInstallButton />
+                      <PWAUpdateNotification />
+                    </AuthGuard>
+                  </SyncProvider>
+                </SyncStatusProvider>
+              </ThemeProvider>
+            </AuthProvider>
+          </PWAProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

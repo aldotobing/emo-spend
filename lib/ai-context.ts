@@ -1,9 +1,10 @@
-import type { Expense } from "@/types/expense";
+import type { Expense, Income } from "@/types/expense";
 import { getCategory } from "@/data/categories";
 import { getMood } from "@/data/moods";
 
 export function prepareContextForAI(
   expenses: Expense[],
+  incomes: Income[],
   isForDetailedAnalysis: boolean
 ): string {
   const expensesByMood = groupExpensesByMood(expenses);
@@ -11,10 +12,44 @@ export function prepareContextForAI(
   const expensesByCategory = groupExpensesByCategory(expenses);
 
   let context =
-    "# Analisis Data Pengeluaran Pengguna untuk Wawasan Emosional\n\n" +
-    "**Konteks Utama:** Data pengeluaran pengguna ini dalam **Rupiah Indonesia (Rp)** dan seluruh interaksi serta respons diharapkan dalam **Bahasa Indonesia**.\n" +
-    "**Peran AI:** Anda adalah seorang penasihat keuangan yang juga memiliki keahlian sebagai psikoanalis, berfokus pada identifikasi pola belanja emosional. Penting untuk memahami bahwa emosi pengguna bisa positif maupun negatif, dan keduanya dapat mempengaruhi pola pengeluaran dengan cara yang berbeda-beda.\n\n";
+    "# Financial & Emotional Spending Analysis\n\n" +
+    "**Context:** All values in Indonesian Rupiah (Rp)\n" +
+    "**AI Role:** Financial advisor with psychoanalytic expertise\n\n";
 
+  // Enhanced Income Analysis Section
+  if (incomes.length > 0) {
+    const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
+    const avgIncome = totalIncome / incomes.length;
+    const incomeSources = [...new Set(incomes.map(i => i.source))];
+    const incomeBySource = incomes.reduce((acc, income) => {
+      acc[income.source] = (acc[income.source] || 0) + income.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+    context += "## Income Analysis\n" +
+      `- Total Income: Rp${totalIncome.toLocaleString("id-ID")}\n` +
+      `- Average Income: Rp${avgIncome.toLocaleString("id-ID")}\n` +
+      `- Income Sources: ${incomeSources.join(", ")}\n\n` +
+      "### Income by Source:\n";
+
+    Object.entries(incomeBySource).forEach(([source, amount]) => {
+      context += `- ${source}: Rp${amount.toLocaleString("id-ID")} ` +
+        `(${((amount / totalIncome) * 100).toFixed(1)}% of total)\n`;
+    });
+
+    // Financial Health Metrics
+    const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const netBalance = totalIncome - totalExpenses;
+    const savingsRatio = totalIncome > 0 ? 
+      (netBalance / totalIncome * 100).toFixed(1) : "0.0";
+
+    context += "\n## Financial Health Overview\n" +
+      `- Total Expenses: Rp${totalExpenses.toLocaleString("id-ID")}\n` +
+      `- Net Balance: Rp${netBalance.toLocaleString("id-ID")}\n` +
+      `- Savings Rate: ${savingsRatio}%\n`;
+  }
+
+  // Existing expense analysis
   context += generateMoodSummary(expensesByMood);
   context += generateDaySummary(expensesByDay);
   context += generateCategorySummary(expensesByCategory);
@@ -23,9 +58,7 @@ export function prepareContextForAI(
   if (!isForDetailedAnalysis) {
     context += getInitialInsightsPrompt();
   } else {
-    context +=
-      "\n## Catatan untuk AI: Persiapan Analisis Mendalam\n" +
-      "Data di atas akan digunakan sebagai dasar untuk analisis psikoanalisis yang lebih mendalam. Anda akan menerima instruksi lebih lanjut yang sangat spesifik mengenai format dan konten analisis mendalam tersebut, termasuk permintaan untuk output dalam format Markdown yang terstruktur.";
+    context += "\n## Ready for Detailed Analysis\n";
   }
 
   return context;

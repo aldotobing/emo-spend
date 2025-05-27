@@ -14,12 +14,12 @@ import { YearOverYearChart } from "@/components/year-over-year-chart";
 import { SpendingTrendChart } from "@/components/spending-trend-chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { calculateFinancialHealth } from "@/lib/financial-health";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
 
 // Default date range: current month
 const today = new Date();
@@ -29,6 +29,17 @@ const defaultEndDate = endOfMonth(today);
 type DateRange = {
   from: Date | undefined;
   to: Date | undefined;
+};
+
+type FinancialHealthScore = {
+  score: number;
+  status: string;
+  metrics: {
+    savingsRate: number;
+    expenseToIncomeRatio: number;
+    emergencyFundMonths: number;
+    discretionarySpending: number;
+  };
 };
 
 export default function ReportsPage() {
@@ -43,6 +54,8 @@ export default function ReportsPage() {
   const [yearlyExpenses, setYearlyExpenses] = useState<Array<{ date: string; amount: number }>>([]);
   const [isLoadingYearlyData, setIsLoadingYearlyData] = useState(true);
   const [trendData, setTrendData] = useState<Array<{ month: string; amount: number }>>([]);
+  const [financialHealth, setFinancialHealth] = useState<FinancialHealthScore | null>(null);
+  const [isHealthLoading, setIsHealthLoading] = useState(false);
 
   // Load the oldest expense date on component mount
   useEffect(() => {
@@ -66,6 +79,7 @@ export default function ReportsPage() {
     loadOldestExpenseDate();
     loadYearlyExpenses();
     loadTrendData();
+    loadFinancialHealth();
   }, []);
 
   // Load expenses for the current and previous year for the Year-over-Year chart
@@ -135,6 +149,23 @@ export default function ReportsPage() {
         description: "Failed to load trend data",
         variant: "destructive",
       });
+    }
+  };
+
+  const loadFinancialHealth = async () => {
+    try {
+      setIsHealthLoading(true);
+      const health = await calculateFinancialHealth('current-user', 3); // Replace with actual user ID
+      setFinancialHealth(health);
+    } catch (error) {
+      console.error('Error calculating financial health:', error);
+      toast({
+        title: "Error",
+        description: "Failed to calculate financial health score",
+        variant: "destructive",
+      });
+    } finally {
+      setIsHealthLoading(false);
     }
   };
 
@@ -392,6 +423,53 @@ export default function ReportsPage() {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
+            {/* Financial Health Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Financial Health Score</CardTitle>
+                <CardDescription>
+                  Your overall financial health based on spending patterns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isHealthLoading ? (
+                  <Skeleton className="h-[120px] w-full" />
+                ) : financialHealth ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-4xl font-bold">{financialHealth.score}/100</span>
+                        <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${getStatusColor(financialHealth.status)}`}>
+                          {financialHealth.status}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Savings Rate</p>
+                        <p className="font-medium">{financialHealth.metrics.savingsRate}%</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Expense Ratio</p>
+                        <p className="font-medium">{financialHealth.metrics.expenseToIncomeRatio}x</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Emergency Fund</p>
+                        <p className="font-medium">{financialHealth.metrics.emergencyFundMonths} months</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Discretionary</p>
+                        <p className="font-medium">{financialHealth.metrics.discretionarySpending}%</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Unable to calculate financial health</p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Year-over-Year Card */}
             <Card>
               <CardHeader>
@@ -440,4 +518,16 @@ export default function ReportsPage() {
       </div>
     </div>
   );
+}
+
+// Helper function for status colors
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'Excellent': return 'bg-green-100 text-green-800';
+    case 'Good': return 'bg-blue-100 text-blue-800';
+    case 'Fair': return 'bg-yellow-100 text-yellow-800';
+    case 'Needs Improvement': return 'bg-orange-100 text-orange-800';
+    case 'Poor': return 'bg-red-100 text-red-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
 }

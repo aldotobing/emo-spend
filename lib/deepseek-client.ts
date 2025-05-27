@@ -14,10 +14,8 @@ export async function callDeepSeekAPI(
   isDetailedAnalysis: boolean = false,
   stream: boolean = false
 ): Promise<AIResponse> {
-  // Adjust prompt for detailed analysis if needed, though DeepSeek might be less nuanced with system prompts.
-  // For simplicity, we'll use the same context but expect potentially less depth.
-  // The main 'context' already has instructions.
-
+  console.log('Calling DeepSeek API with stream:', stream);
+  // Adjust prompt for detailed analysis if needed
   let finalContext = prompt;
   if (isDetailedAnalysis) {
     finalContext +=
@@ -25,6 +23,7 @@ export async function callDeepSeekAPI(
   }
 
   try {
+    console.log('Making API request to DeepSeek');
     const response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
       headers: {
@@ -45,6 +44,7 @@ export async function callDeepSeekAPI(
       }),
     });
 
+    console.log('DeepSeek response status:', response.status);
     if (!response.ok) {
       const errorBody = await response.text();
       console.error("DeepSeek API Error:", response.status, errorBody);
@@ -55,15 +55,16 @@ export async function callDeepSeekAPI(
 
     // Handle streaming response
     if (stream && response.body) {
-      const result: AIResponse = {
+      console.log('Returning streaming response');
+      return {
         stream: response.body as ReadableStream<Uint8Array>,
         modelUsed: "DeepSeek",
       };
-      return result;
     }
 
-    // Handle non-streaming response
+    console.log('Processing non-streaming response');
     const data = await response.json();
+    console.log('DeepSeek response data:', data);
 
     if (
       !data.choices ||
@@ -76,6 +77,7 @@ export async function callDeepSeekAPI(
     }
 
     const rawText = data.choices[0].message.content;
+    console.log('Received text from DeepSeek:', rawText);
     if (isDetailedAnalysis) {
       return { text: rawText, modelUsed: "DeepSeek" };
     }
@@ -104,5 +106,3 @@ export async function callDeepSeekAPI(
     };
   }
 }
-
-   

@@ -5,9 +5,10 @@ export interface AIInsightResponse {
 }
 
 export interface AIDetailedAnalysisResponse {
-  analysis: string;
+  analysis?: string;
   modelUsed: string;
   error?: string;
+  stream?: ReadableStream<Uint8Array>;
 }
 
 // Union type for client functions which can return either list of insights, single text, or a stream

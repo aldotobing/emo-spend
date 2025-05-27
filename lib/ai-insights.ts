@@ -1,5 +1,5 @@
-import { getExpenses } from "@/lib/db";
-import type { Expense } from "@/types/expense";
+import { getExpenses, getIncomes } from "@/lib/db";
+import type { Expense, Income } from "@/types/expense";
 import type { AIInsightResponse, AIDetailedAnalysisResponse } from "@/types/ai";
 import { callGeminiAPI } from "./gemini-client";
 import { callDeepSeekAPI } from "./deepseek-client";
@@ -33,7 +33,8 @@ const notEnoughDataError = {
 export async function generateAIInsights(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
-  providedExpenses?: Expense[] // Add optional parameter for expenses
+  providedExpenses?: Expense[],
+  providedIncomes?: Income[]
 ): Promise<AIInsightResponse> {
   if (!geminiApiKey && !deepSeekApiKey) {
     console.error("Neither Gemini nor DeepSeek API key is configured.");
@@ -41,15 +42,14 @@ export async function generateAIInsights(
   }
 
   try {
-    // Use provided expenses if available, otherwise fetch all expenses
     const expenses = providedExpenses || await getExpenses();
-    console.log(`Generating insights with ${expenses.length} expenses`);
+    const incomes = providedIncomes || await getIncomes();
 
-    if (expenses.length < 3) {
+    if (expenses.length < 3 && incomes.length === 0) {
       return notEnoughDataError;
     }
 
-    const context = prepareContextForAI(expenses, false); // false for not detailed
+    const context = prepareContextForAI(expenses, incomes, false); // false for not detailed
     let result;
 
     if (geminiApiKey) {
@@ -100,12 +100,14 @@ export async function generateAIInsights(
 export async function generateDetailedAnalysis(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
-  currentInsights: string[]
+  currentInsights: string[],
+  providedExpenses?: Expense[],
+  providedIncomes?: Income[],
+  stream: boolean = false
 ): Promise<AIDetailedAnalysisResponse> {
+  console.log('Generating detailed analysis with stream:', stream);
   if (!geminiApiKey && !deepSeekApiKey) {
-    console.error(
-      "Neither Gemini nor DeepSeek API key is configured for detailed analysis."
-    );
+    console.error('No API keys configured for detailed analysis');
     return {
       analysis:
         "Kunci API untuk layanan AI tidak dikonfigurasi. Analisis mendalam tidak dapat dibuat.",
@@ -115,8 +117,10 @@ export async function generateDetailedAnalysis(
   }
 
   try {
-    const expenses = await getExpenses();
-    if (expenses.length < 3) {
+    const expenses = providedExpenses || await getExpenses();
+    const incomes = providedIncomes || await getIncomes();
+    if (expenses.length < 3 && incomes.length === 0) {
+      console.log('Not enough data for detailed analysis');
       return {
         analysis: "Data pengeluaran tidak cukup untuk analisis mendalam.",
         modelUsed: "None",
@@ -124,18 +128,20 @@ export async function generateDetailedAnalysis(
       };
     }
 
-    const baseContext = prepareContextForAI(expenses, true);
-
+    const baseContext = prepareContextForAI(expenses, incomes, true);
     const detailedContext = getDetailedAnalysisPrompt(currentInsights);
 
-    let result;
-
-    // Use DeepSeek directly for detailed analysis
+    // Use DeepSeek directly for detailed analysis with streaming
     if (deepSeekApiKey) {
-      console.log("Using DeepSeek API for detailed analysis...");
-      result = await callDeepSeekAPI(deepSeekApiKey, detailedContext, true); // true for detailed
+      console.log('Using DeepSeek API for detailed analysis');
+      const result = await callDeepSeekAPI(deepSeekApiKey, detailedContext, true, stream);
+      console.log('DeepSeek API result:', result);
+      if (stream && result.stream) {
+        console.log('Returning DeepSeek stream');
+        return { stream: result.stream, modelUsed: "DeepSeek" };
+      }
       if (!result.error && result.text) {
-        console.log("Successfully generated detailed analysis with DeepSeek.");
+        console.log('Returning DeepSeek text response');
         return { analysis: result.text, modelUsed: result.modelUsed };
       }
       console.warn(
@@ -146,10 +152,10 @@ export async function generateDetailedAnalysis(
     
     // Fall back to Gemini only if DeepSeek is not available or fails
     if (geminiApiKey) {
-      console.log("Falling back to Gemini API for detailed analysis...");
-      result = await callGeminiAPI(geminiApiKey, detailedContext, true); // true for detailed
+      console.log('Falling back to Gemini API for detailed analysis');
+      const result = await callGeminiAPI(geminiApiKey, detailedContext, true);
       if (!result.error && result.text) {
-        console.log("Successfully generated detailed analysis with Gemini.");
+        console.log('Returning Gemini text response');
         return { analysis: result.text, modelUsed: result.modelUsed };
       }
       console.warn(
@@ -175,5 +181,3 @@ export async function generateDetailedAnalysis(
     };
   }
 }
-
-

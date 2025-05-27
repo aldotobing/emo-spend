@@ -51,6 +51,11 @@ export default function InsightsPage() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [responseStream, setResponseStream] = useState<ReadableStream<Uint8Array> | null>(null);
+  const [streamKey, setStreamKey] = useState(0);
+
   const getLoadingMessage = (seconds: number) => {
     if (seconds < 5) return "Menganalisis data transaksi Anda...";
     if (seconds < 15) return "Mengidentifikasi pola pengeluaran...";
@@ -161,47 +166,53 @@ export default function InsightsPage() {
   };
 
   const handleGenerateDetailedAnalysis = async () => {
-    if (
-      noApiKeysConfigured ||
-      aiInsightResult.insights.length === 0 ||
-      aiInsightResult.error
-    ) {
-      setDetailedAnalysisResult({
-        analysis:
-          "Analisis mendalam tidak dapat dibuat. Pastikan wawasan awal berhasil dibuat dan API Key telah dikonfigurasi.",
-        modelUsed: "None",
-        error: "Prerequisites not met",
-      });
-      return;
-    }
+    console.log('Starting detailed analysis');
+    
+    // Reset all states
     setIsGeneratingDetailed(true);
+    setIsStreaming(true);
+    setStreamingContent('');
+    setDetailedAnalysisResult(null);
     setAnalysisStartTime(Date.now());
     setElapsedTime(0);
+    
+    // Clean up any existing stream
+    setResponseStream(null);
+    setStreamKey(prev => prev + 1); // Force remount of card component
+    
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
+
     try {
       const analysisResult = await generateDetailedAnalysis(
         geminiApiKey,
         deepSeekApiKey,
-        aiInsightResult.insights
+        aiInsightResult.insights,
+        undefined, // expenses
+        undefined, // incomes
+        true // Enable streaming
       );
+
+      if (analysisResult.stream) {
+        console.log('Setting response stream');
+        setResponseStream(analysisResult.stream); // Directly set the stream
+        return;
+      }
+      
       setDetailedAnalysisResult(analysisResult);
     } catch (error) {
-      console.error("Failed to generate detailed analysis:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Failed to generate detailed analysis:', error);
       setDetailedAnalysisResult({
         analysis: "Gagal menghasilkan analisis mendalam. Silakan coba lagi nanti.",
         modelUsed: "None (Error)",
-        error: errorMessage,
+        error: error instanceof Error ? error.message : String(error),
       });
     } finally {
       setIsGeneratingDetailed(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      setIsStreaming(false);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
   };
 
@@ -256,7 +267,7 @@ export default function InsightsPage() {
           <DetailedAnalysisCard
             aiInsightResult={aiInsightResult}
             detailedAnalysisResult={detailedAnalysisResult}
-            isGeneratingDetailed={isGeneratingDetailed}
+            isGeneratingDetailed={isGeneratingDetailed || isStreaming}
             isLoading={isLoading}
             isGeneratingInsights={isGeneratingInsights}
             noApiKeysConfigured={noApiKeysConfigured}
@@ -264,6 +275,8 @@ export default function InsightsPage() {
             getLoadingMessage={getLoadingMessage}
             getLoadingSubMessage={getLoadingSubMessage}
             elapsedTime={elapsedTime}
+            stream={responseStream} 
+            key={`stream-${streamKey}`} 
           />
         </TabsContent>
 
