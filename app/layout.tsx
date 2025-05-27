@@ -134,12 +134,14 @@ export const metadata: Metadata = {
       },
     ],
   },
+  manifest: "/api/site.webmanifest",
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
     "apple-mobile-web-app-title": "EmoSpend",
     "application-name": "EmoSpend",
+    "msapplication-config": "/browserconfig.xml"
   },
 };
 
