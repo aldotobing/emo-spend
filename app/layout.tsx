@@ -138,7 +138,7 @@ export const metadata: Metadata = {
       },
     ],
   },
-  manifest: "/api/site.webmanifest",
+  manifest: "/manifest.json",
   other: {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
