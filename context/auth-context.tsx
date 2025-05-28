@@ -68,15 +68,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const performPostLoginSync = useCallback(async () => {
     try {
+      console.log('[Sync] Starting post-login sync');
+      
       // Sync expenses first
-      await pullExpensesFromSupabase();
-      await syncExpenses();
+      console.log('[Sync] Pulling expenses...');
+      const expensePull = await pullExpensesFromSupabase();
+      console.log(`[Sync] Pulled ${expensePull.synced} expenses, skipped ${expensePull.skipped}`);
+      
+      console.log('[Sync] Syncing expenses...');
+      const expenseSync = await syncExpenses();
+      console.log(`[Sync] Synced ${expenseSync.syncedLocal + expenseSync.syncedRemote} expenses`);
       
       // Then sync incomes
-      await pullIncomesFromSupabase();
-      await syncIncomes();
+      console.log('[Sync] Pulling incomes...');
+      const incomePull = await pullIncomesFromSupabase();
+      console.log(`[Sync] Pulled ${incomePull.synced} incomes, skipped ${incomePull.skipped}`);
+      
+      console.log('[Sync] Syncing incomes...');
+      const incomeSync = await syncIncomes();
+      console.log(`[Sync] Synced ${incomeSync.synced} incomes, errors: ${incomeSync.errors}`);
+      
+      console.log('[Sync] Post-login sync completed successfully');
+      
+      return {
+        success: true,
+        expensePull,
+        expenseSync,
+        incomePull,
+        incomeSync
+      };
     } catch (error) {
       console.error("[Login] Error during post-login sync:", error);
+      throw error; // Re-throw to allow handling in the calling function
     }
   }, []);
 
@@ -159,18 +182,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
       
-      // Wait for the auth state to change
-      return new Promise<void>((resolve, reject) => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_IN') {
+      // Wait for the auth state to change and handle the sign-in
+      await new Promise<void>((resolve, reject) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+          try {
+            if (event === 'SIGNED_IN') {
+              console.log('Google sign-in successful, starting sync...');
+              try {
+                // Perform the sync after successful Google sign-in
+                await performPostLoginSync();
+                subscription.unsubscribe();
+                resolve();
+              } catch (syncError) {
+                console.error('Sync error after Google sign-in:', syncError);
+                // Don't reject the promise, just log the error
+                subscription.unsubscribe();
+                resolve(); // Still resolve to complete the sign-in
+              }
+            } else if (event === 'SIGNED_OUT') {
+              subscription.unsubscribe();
+              reject(new Error('Sign in was cancelled'));
+            }
+          } catch (err) {
+            console.error('Error in auth state change handler:', err);
             subscription.unsubscribe();
-            resolve();
-          } else if (event === 'SIGNED_OUT') {
-            subscription.unsubscribe();
-            reject(new Error('Sign in was cancelled'));
+            reject(err);
           }
         });
       });
+      
+      console.log('Google sign-in and sync completed successfully');
     } catch (error: any) {
       console.error("Google sign-in error:", error.message);
       toast({
