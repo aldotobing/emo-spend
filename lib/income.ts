@@ -449,14 +449,16 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
   }
 
   try {
-    // Get all unsynced incomes
+    // First, pull any remote changes
+    const pullResult = await pullIncomesFromSupabase();
+    
+    // Then push local changes
     const unsyncedIncomes = await db.incomes
       .filter(income => !income.synced)
       .toArray();
 
-    
-    let syncedCount = 0;
-    let errorCount = 0;
+    let syncedCount = pullResult.synced; // Start with count from pull
+    let errorCount = pullResult.skipped;
 
     // Sync each unsynced income
     for (const income of unsyncedIncomes) {
@@ -467,11 +469,10 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
           continue;
         }
 
-        
         // Prepare the data for Supabase - map to snake_case for the database
         const incomeData = {
           id: income.id,
-          user_id: income.user_id || (income as any).userId || user.id, // Handle both user_id and userId
+          user_id: income.user_id || (income as any).userId || user.id,
           amount: income.amount,
           source: income.source,
           description: income.description || null,
@@ -480,7 +481,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
           updated_at: new Date().toISOString()
         };
         
-
         // Try to update existing record first, insert if not exists
         const { error } = await supabase
           .from('incomes')
