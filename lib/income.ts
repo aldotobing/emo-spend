@@ -398,6 +398,37 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     
     console.log('[Pull] Fetching remote incomes from Supabase...');
     
+    // Debug: Check Supabase client and auth state
+    console.log('[Pull] Supabase client:', supabase ? 'Initialized' : 'Not initialized');
+    const session = await supabase.auth.getSession();
+    console.log('[Pull] Supabase session:', session.data?.session ? 'Exists' : 'No session');
+    
+    if (!session.data?.session) {
+      console.error('[Pull] No active Supabase session');
+      console.groupEnd();
+      return { synced: 0, skipped: 0 };
+    }
+    
+    // Debug: Test a direct query to Supabase
+    console.log('[Pull] Testing Supabase connection with a simple query...');
+    const testQuery = await supabase
+      .from('incomes')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+    
+    console.log('[Pull] Supabase test query result:', {
+      count: testQuery.count,
+      error: testQuery.error,
+      status: testQuery.status,
+      statusText: testQuery.statusText
+    });
+    
+    if (testQuery.error) {
+      console.error('[Pull] Error testing Supabase connection:', testQuery.error);
+      console.groupEnd();
+      return { synced: 0, skipped: 0 };
+    }
+    
     // Fetch remote incomes with error handling and timeout
     const { data: supabaseData, error: supabaseError } = await supabase
       .from('incomes')
