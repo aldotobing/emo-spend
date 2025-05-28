@@ -500,188 +500,193 @@ export async function clearAllLocalAndRemoteData(): Promise<void> {
 }
 
 export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemote: number; skipped: number }> {
-  // Check if we're in a browser environment
-  const isClient = typeof window !== 'undefined' && typeof navigator !== 'undefined';
-  
-  const db = getDb();
-  const supabase = getSupabaseBrowserClient();
-  const user = await getCurrentUser();
-  const startTime = Date.now();
-  
-  // Initialize counters
-  let syncedLocal = 0;
-  let syncedRemote = 0;
-  let skipped = 0;
-
-  // Check preconditions
-  if (!user) {
-    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
-  }
-
-  // Only check online status in browser environment
-  if (isClient && !navigator.onLine) {
-    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
-  }
-
-  // First, pull any remote changes
-  const pullResult = await pullExpensesFromSupabase();
-  syncedRemote = pullResult.synced;
-  skipped += pullResult.skipped;
-
-  // Find all local changes that need to be synced
-  let unsyncedStatusEntries: SyncStatusEntry[] = [];
+  const release = await syncMutex.acquire();
   try {
-    const allStatusEntries = await db.syncStatus.toArray();
-    unsyncedStatusEntries = allStatusEntries.filter((entry) => {
-      if (typeof entry.id !== "string" || entry.id.trim() === "") return false;
-      return entry.synced === false;
-    });
-  } catch (error: any) {
-    const errorMsg = `Error finding unsynced changes: ${error.message}`;
-    console.error('[Sync]', errorMsg);
-    window.dispatchEvent(new CustomEvent("sync:error", { 
-      detail: { 
-        operation: 'sync',
-        error: errorMsg
-      } 
-    }));
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
-
-  // If no local changes, we're done
-  if (unsyncedStatusEntries.length === 0) {
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
-
-  // Get the actual expense data for unsynced items
-  const validExpenseIds = unsyncedStatusEntries.map(s => s.id).filter(Boolean) as string[];
-  let localExpensesToSync: SyncedExpense[] = [];
-  
-  try {
-    const potentialExpenses = await db.expenses.bulkGet(validExpenseIds);
+    // Check if we're in a browser environment
+    const isClient = typeof window !== 'undefined' && typeof navigator !== 'undefined';
     
-    // Process each potential expense
-    for (let i = 0; i < potentialExpenses.length; i++) {
-      const expense = potentialExpenses[i];
-      const statusEntry = unsyncedStatusEntries[i];
-      
-      if (!expense) {
-        // Clean up orphaned sync status
-        if (statusEntry) {
-          await db.syncStatus.delete(statusEntry.id);
-        }
-        continue;
-      }
-      
-      // Skip if already synced (could have been synced by another tab/device)
-      if (expense.synced) {
-        await db.syncStatus.update(expense.id, {
-          synced: true,
-          lastAttempt: new Date().toISOString(),
-        });
-        continue;
-      }
-      
-      // Add to sync queue
-      if (expense.id && typeof expense.id === 'string') {
-        localExpensesToSync.push(expense);
-      }
+    const db = getDb();
+    const supabase = getSupabaseBrowserClient();
+    const user = await getCurrentUser();
+    const startTime = Date.now();
+    
+    // Initialize counters
+    let syncedLocal = 0;
+    let syncedRemote = 0;
+    let skipped = 0;
+
+    // Check preconditions
+    if (!user) {
+      return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
     }
-  } catch (error: any) {
-    const errorMsg = `Error preparing local changes: ${error.message}`;
-    console.error('[Sync]', errorMsg);
-    window.dispatchEvent(new CustomEvent("sync:error", { 
-      detail: { 
-        operation: 'sync',
-        error: errorMsg
-      } 
-    }));
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
 
-  if (localExpensesToSync.length === 0) {
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
+    // Only check online status in browser environment
+    if (isClient && !navigator.onLine) {
+      return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
+    }
 
-  // Prepare the payload for Supabase
-  const syncTimestamp = new Date().toISOString();
-  const supabasePayload = localExpensesToSync.map((exp) => {
-    const { synced, category, mood, moodReason, createdAt, updatedAt, ...rest } = exp;
-    return {
-      ...rest,
-      category_id: category,
-      mood_id: mood,
-      mood_reason: moodReason,
-      created_at: createdAt,
-      updated_at: updatedAt || syncTimestamp,
-      user_id: user.id,
-    };
-  });
+    // First, pull any remote changes
+    const pullResult = await pullExpensesFromSupabase();
+    syncedRemote = pullResult.synced;
+    skipped += pullResult.skipped;
 
-  try {
-    const { error: supabaseError } = await supabase
-      .from("expenses")
-      .upsert(supabasePayload, { onConflict: "id" });
-
-    if (supabaseError) {
-      const errorMsg = `Error syncing to Supabase: ${supabaseError.message}`;
+    // Find all local changes that need to be synced
+    let unsyncedStatusEntries: SyncStatusEntry[] = [];
+    try {
+      const allStatusEntries = await db.syncStatus.toArray();
+      unsyncedStatusEntries = allStatusEntries.filter((entry) => {
+        if (typeof entry.id !== "string" || entry.id.trim() === "") return false;
+        return entry.synced === false;
+      });
+    } catch (error: any) {
+      const errorMsg = `Error finding unsynced changes: ${error.message}`;
       console.error('[Sync]', errorMsg);
+      window.dispatchEvent(new CustomEvent("sync:error", { 
+        detail: { 
+          operation: 'sync',
+          error: errorMsg
+        } 
+      }));
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
+
+    // If no local changes, we're done
+    if (unsyncedStatusEntries.length === 0) {
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
+
+    // Get the actual expense data for unsynced items
+    const validExpenseIds = unsyncedStatusEntries.map(s => s.id).filter(Boolean) as string[];
+    let localExpensesToSync: SyncedExpense[] = [];
+    
+    try {
+      const potentialExpenses = await db.expenses.bulkGet(validExpenseIds);
       
-      // Update last attempt time for failed syncs
-      await db.transaction("rw", db.syncStatus, async () => {
-        for (const expense of localExpensesToSync) {
+      // Process each potential expense
+      for (let i = 0; i < potentialExpenses.length; i++) {
+        const expense = potentialExpenses[i];
+        const statusEntry = unsyncedStatusEntries[i];
+        
+        if (!expense) {
+          // Clean up orphaned sync status
+          if (statusEntry) {
+            await db.syncStatus.delete(statusEntry.id);
+          }
+          continue;
+        }
+        
+        // Skip if already synced (could have been synced by another tab/device)
+        if (expense.synced) {
           await db.syncStatus.update(expense.id, {
-            lastAttempt: syncTimestamp,
+            synced: true,
+            lastAttempt: new Date().toISOString(),
           });
+          continue;
+        }
+        
+        // Add to sync queue
+        if (expense.id && typeof expense.id === 'string') {
+          localExpensesToSync.push(expense);
+        }
+      }
+    } catch (error: any) {
+      const errorMsg = `Error preparing local changes: ${error.message}`;
+      console.error('[Sync]', errorMsg);
+      window.dispatchEvent(new CustomEvent("sync:error", { 
+        detail: { 
+          operation: 'sync',
+          error: errorMsg
+        } 
+      }));
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
+
+    if (localExpensesToSync.length === 0) {
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
+
+    // Prepare the payload for Supabase
+    const syncTimestamp = new Date().toISOString();
+    const supabasePayload = localExpensesToSync.map((exp) => {
+      const { synced, category, mood, moodReason, createdAt, updatedAt, ...rest } = exp;
+      return {
+        ...rest,
+        category_id: category,
+        mood_id: mood,
+        mood_reason: moodReason,
+        created_at: createdAt,
+        updated_at: updatedAt || syncTimestamp,
+        user_id: user.id,
+      };
+    });
+
+    try {
+      const { error: supabaseError } = await supabase
+        .from("expenses")
+        .upsert(supabasePayload, { onConflict: "id" });
+
+      if (supabaseError) {
+        const errorMsg = `Error syncing to Supabase: ${supabaseError.message}`;
+        console.error('[Sync]', errorMsg);
+        
+        // Update last attempt time for failed syncs
+        await db.transaction("rw", db.syncStatus, async () => {
+          for (const expense of localExpensesToSync) {
+            await db.syncStatus.update(expense.id, {
+              lastAttempt: syncTimestamp,
+            });
+          }
+        });
+        
+        window.dispatchEvent(new CustomEvent("sync:error", { 
+          detail: { 
+            operation: 'sync',
+            error: errorMsg,
+            message: 'Failed to sync with Supabase'
+          } 
+        }));
+        
+        return { syncedLocal: 0, syncedRemote, skipped };
+      }
+
+      // Update local sync status for successful syncs
+      await db.transaction("rw", [db.expenses, db.syncStatus], async () => {
+        for (const expense of localExpensesToSync) {
+          try {
+            await db.expenses.update(expense.id, { 
+              synced: true,
+              updatedAt: syncTimestamp
+            });
+            await db.syncStatus.update(expense.id, {
+              synced: true,
+              lastAttempt: syncTimestamp,
+            });
+            syncedLocal++;
+          } catch (updateError: any) {
+            console.error(
+              `[Sync] Failed to update local status for ${expense.id}:`,
+              updateError.message
+            );
+          }
         }
       });
       
+      return { syncedLocal, syncedRemote, skipped };
+      
+    } catch (error: any) {
+      const errorMsg = `Unexpected error during sync: ${error.message}`;
+      console.error('[Sync]', errorMsg);
       window.dispatchEvent(new CustomEvent("sync:error", { 
         detail: { 
           operation: 'sync',
           error: errorMsg,
-          message: 'Failed to sync with Supabase'
+          message: 'Unexpected error during sync'
         } 
       }));
-      
       return { syncedLocal: 0, syncedRemote, skipped };
     }
-
-    // Update local sync status for successful syncs
-    await db.transaction("rw", [db.expenses, db.syncStatus], async () => {
-      for (const expense of localExpensesToSync) {
-        try {
-          await db.expenses.update(expense.id, { 
-            synced: true,
-            updatedAt: syncTimestamp
-          });
-          await db.syncStatus.update(expense.id, {
-            synced: true,
-            lastAttempt: syncTimestamp,
-          });
-          syncedLocal++;
-        } catch (updateError: any) {
-          console.error(
-            `[Sync] Failed to update local status for ${expense.id}:`,
-            updateError.message
-          );
-        }
-      }
-    });
-    
-    return { syncedLocal, syncedRemote, skipped };
-    
-  } catch (error: any) {
-    const errorMsg = `Unexpected error during sync: ${error.message}`;
-    console.error('[Sync]', errorMsg);
-    window.dispatchEvent(new CustomEvent("sync:error", { 
-      detail: { 
-        operation: 'sync',
-        error: errorMsg,
-        message: 'Unexpected error during sync'
-      } 
-    }));
-    return { syncedLocal: 0, syncedRemote, skipped };
+  } finally {
+    release();
   }
 }
 
@@ -709,8 +714,8 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
     return { synced: 0, skipped: 0 };
   }
 
+  const release = await syncMutex.acquire();
   try {
-
     const { data: supabaseData, error: supabaseError } = await supabase
       .from("expenses")
       .select("id, amount, category_id, mood_id, mood_reason, date, notes, created_at, updated_at")
@@ -799,6 +804,7 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
     }));
     return { synced: 0, skipped: 0 };
   } finally {
+    release();
     dispatchSyncEvent(null);
   }
 }
