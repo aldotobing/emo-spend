@@ -26,6 +26,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  forceSync: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -102,6 +103,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw error; // Re-throw to allow handling in the calling function
     }
   }, []);
+
+  const forceSync = useCallback(async () => {
+    console.log('[Auth] Forcing manual sync');
+    try {
+      await performPostLoginSync();
+      console.log('[Auth] Manual sync completed');
+      return true;
+    } catch (error) {
+      console.error('[Auth] Manual sync failed:', error);
+      return false;
+    }
+  }, [performPostLoginSync]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -199,59 +212,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Set a timeout to prevent hanging
         const timeout = setTimeout(() => {
           console.error('[Google Auth] Auth state change timeout');
-          reject(new Error('Authentication timed out. Please try again.'));
-        }, 30000); // 30 seconds timeout
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          try {
-            console.log(`[Google Auth] Auth state changed: ${event}`, { 
-              hasSession: !!session,
-              userId: session?.user?.id 
-            });
+          reject(new Error('Auth state change timeout'));
+        }, 30000); // 30 second timeout
+        
+        // Listen for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          console.log('[Google Auth] Auth state changed:', event);
+          
+          if (event === 'SIGNED_IN') {
+            clearTimeout(timeout);
             
-            if (event === 'SIGNED_IN' && session?.user) {
-              clearTimeout(timeout);
-              console.log('[Google Auth] User signed in successfully:', {
-                userId: session.user.id,
-                email: session.user.email
-              });
-              
+            // Small delay to ensure session is fully established
+            setTimeout(async () => {
               try {
-                // Small delay to ensure session is fully established
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                console.log('[Google Auth] Starting post-login sync...');
+                console.log('[Google Auth] Triggering post-login sync...');
                 await performPostLoginSync();
-                console.log('[Google Auth] Post-login sync completed');
-                
-                // Update the local state
-                setSession(session);
-                setUser(session.user);
-                
-                // Navigate to home
-                router.push('/');
-                
-                subscription.unsubscribe();
+                console.log('[Google Auth] Sync completed');
                 resolve();
               } catch (syncError) {
-                console.error('[Google Auth] Sync error after sign-in:', syncError);
-                // Don't reject the promise, just log the error
-                subscription.unsubscribe();
-                resolve(); // Still resolve to complete the sign-in
+                console.error('[Google Auth] Sync error:', syncError);
+                reject(syncError);
               }
-            } else if (event === 'SIGNED_OUT') {
-              console.log('[Google Auth] User signed out during OAuth flow');
-              clearTimeout(timeout);
-              subscription.unsubscribe();
-              reject(new Error('Sign in was cancelled'));
-            }
-          } catch (err) {
-            console.error('[Google Auth] Error in auth state change handler:', err);
-            clearTimeout(timeout);
-            subscription.unsubscribe();
-            reject(err);
+            }, 1000); // 1 second delay
           }
         });
+        
+        // Cleanup subscription when done
+        return () => {
+          clearTimeout(timeout);
+          subscription?.unsubscribe();
+        };
       });
       
       console.log('[Google Auth] Google sign-in and sync completed successfully');
@@ -324,8 +314,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signInWithGoogle,
       signOut,
+      forceSync,
     }),
-    [user, session, isLoading, signIn, signInWithGoogle, signOut]
+    [user, session, isLoading, signIn, signInWithGoogle, signOut, forceSync]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

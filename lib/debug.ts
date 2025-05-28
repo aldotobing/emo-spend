@@ -12,6 +12,21 @@ export async function checkDatabaseState() {
   if (session?.session) {
     console.log('[Debug] User ID:', session.session.user.id);
     
+    // Check sync status in IndexedDB
+    const db = getDb();
+    try {
+      const syncStatus = await db.syncStatus.get('incomes');
+      if (syncStatus) {
+        console.log('[Debug] Last sync attempt:', syncStatus.lastAttempt);
+        console.log('[Debug] Last successful sync:', syncStatus.lastSync || 'Never');
+        console.log('[Debug] Sync error count:', syncStatus.errorCount || 0);
+      } else {
+        console.log('[Debug] No sync status found');
+      }
+    } catch (e) {
+      console.log('[Debug] Error checking sync status:', e);
+    }
+    
     // Check incomes table in Supabase
     const { data: incomes, error } = await supabase
       .from('incomes')
@@ -54,11 +69,26 @@ export async function checkDatabaseState() {
 declare global {
   interface Window {
     debugDb: () => Promise<void>;
+    forceSync: () => Promise<void>;
   }
 }
 
 if (typeof window !== 'undefined') {
   window.debugDb = async () => {
     await checkDatabaseState();
+  };
+  
+  window.forceSync = async () => {
+    console.group('[Debug] Forcing sync');
+    try {
+      const { syncIncomes } = await import('@/lib/income');
+      console.log('Starting forced sync...');
+      const result = await syncIncomes();
+      console.log('Sync result:', result);
+      await checkDatabaseState();
+    } catch (e) {
+      console.error('Force sync failed:', e);
+    }
+    console.groupEnd();
   };
 }
