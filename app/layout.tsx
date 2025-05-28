@@ -1,6 +1,7 @@
 import type React from "react";
 import "./globals.css";
 import type { Metadata } from "next";
+import "@/lib/debug"; // Import debug utilities
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";

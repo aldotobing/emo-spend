@@ -356,6 +356,20 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
   }
 
   try {
+    // Debug: Verify Supabase URL and key
+    console.log('[Pull] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log('[Pull] Supabase anon key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
+    
+    // Debug: Check if we can access the incomes table
+    const { data: tableInfo, error: tableError } = await supabase
+      .rpc('get_table_info', { table_name: 'incomes' })
+      .select('*')
+      .single();
+      
+    console.log('[Pull] Table info:', tableInfo);
+    if (tableError) {
+      console.error('[Pull] Error accessing incomes table:', tableError);
+    }
     console.log(`[Pull] Starting to pull incomes for user ${user.id}`);
     
     // Get all local incomes for the current user
@@ -577,12 +591,43 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
 }
 
 export async function syncIncomes(): Promise<{ synced: number; errors: number }> {
+  console.group('[Sync] Starting income sync');
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
   
   if (!user) {
     console.error('[Sync] User not authenticated');
+    console.groupEnd();
+    return { synced: 0, errors: 1 };
+  }
+  
+  console.log(`[Sync] Syncing incomes for user: ${user.id}`);
+  
+  // Check Supabase connection
+  const { data: session, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !session?.session) {
+    console.error('[Sync] No active Supabase session:', sessionError?.message || 'No session');
+    console.groupEnd();
+    return { synced: 0, errors: 1 };
+  }
+  
+  // Check if incomes table exists in IndexedDB
+  const tableNames = await db.tables.map(t => t.name);
+  console.log('[Sync] Database tables:', tableNames);
+  
+  if (!tableNames.includes('incomes')) {
+    console.error('[Sync] Incomes table does not exist in IndexedDB');
+    console.groupEnd();
+    return { synced: 0, errors: 1 };
+  }
+  
+  // Check if incomes table exists in Supabase
+  const { data: tableExists, error: tableError } = await supabase
+    .rpc('table_exists', { table_name: 'incomes' });
+    
+  if (tableError || !tableExists) {
+    console.error('[Sync] Incomes table does not exist in Supabase:', tableError?.message || 'Table not found');
     console.groupEnd();
     return { synced: 0, errors: 1 };
   }
