@@ -197,6 +197,11 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Prevent iOS zooming on input fields */
+input, select, textarea, button {
+  font-size: 16px !important;
+}
+
 /* Enhanced touch targets for mobile */
 @media (max-width: 640px) {
   button,
