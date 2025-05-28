@@ -172,48 +172,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
     try {
+      console.log('[Google Auth] Starting Google OAuth flow...');
+      
+      // First, sign in with Google
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           //redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Google Auth] OAuth error:', error);
+        throw error;
+      }
+      
+      console.log('[Google Auth] OAuth flow started, waiting for auth state change...');
       
       // Wait for the auth state to change and handle the sign-in
       await new Promise<void>((resolve, reject) => {
+        // Set a timeout to prevent hanging
+        const timeout = setTimeout(() => {
+          console.error('[Google Auth] Auth state change timeout');
+          reject(new Error('Authentication timed out. Please try again.'));
+        }, 30000); // 30 seconds timeout
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
           try {
-            if (event === 'SIGNED_IN') {
-              console.log('Google sign-in successful, starting sync...');
+            console.log(`[Google Auth] Auth state changed: ${event}`, { 
+              hasSession: !!session,
+              userId: session?.user?.id 
+            });
+            
+            if (event === 'SIGNED_IN' && session?.user) {
+              clearTimeout(timeout);
+              console.log('[Google Auth] User signed in successfully:', {
+                userId: session.user.id,
+                email: session.user.email
+              });
+              
               try {
-                // Perform the sync after successful Google sign-in
+                // Small delay to ensure session is fully established
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                console.log('[Google Auth] Starting post-login sync...');
                 await performPostLoginSync();
+                console.log('[Google Auth] Post-login sync completed');
+                
+                // Update the local state
+                setSession(session);
+                setUser(session.user);
+                
+                // Navigate to home
+                router.push('/');
+                
                 subscription.unsubscribe();
                 resolve();
               } catch (syncError) {
-                console.error('Sync error after Google sign-in:', syncError);
+                console.error('[Google Auth] Sync error after sign-in:', syncError);
                 // Don't reject the promise, just log the error
                 subscription.unsubscribe();
                 resolve(); // Still resolve to complete the sign-in
               }
             } else if (event === 'SIGNED_OUT') {
+              console.log('[Google Auth] User signed out during OAuth flow');
+              clearTimeout(timeout);
               subscription.unsubscribe();
               reject(new Error('Sign in was cancelled'));
             }
           } catch (err) {
-            console.error('Error in auth state change handler:', err);
+            console.error('[Google Auth] Error in auth state change handler:', err);
+            clearTimeout(timeout);
             subscription.unsubscribe();
             reject(err);
           }
         });
       });
       
-      console.log('Google sign-in and sync completed successfully');
+      console.log('[Google Auth] Google sign-in and sync completed successfully');
     } catch (error: any) {
-      console.error("Google sign-in error:", error.message);
+      console.error("[Google Auth] Google sign-in error:", error.message, error);
       toast({
         title: "Google sign-in failed",
         description:
