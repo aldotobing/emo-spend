@@ -87,14 +87,10 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     if (!tableNames.includes('incomes')) {
       console.warn('Incomes table does not exist in the database yet');
       return [];
-    }
-
-    console.log('[Income] Fetching incomes between', startDate, 'and', endDate);
-    
+    }    
     // First, try to get all incomes and filter in memory to debug
     const allIncomes = await db.incomes.toArray();
     
-    console.log(`[Income] Found ${allIncomes.length} incomes in local DB`);
     
     // Parse the input dates once
     const start = new Date(startDate);
@@ -104,7 +100,6 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
     
-    console.log(`[Income] Filtering incomes between ${start.toISOString()} and ${end.toISOString()}`);
     
     // Filter incomes by date range
     const filteredIncomes = allIncomes.filter(income => {
@@ -123,13 +118,11 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
       
       const isInRange = date >= start && date <= end;
       if (isInRange) {
-        console.log(`[Income] Including income ${income.id} with date ${date.toISOString()}`);
       }
       
       return isInRange;
     });
     
-    console.log(`[Income] Found ${filteredIncomes.length} incomes in date range`);
     
     // Map database fields to TypeScript types with proper type safety
     return filteredIncomes.map(income => {
@@ -287,17 +280,13 @@ export const pullIncomesFromSupabase = async (): Promise<SyncResult> => {
     
     const user = session?.user;
     if (!user) {
-      console.log('[Pull] No authenticated user found');
       return { synced: 0, skipped: 0 };
     }
 
     // Check network status
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('[Pull] Device is offline');
       return { synced: 0, skipped: 0 };
     }
-
-    console.log(`[Pull] Starting income sync for user: ${user.id}`);
     
     // Get local incomes for comparison
     const localIncomes = await db.incomes.toArray().catch(error => {
@@ -312,7 +301,6 @@ export const pullIncomesFromSupabase = async (): Promise<SyncResult> => {
       }
     });
     
-    console.log(`[Pull] Found ${localMap.size} local income records`);
     
     // Fetch remote incomes with error handling and timeout
     const { data: supabaseData, error: supabaseError } = await supabase
@@ -328,17 +316,13 @@ export const pullIncomesFromSupabase = async (): Promise<SyncResult> => {
     }
 
     if (!Array.isArray(supabaseData) || supabaseData.length === 0) {
-      console.log('[Pull] No remote incomes found for this user');
       return { synced: 0, skipped: 0 };
     }
     
-    console.log(`[Pull] Retrieved ${supabaseData.length} remote income records`);
     
     // Log sample records for debugging
     const sampleSize = Math.min(3, supabaseData.length);
-    console.log(`[Pull] Sample records (${sampleSize} of ${supabaseData.length}):`);
     supabaseData.slice(0, sampleSize).forEach((record, i) => {
-      console.log(`[Pull] ${i + 1}. ID: ${record.id}, Amount: ${record.amount}, Date: ${record.date}, Updated: ${record.updated_at}`);
     });
     
     // Define result types for better type safety
@@ -425,10 +409,8 @@ export const pullIncomesFromSupabase = async (): Promise<SyncResult> => {
           return acc;
         }, {} as Record<string, number>);
       
-      console.log(`[Pull] Sync completed with ${synced} synced, ${skipped} skipped`);
       
       if (Object.keys(skippedReasons).length > 0) {
-        console.log('[Pull] Skip reasons:', JSON.stringify(skippedReasons, null, 2));
       }
       
       // Log any errors that occurred during processing
@@ -441,7 +423,6 @@ export const pullIncomesFromSupabase = async (): Promise<SyncResult> => {
         console.warn(`[Pull] Encountered ${errors.length} errors during sync:`, errors);
       }
     } else {
-      console.log(`[Pull] Sync completed successfully. Synced: ${synced} records`);
     }
     
     return { synced, skipped };
@@ -464,7 +445,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
   }
 
   if (!navigator.onLine) {
-    console.log('[Sync] Device is offline, cannot sync incomes');
     return { synced: 0, errors: 0 };
   }
 
@@ -474,7 +454,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
       .filter(income => !income.synced)
       .toArray();
 
-    console.log(`[Sync] Found ${unsyncedIncomes.length} unsynced incomes`);
     
     let syncedCount = 0;
     let errorCount = 0;
@@ -488,7 +467,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
           continue;
         }
 
-        console.log(`[Sync] Syncing income ${income.id} to Supabase`);
         
         // Prepare the data for Supabase - map to snake_case for the database
         const incomeData = {
@@ -502,7 +480,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
           updated_at: new Date().toISOString()
         };
         
-        console.log('[Sync] Syncing income data:', incomeData);
 
         // Try to update existing record first, insert if not exists
         const { error } = await supabase
@@ -519,7 +496,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
           updatedAt: new Date().toISOString()
         });
         
-        console.log(`[Sync] Successfully synced income ${income.id}`);
         syncedCount++;
         
       } catch (error) {
@@ -533,7 +509,6 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
       }
     }
 
-    console.log(`[Sync] Sync completed: ${syncedCount} synced, ${errorCount} errors`);
     return { synced: syncedCount, errors: errorCount };
     
   } catch (error) {
