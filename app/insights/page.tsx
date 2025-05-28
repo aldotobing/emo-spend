@@ -141,10 +141,13 @@ export default function InsightsPage() {
         setIsGeneratingInsights(false); // Ensure loading state is reset
         return;
       }
+      const { start, end } = getDateRangeForPeriod(period);
       const newResult = await generateAIInsights(
         geminiApiKey,
         deepSeekApiKey,
-        expenseData
+        expenseData,
+        new Date(start),
+        new Date(end)
       );
       setAiInsightResult(newResult);
       setInsightsGenerated(prev => ({ ...prev, [period]: true }));
@@ -189,11 +192,14 @@ export default function InsightsPage() {
 
     try {
       // Call with streaming enabled
+      const { start, end } = getDateRangeForPeriod(period);
       const analysisResult = await generateDetailedAnalysis(
         geminiApiKey,
         deepSeekApiKey,
         aiInsightResult.insights,
-        true // Enable streaming
+        true, // Enable streaming
+        new Date(start),
+        new Date(end)
       );
 
       // If we have a stream, we'll handle it in the DetailedAnalysisCard component

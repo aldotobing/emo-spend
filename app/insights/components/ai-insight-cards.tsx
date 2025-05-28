@@ -98,21 +98,39 @@ import {
     // Show streaming content if available
     if (aiResponse?.stream || streamingContent) {
       return (
-        <Card className="border-2 border-primary/20">
+        <Card className="border-2 border-primary/20 shadow-sm hover:shadow-md transition-shadow duration-300">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <Brain className="h-5 w-5 text-primary" />
-              </motion.div>
-              <span>Analisis Mendalam</span>
-            </CardTitle>
+              <CardTitle className="flex items-center gap-3 text-lg font-semibold text-foreground">
+                <motion.div
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <Brain className="h-6 w-6 text-primary" />
+                </motion.div>
+                <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  Analisis Mendalam
+                </span>
+              </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm dark:prose-invert whitespace-pre-line">
-              {streamingContent || 'Menganalisis data Anda...'}
+            <div className="prose prose-sm dark:prose-invert max-w-none">
+              <div className="space-y-4 text-foreground/90">
+                {streamingContent ? (
+                  <div className="whitespace-pre-line">
+                    {renderFormattedResponse(streamingContent)}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <Brain className="h-4 w-4" />
+                    </motion.div>
+                    <span>Menganalisis data Anda...</span>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -196,7 +214,19 @@ import {
       }
   
       return (
-        <Card className={`border-dashed border-2 ${hasData ? 'border-green-500/30' : 'border-destructive/30'}`}>
+        <Card className={`border-dashed border-2 ${hasData ? 'border-green-500/30 hover:border-green-500/50' : 'border-destructive/30 hover:border-destructive/50'} transition-colors duration-300`}>
+          <div className="absolute -top-2 -right-2">
+            <div className="relative">
+              <div className={`absolute -inset-1 rounded-full ${hasData ? 'bg-green-500/20' : 'bg-destructive/20'} blur-sm`}></div>
+              <div className={`relative flex h-4 w-4 items-center justify-center rounded-full ${hasData ? 'bg-green-500' : 'bg-destructive'}`}>
+                {hasData ? (
+                  <Lightbulb className="h-2.5 w-2.5 text-white" />
+                ) : (
+                  <AlertTriangle className="h-2.5 w-2.5 text-white" />
+                )}
+              </div>
+            </div>
+          </div>
           <CardHeader>
             <CardTitle>{titleText}</CardTitle>
             <CardDescription className="prose-sm dark:prose-invert">

@@ -33,7 +33,9 @@ const notEnoughDataError = {
 export async function generateAIInsights(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
-  providedExpenses?: Expense[] // Add optional parameter for expenses
+  providedExpenses?: Expense[], // Add optional parameter for expenses
+  startDate?: Date, // Add optional start date parameter
+  endDate?: Date // Add optional end date parameter
 ): Promise<AIInsightResponse> {
   if (!geminiApiKey && !deepSeekApiKey) {
     console.error("Neither Gemini nor DeepSeek API key is configured.");
@@ -49,7 +51,7 @@ export async function generateAIInsights(
       return notEnoughDataError;
     }
 
-    const context = prepareContextForAI(expenses, false); // false for not detailed
+    const context = await prepareContextForAI(expenses, false, startDate, endDate); // false for not detailed
     let result;
 
     if (geminiApiKey) {
@@ -101,7 +103,9 @@ export async function generateDetailedAnalysis(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
   currentInsights: string[],
-  stream: boolean = true // Add stream parameter, default to true
+  stream: boolean = true, // Add stream parameter, default to true
+  startDate?: Date, // Add optional start date parameter
+  endDate?: Date // Add optional end date parameter
 ): Promise<AIDetailedAnalysisResponse> {
   if (!geminiApiKey && !deepSeekApiKey) {
     console.error(
@@ -125,7 +129,7 @@ export async function generateDetailedAnalysis(
       };
     }
 
-    const baseContext = prepareContextForAI(expenses, true);
+    const baseContext = await prepareContextForAI(expenses, true, startDate, endDate);
     const detailedContext = getDetailedAnalysisPrompt(currentInsights);
 
     let result;

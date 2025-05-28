@@ -1,19 +1,36 @@
-import type { Expense } from "@/types/expense";
+import type { Expense, Income } from "@/types/expense";
 import { getCategory } from "@/data/categories";
 import { getMood } from "@/data/moods";
+import { getIncomesByDateRange } from "@/lib/income";
 
-export function prepareContextForAI(
+export async function prepareContextForAI(
   expenses: Expense[],
-  isForDetailedAnalysis: boolean
-): string {
+  isForDetailedAnalysis: boolean,
+  startDate?: Date,
+  endDate?: Date
+): Promise<string> {
+  // If date range is provided, fetch incomes for the same period
+  let incomes: Income[] = [];
+  if (startDate && endDate) {
+    try {
+      incomes = await getIncomesByDateRange(startDate.toISOString(), endDate.toISOString());
+    } catch (error) {
+      console.error('Error fetching incomes:', error);
+    }
+  }
   const expensesByMood = groupExpensesByMood(expenses);
   const expensesByDay = groupExpensesByDay(expenses);
   const expensesByCategory = groupExpensesByCategory(expenses);
 
   let context =
-    "# Analisis Data Pengeluaran Pengguna untuk Wawasan Emosional\n\n" +
-    "**Konteks Utama:** Data pengeluaran pengguna ini dalam **Rupiah Indonesia (Rp)** dan seluruh interaksi serta respons diharapkan dalam **Bahasa Indonesia**.\n" +
-    "**Peran AI:** Anda adalah seorang penasihat keuangan yang juga memiliki keahlian sebagai psikoanalis, berfokus pada identifikasi pola belanja emosional. Penting untuk memahami bahwa emosi pengguna bisa positif maupun negatif, dan keduanya dapat mempengaruhi pola pengeluaran dengan cara yang berbeda-beda.\n\n";
+    "# Analisis Data Keuangan Pengguna untuk Wawasan Emosional\n\n" +
+    "**Konteks Utama:** Data keuangan pengguna ini dalam **Rupiah Indonesia (Rp)** dan seluruh interaksi serta respons diharapkan dalam **Bahasa Indonesia**.\n" +
+    "**Peran AI:** Anda adalah seorang penasihat keuangan yang juga memiliki keahlian sebagai psikoanalis, berfokus pada identifikasi pola keuangan emosional. Penting untuk memahami bahwa emosi pengguna bisa positif maupun negatif, dan keduanya dapat mempengaruhi pola keuangan dengan cara yang berbeda-beda.\n\n";
+
+  // Add income summary if we have income data
+  if (incomes.length > 0) {
+    context += generateIncomeSummary(incomes);
+  }
 
   context += generateMoodSummary(expensesByMood);
   context += generateDaySummary(expensesByDay);
@@ -21,7 +38,7 @@ export function prepareContextForAI(
   context += generateTransactionSamples(expenses);
 
   if (!isForDetailedAnalysis) {
-    context += getInitialInsightsPrompt();
+    context += getInitialInsightsPrompt(incomes.length > 0);
   } else {
     context +=
       "\n## Catatan untuk AI: Persiapan Analisis Mendalam\n" +
@@ -155,21 +172,72 @@ function generateTransactionSamples(expenses: Expense[]): string {
   return samples + "\n";
 }
 
-export function getInitialInsightsPrompt(): string {
-  return "## Instruksi untuk AI: Wawasan Awal (Format: Markdown List)\n" +
-    "Berdasarkan **semua data di atas**, lakukan hal berikut:\n" +
-    "1.  Identifikasi **3 hingga 4 pola belanja emosional** yang paling signifikan atau menarik dari data pengguna. Perhatikan baik emosi positif (seperti bahagia, puas) maupun emosi negatif (seperti sedih, stres) dan bagaimana keduanya mempengaruhi pengeluaran. \n" +
-    "**PENTING** : Buatkan hipotesa sebagai judul besarnya tanpa tulisan Hipotesa \n" +
-    "2.  Untuk setiap pola, berikan **satu wawasan (insight)** yang jelas dan actionable. Wawasan ini bisa berupa penguatan pola positif atau perbaikan pola negatif.\n" +
-    "3.  Sampaikan setiap wawasan sebagai **item dalam daftar Markdown** (misalnya, diawali dengan `- ` atau `* ` atau `###` atau `>' atau `##` atau `####`).\n" +
-    "4.  Gunakan **Bahasa Indonesia** yang empatik, santai namun profesional. Boleh sertakan emoji agar tidak terlalu kaku\n" +
-    "5.  **PENTING:** Kembalikan **HANYA daftar Markdown berisi wawasan tersebut**. Jangan sertakan teks pembuka, penutup, judul tambahan, atau sapaan. Setiap item list harus merupakan wawasan yang diminta.\n\n" +
-    "6.  **PENTING:** Buat singkat, padat dan jelas sekitar 5 kalimat\n\n" +
-    "7.  **PENTING:** Buat singkat, padat dan jelas sekitar 5 kalimat\n\n" +
+function generateIncomeSummary(incomes: Income[]): string {
+  const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
+  const incomeBySource: Record<string, number> = {};
+  
+  incomes.forEach(income => {
+    const source = income.source || 'Lainnya';
+    incomeBySource[source] = (incomeBySource[source] || 0) + income.amount;
+  });
+
+  let summary = "## Ringkasan Pendapatan\n\n" +
+    `- **Total Pendapatan**: Rp${totalIncome.toLocaleString('id-ID')}\n`;
+  
+  // Add income by source
+  if (Object.keys(incomeBySource).length > 0) {
+    summary += "- **Sumber Pendapatan**:\n";
+    Object.entries(incomeBySource).forEach(([source, amount]) => {
+      const percentage = (amount / totalIncome * 100).toFixed(1);
+      summary += `  - ${source}: Rp${amount.toLocaleString('id-ID')} (${percentage}%)\n`;
+    });
+  }
+
+  // Add recent income samples
+  const recentIncomes = [...incomes]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+  
+  if (recentIncomes.length > 0) {
+    summary += "\n**Contoh Pendapatan Terbaru**:\n";
+    recentIncomes.forEach((income, index) => {
+      const date = new Date(income.date).toLocaleDateString('id-ID', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+      const source = income.source || 'Lainnya';
+      const desc = income.description ? ` - ${income.description}` : '';
+      summary += `${index + 1}. ${date}: ${source} - Rp${income.amount.toLocaleString('id-ID')}${desc}\n`;
+    });
+  }
+
+  return summary + "\n\n";
+}
+
+export function getInitialInsightsPrompt(hasIncomeData: boolean = false): string {
+  let prompt = "## Instruksi untuk AI: Wawasan Awal (Format: Markdown List)\n" +
+    "Berdasarkan **semua data di atas**, lakukan hal berikut:\n";
+
+  if (hasIncomeData) {
+    prompt += "1.  Analisis **pola pendapatan** pengguna, termasuk sumber pendapatan utama dan stabilitas pendapatan.\n" +
+      "2.  Identifikasi **3 hingga 4 pola keuangan emosional** yang paling signifikan, termasuk bagaimana pendapatan dan pengeluaran saling berhubungan. Perhatikan baik emosi positif (seperti bahagia, puas) maupun emosi negatif (seperti sedih, stres) dan bagaimana keduanya mempengaruhi keuangan.\n";
+  } else {
+    prompt += "1.  Identifikasi **3 hingga 4 pola belanja emosional** yang paling signifikan atau menarik dari data pengguna. Perhatikan baik emosi positif (seperti bahagia, puas) maupun emosi negatif (seperti sedih, stres) dan bagaimana keduanya mempengaruhi pengeluaran.\n";
+  }
+
+  prompt += "**PENTING** : Buatkan hipotesa sebagai judul besarnya tanpa tulisan Hipotesa \n" +
+    (hasIncomeData ? "3" : "2") + ".  Untuk setiap pola, berikan **satu wawasan (insight)** yang singkat dan jelas dan actionable. Wawasan ini bisa berupa penguatan pola positif atau perbaikan pola negatif.\n" +
+    (hasIncomeData ? "4" : "3") + ".  Sampaikan setiap wawasan sebagai **item dalam daftar Markdown** (misalnya, diawali dengan `- ` atau `* ` atau `###` atau `>' atau `##` atau `####`).\n" +
+    (hasIncomeData ? "5" : "4") + ".  Gunakan **Bahasa Indonesia** yang empatik, santai namun profesional. Boleh sertakan emoji agar tidak terlalu kaku\n" +
+    (hasIncomeData ? "6" : "5") + ".  **PENTING:** Kembalikan **HANYA daftar Markdown berisi wawasan tersebut**. Jangan sertakan teks pembuka, penutup, judul tambahan, atau sapaan. Setiap item list harus merupakan wawasan yang diminta.\n\n" +
+    (hasIncomeData ? "7" : "6") + ".  **PENTING:** Buat singkat, padat dan jelas.\n\n" +
     "Contoh format output yang diinginkan:\n" +
     "- Wawasan pertama Anda ada di sini.\n" +
     "- Wawasan kedua yang menjelaskan pola lain.\n" +
     "- Dan seterusnya...";
+
+  return prompt;
 }
 
 export function getDetailedAnalysisPrompt(currentInsights: string[]): string {
@@ -193,7 +261,7 @@ export function getDetailedAnalysisPrompt(currentInsights: string[]): string {
     `   - Perhatikan bahwa belanja emosional bisa bersifat positif (misalnya, hadiah untuk diri sendiri setelah mencapai target) atau negatif (misalnya, belanja impulsif saat stres).\n\n` +
     `### 3. Identifikasi Pemicu (Triggers)\n` +
     `   - Sebutkan potensi pemicu emosional (baik positif seperti kebahagiaan, pencapaian, maupun negatif seperti kesepian, kebosanan, stres kerja) dan situasional (misalnya, akhir pekan, setelah menerima gaji, melihat iklan, merayakan kesuksesan) yang mungkin menyebabkan pengeluaran tersebut.\n` +
-    `   - Jika memungkinkan, buat **tabel sederhana** atau **bullet points terstruktur** yang menghubungkan pemicu dengan jenis pengeluaran atau suasana hati tertentu. buat ini statistically appealing\n` +
+    `   - Jika memungkinkan, buat **tabel sederhana** atau **bullet points terstruktur** yang menghubungkan pemicu dengan jenis pengeluaran atau suasana hati tertentu, dan pendapatan vs pengeluaran. buat ini statistically appealing\n` +
     `### 4. Dampak Pola Belanja\n` +
     `   - Jelaskan secara singkat potensi dampak jangka pendek dan jangka panjang dari pola belanja emosional ini terhadap kesejahteraan finansial dan emosional pengguna.\n` +
     `   - Bedakan antara pola belanja yang sehat (yang mungkin meningkatkan kesejahteraan emosional tanpa mengorbankan stabilitas keuangan) dan pola belanja yang kurang sehat (yang mungkin memberikan kepuasan sementara tetapi berdampak negatif pada keuangan).\n\n` +
