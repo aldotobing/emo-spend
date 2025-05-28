@@ -59,27 +59,26 @@ export default function Navbar() {
           scrolled ? "bg-background/95 border-primary/10" : "bg-transparent border-transparent",
         )}
       >
-        <div className="container flex h-14 items-center">
-          <Link href="/" className="flex items-center">
-            <motion.div
-              initial={{ rotate: -10 }}
-              animate={{ rotate: 0 }}
-              transition={{ duration: 0.5 }}
-              className="text-2xl flex items-center"
-            >
-              💰
-            </motion.div>
-            <motion.span
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="ml-2 text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 flex items-center"
-            >
-              EmoSpend
-            </motion.span>
-          </Link>
-          <div className="flex-1"></div>
-          <div className="flex items-center space-x-2">
+        <div className="w-full max-w-[2000px] mx-auto flex h-16 items-center justify-between px-6 md:px-8 lg:px-12">
+          <div className="flex items-center flex-shrink-0">
+            <Link href="/" className="flex items-center">
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.3 }}
+                className="flex items-center space-x-2"
+              >
+                <img 
+                  src="/header_logo.jpg" 
+                  alt="EmoSpend Logo"
+                  className="h-8 w-auto object-contain"
+                />
+                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+                  EmoSpend
+                </span>
+              </motion.div>
+            </Link>
+          </div>
+          <div className="flex items-center space-x-4">
             <SyncIndicator />
             <ModeToggle />
           </div>

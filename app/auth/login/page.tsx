@@ -216,12 +216,19 @@ export default function LoginPage() {
             </motion.div>
 
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
-              className="h-20 w-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4"
+              className="flex items-center justify-center space-x-2 mb-4"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
             >
-              <Smile className="h-10 w-10 text-primary" />
+              {/* <img 
+                src="/header_logo.jpg" 
+                alt="EmoSpend Logo"
+                className="h-12 w-auto object-contain"
+              />
+              <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
+                EmoSpend
+              </span> */}
             </motion.div>
 
             <h1 className="text-2xl font-bold mb-1">Welcome Back!</h1>
