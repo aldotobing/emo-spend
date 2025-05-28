@@ -150,7 +150,8 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     const filteredIncomes = userIncomes.filter(income => {
       try {
         // Use the date field if available, otherwise fall back to createdAt
-        const dateStr = income.date || income.createdAt || income.created_at;
+        // Handle both camelCase and snake_case field names with type assertion
+        const dateStr = income.date || income.createdAt || (income as any).created_at;
         if (!dateStr) {
           console.warn(`[Income] Income ${income.id} is missing date information`, income);
           return false;
@@ -182,30 +183,56 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     
     // Map database fields to TypeScript types with proper type safety
     return filteredIncomes.map(income => {
-      const dateStr = income.date || income.createdAt || income.created_at;
-      const date = dateStr ? new Date(dateStr) : new Date();
-      
-      return {
-        id: income.id,
-        amount: income.amount,
-        source: income.source,
-        description: income.description || undefined, // Use undefined instead of null for optional fields
-        date: dateValue || createdAt.split('T')[0], // Fallback to createdAt date if date is missing
-        createdAt,
-        updatedAt,
-        synced: income.synced ?? true,
-      };
-      
-      // Log a warning if we had to use a fallback for the date
-      if (!dateValue) {
-        console.warn('Income missing date field, using created date as fallback:', {
-          incomeId: income.id,
-          date: mapped.date,
-          createdAt: mapped.createdAt
-        });
+      try {
+        // Handle both snake_case and camelCase field names
+        const dateValue = income.date || (income as any).date_created;
+        const createdAt = income.createdAt || (income as any).created_at || new Date().toISOString();
+        const updatedAt = income.updatedAt || (income as any).updated_at || new Date().toISOString();
+        const userId = (income as any).user_id || (income as any).userId || '';
+        
+        // Format the date properly
+        let formattedDate: string;
+        if (dateValue) {
+          const date = new Date(dateValue);
+          formattedDate = isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0];
+        } else {
+          formattedDate = new Date(createdAt).toISOString().split('T')[0];
+          console.warn('Income missing date field, using created date as fallback:', {
+            incomeId: income.id,
+            date: formattedDate,
+            createdAt: createdAt
+          });
+        }
+        
+        // Create the income object with all required fields
+        const mappedIncome: Income = {
+          id: income.id,
+          user_id: userId,
+          amount: income.amount,
+          source: income.source || 'Other',
+          description: income.description || undefined,
+          date: formattedDate,
+          createdAt: createdAt,
+          updatedAt: updatedAt,
+          synced: income.synced !== false,
+        };
+        
+        return mappedIncome;
+      } catch (error) {
+        console.error('Error mapping income:', error, income);
+        // Return a minimal valid income object to prevent crashes
+        return {
+          id: income.id || `error-${Math.random().toString(36).substr(2, 9)}`,
+          user_id: '',
+          amount: 0,
+          source: 'Error',
+          description: 'Error processing income',
+          date: new Date().toISOString().split('T')[0],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          synced: false
+        };
       }
-      
-      return mapped;
     });
   } catch (error: unknown) {
     const err = error as Error;
