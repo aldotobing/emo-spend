@@ -17,6 +17,7 @@ import {
   pullExpensesFromSupabase,
   syncExpenses,
 } from "@/lib/db";
+import { pullIncomesFromSupabase, syncIncomes } from "@/lib/income";
 
 interface AuthContextType {
   user: User | null;
@@ -67,8 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const performPostLoginSync = useCallback(async () => {
     try {
+      // Sync expenses first
       await pullExpensesFromSupabase();
       await syncExpenses();
+      
+      // Then sync incomes
+      await pullIncomesFromSupabase();
+      await syncIncomes();
     } catch (error) {
       console.error("[Login] Error during post-login sync:", error);
     }

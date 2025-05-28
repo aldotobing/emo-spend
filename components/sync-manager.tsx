@@ -30,6 +30,8 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     syncedRemote: 0,
     skipped: 0,
   });
+  const [pendingSyncCount, setPendingSyncCount] = useState<number | null>(null);
+  const [isLoadingPendingCount, setIsLoadingPendingCount] = useState(true);
   const router = useRouter();
 
   const performSync = async (manual = false): Promise<SyncResult> => {
@@ -83,6 +85,55 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Get pending sync count when component mounts and after syncs
+  useEffect(() => {
+    let isMounted = true;
+    
+    const getPendingSyncCount = async () => {
+      if (!isMounted) return;
+      setIsLoadingPendingCount(true);
+      
+      try {
+        const { getExpensesByDateRange } = await import('@/lib/db');
+        const { getIncomesByDateRange } = await import('@/lib/income');
+        
+        // Get all expenses and incomes
+        const startDate = new Date(0).toISOString();
+        const endDate = new Date().toISOString();
+        
+        const [expenses, incomes] = await Promise.all([
+          getExpensesByDateRange(startDate, endDate),
+          getIncomesByDateRange(startDate, endDate)
+        ]);
+        
+        // Only count unsynced items
+        const unsyncedExpenses = expenses.filter(expense => expense.synced === false);
+        const unsyncedIncomes = incomes.filter(income => income.synced === false);
+        
+        const totalUnsynced = unsyncedExpenses.length + unsyncedIncomes.length;
+        
+        if (isMounted) {
+          setPendingSyncCount(totalUnsynced);
+        }
+      } catch (error) {
+        console.error('Error getting pending sync count:', error);
+        if (isMounted) {
+          setPendingSyncCount(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingPendingCount(false);
+        }
+      }
+    };
+    
+    getPendingSyncCount();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [lastSync]);
 
   // Listen for online/offline events to trigger sync when connection is restored
   useEffect(() => {
@@ -147,13 +198,25 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
         <div className="text-sm space-y-1 text-muted-foreground">
           {lastSync && <div>Last sync: {formatTimeAgo(lastSync)}</div>}
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {isOnline ? (
-              <Wifi className="h-3 w-3 text-green-500" />
-            ) : (
-              <WifiOff className="h-3 w-3 text-red-500" />
-            )}
-            <span>{isOnline ? "Online" : "Offline"}</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {isOnline ? (
+                <Wifi className="h-3 w-3 text-green-500" />
+              ) : (
+                <WifiOff className="h-3 w-3 text-red-500" />
+              )}
+              <span>{isOnline ? "Online" : "Offline"}</span>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <div className="text-green-500">✓ Synced: {stats.syncedLocal + stats.syncedRemote} items</div>
+              {isLoadingPendingCount ? (
+                <div className="text-muted-foreground/50">Checking for updates...</div>
+              ) : pendingSyncCount !== null && pendingSyncCount > 0 ? (
+                <div className="text-amber-500">↻ {pendingSyncCount} item{pendingSyncCount !== 1 ? 's' : ''} to sync</div>
+              ) : (
+                <div className="text-green-500">✓ Up to date</div>
+              )}
+            </div>
           </div>
 
           <div className="text-xs mt-1 space-y-1">

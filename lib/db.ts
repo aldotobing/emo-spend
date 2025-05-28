@@ -19,8 +19,10 @@ export interface SyncedExpense extends AppExpense {
   synced: boolean;
 }
 
-export interface SyncedIncome extends AppIncome {
+export interface SyncedIncome extends Omit<AppIncome, 'synced'> {
   synced: boolean;
+  // Add any additional fields that might be needed for the local database
+  userId?: string; // Alias for user_id for consistency
 }
 
 export interface SyncStatusEntry {

@@ -1,4 +1,4 @@
-import { getDb } from './db';
+import { getDb, getCurrentUser } from './db';
 import { getSupabaseBrowserClient } from './supabase';
 import { Income, Transaction } from '@/types/expense';
 import { SyncedIncome } from './db';
@@ -89,20 +89,80 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
       return [];
     }
 
-    const incomes = await db.incomes
-      .where('date')
-      .between(startDate, endDate, true, true)
-      .toArray();
+    console.log('[Income] Fetching incomes between', startDate, 'and', endDate);
     
-    // Map database fields to TypeScript types
-    return incomes.map(income => ({
-      ...income,
-      // Map snake_case to camelCase for TypeScript
-      createdAt: income.createdAt || (income as any).created_at,
-      updatedAt: income.updatedAt || (income as any).updated_at,
-      // Ensure all required fields are present
-      synced: income.synced ?? true,
-    }));
+    // First, try to get all incomes and filter in memory to debug
+    const allIncomes = await db.incomes.toArray();
+    
+    console.log(`[Income] Found ${allIncomes.length} incomes in local DB`);
+    
+    // Parse the input dates once
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    // Set time to beginning and end of day for proper date comparison
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    
+    console.log(`[Income] Filtering incomes between ${start.toISOString()} and ${end.toISOString()}`);
+    
+    // Filter incomes by date range
+    const filteredIncomes = allIncomes.filter(income => {
+      // Use the date field if available, otherwise fall back to createdAt
+      const dateStr = income.date || income.createdAt;
+      if (!dateStr) {
+        console.warn(`[Income] Income ${income.id} is missing both date and createdAt`);
+        return false;
+      }
+      
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        console.warn(`[Income] Invalid date format for income ${income.id}:`, dateStr);
+        return false;
+      }
+      
+      const isInRange = date >= start && date <= end;
+      if (isInRange) {
+        console.log(`[Income] Including income ${income.id} with date ${date.toISOString()}`);
+      }
+      
+      return isInRange;
+    });
+    
+    console.log(`[Income] Found ${filteredIncomes.length} incomes in date range`);
+    
+    // Map database fields to TypeScript types with proper type safety
+    return filteredIncomes.map(income => {
+      // Handle both snake_case and camelCase field names
+      const dateValue = income.date || (income as any).date_created;
+      const createdAt = income.createdAt || (income as any).created_at || new Date().toISOString();
+      const updatedAt = income.updatedAt || (income as any).updated_at || new Date().toISOString();
+      const userId = (income as any).user_id || (income as any).userId; // Handle both formats
+      
+      // Create a properly typed income object
+      const mapped: Income = {
+        id: income.id,
+        user_id: userId || '', // Ensure we have a string value
+        amount: income.amount,
+        source: income.source,
+        description: income.description || undefined, // Use undefined instead of null for optional fields
+        date: dateValue || createdAt.split('T')[0], // Fallback to createdAt date if date is missing
+        createdAt,
+        updatedAt,
+        synced: income.synced ?? true,
+      };
+      
+      // Log a warning if we had to use a fallback for the date
+      if (!dateValue) {
+        console.warn('Income missing date field, using created date as fallback:', {
+          incomeId: income.id,
+          date: mapped.date,
+          createdAt: mapped.createdAt
+        });
+      }
+      
+      return mapped;
+    });
   } catch (error: unknown) {
     const err = error as Error;
     if (err.name === 'NotFoundError' || err.message?.includes('object store was not found')) {
@@ -195,13 +255,216 @@ export async function getTransactionsByDateRange(startDate: string, endDate: str
   }
 }
 
+interface SyncResult {
+  synced: number;
+  skipped: number;
+}
+
+interface RemoteIncome {
+  id: string;
+  user_id: string;
+  amount: number;
+  source?: string;
+  date: string;
+  notes?: string;
+  category?: string;
+  updated_at?: string;
+  created_at?: string;
+}
+
+export const pullIncomesFromSupabase = async (): Promise<SyncResult> => {
+  const db = getDb();
+  const supabase = getSupabaseBrowserClient();
+  
+  try {
+    // Get current session and user
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('[Pull] Error getting session:', sessionError);
+      throw sessionError;
+    }
+    
+    const user = session?.user;
+    if (!user) {
+      console.log('[Pull] No authenticated user found');
+      return { synced: 0, skipped: 0 };
+    }
+
+    // Check network status
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('[Pull] Device is offline');
+      return { synced: 0, skipped: 0 };
+    }
+
+    console.log(`[Pull] Starting income sync for user: ${user.id}`);
+    
+    // Get local incomes for comparison
+    const localIncomes = await db.incomes.toArray().catch(error => {
+      console.error('[Pull] Error fetching local incomes:', error);
+      throw new Error('Failed to fetch local incomes');
+    });
+    
+    const localMap = new Map<string, SyncedIncome>();
+    localIncomes.forEach(income => {
+      if (income?.id) {
+        localMap.set(income.id, income);
+      }
+    });
+    
+    console.log(`[Pull] Found ${localMap.size} local income records`);
+    
+    // Fetch remote incomes with error handling and timeout
+    const { data: supabaseData, error: supabaseError } = await supabase
+      .from('incomes')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(1000); // Add a reasonable limit
+
+    if (supabaseError) {
+      console.error('[Pull] Error fetching from Supabase:', supabaseError);
+      throw new Error(`Supabase error: ${supabaseError.message}`);
+    }
+
+    if (!Array.isArray(supabaseData) || supabaseData.length === 0) {
+      console.log('[Pull] No remote incomes found for this user');
+      return { synced: 0, skipped: 0 };
+    }
+    
+    console.log(`[Pull] Retrieved ${supabaseData.length} remote income records`);
+    
+    // Log sample records for debugging
+    const sampleSize = Math.min(3, supabaseData.length);
+    console.log(`[Pull] Sample records (${sampleSize} of ${supabaseData.length}):`);
+    supabaseData.slice(0, sampleSize).forEach((record, i) => {
+      console.log(`[Pull] ${i + 1}. ID: ${record.id}, Amount: ${record.amount}, Date: ${record.date}, Updated: ${record.updated_at}`);
+    });
+    
+    // Define result types for better type safety
+    type SyncResultItem = 
+      | { success: true; id: string }
+      | { success: false; id: string; reason: string; error?: never }
+      | { success: false; id: string; error: string; reason?: never };
+
+    // Process each remote record with proper typing
+    const results = await Promise.allSettled<SyncResultItem>(
+      supabaseData.map(
+        async (remote: RemoteIncome): Promise<SyncResultItem> => {
+          try {
+            // Validate required fields
+            if (!remote.id || !remote.user_id || !remote.amount || !remote.date) {
+              console.warn('[Pull] Skipping invalid income record:', remote);
+              return { success: false, id: remote.id || 'unknown', reason: 'Missing required fields' };
+            }
+            
+            const local = localMap.get(remote.id);
+            const remoteUpdatedAt = remote.updated_at ? new Date(remote.updated_at).getTime() : 0;
+            const localUpdatedAt = local?.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+
+            // Skip if local version is up-to-date
+            if (local && remoteUpdatedAt <= localUpdatedAt) {
+              return { success: false, id: remote.id, reason: 'Local version is up to date' };
+            }
+
+            // Prepare data for storage
+            const incomeData: Omit<Income, 'id'> = {
+              amount: Number(remote.amount) || 0,
+              source: remote.source?.toString() || 'Other',
+              date: remote.date,
+              description: remote.notes?.toString() || '',
+              synced: true,
+              updatedAt: remote.updated_at || new Date().toISOString(),
+              user_id: remote.user_id,
+              createdAt: remote.created_at || new Date().toISOString()
+            };
+
+            // Save to local database
+            await db.incomes.put({
+              ...incomeData,
+              id: remote.id,
+              synced: true
+            });
+
+            return { success: true, id: remote.id };
+          } catch (error) {
+            console.error(`[Pull] Error processing income ${remote.id}:`, error);
+            return { 
+              success: false, 
+              id: remote.id || 'unknown', 
+              error: error instanceof Error ? error.message : 'Unknown error' 
+            };
+          }
+        }
+      )
+    );
+
+    // Process results with proper type guards
+    const fulfilledResults = results.filter(
+      (r): r is PromiseFulfilledResult<SyncResultItem> => r.status === 'fulfilled'
+    );
+    
+    // Type guard to check if a result has a reason
+    const hasReason = (result: SyncResultItem): result is { success: false; id: string; reason: string } => 
+      !result.success && 'reason' in result && !!result.reason;
+      
+    // Type guard to check if a result has an error
+    const hasError = (result: SyncResultItem): result is { success: false; id: string; error: string } => 
+      !result.success && 'error' in result && !!result.error;
+    
+    const synced = fulfilledResults.filter(r => r.value.success).length;
+    const skipped = results.length - synced;
+    
+    // Log detailed results if there were any skipped records
+    if (skipped > 0) {
+      const skippedReasons = fulfilledResults
+        .map(r => r.value)
+        .filter(hasReason)
+        .reduce((acc, { reason }) => {
+          acc[reason] = (acc[reason] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+      
+      console.log(`[Pull] Sync completed with ${synced} synced, ${skipped} skipped`);
+      
+      if (Object.keys(skippedReasons).length > 0) {
+        console.log('[Pull] Skip reasons:', JSON.stringify(skippedReasons, null, 2));
+      }
+      
+      // Log any errors that occurred during processing
+      const errors = fulfilledResults
+        .map(r => r.value)
+        .filter(hasError)
+        .map(({ id, error }) => ({ id, error }));
+        
+      if (errors.length > 0) {
+        console.warn(`[Pull] Encountered ${errors.length} errors during sync:`, errors);
+      }
+    } else {
+      console.log(`[Pull] Sync completed successfully. Synced: ${synced} records`);
+    }
+    
+    return { synced, skipped };
+    
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Pull] Fatal error in pullIncomesFromSupabase:', error);
+    throw new Error(`Failed to sync incomes: ${errorMessage}`);
+  }
+}
+
 export async function syncIncomes(): Promise<{ synced: number; errors: number }> {
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getCurrentUser();
   
   if (!user) {
-    console.error('User not authenticated');
+    console.error('[Sync] User not authenticated');
+    return { synced: 0, errors: 0 };
+  }
+
+  if (!navigator.onLine) {
+    console.log('[Sync] Device is offline, cannot sync incomes');
     return { synced: 0, errors: 0 };
   }
 
@@ -211,49 +474,71 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
       .filter(income => !income.synced)
       .toArray();
 
+    console.log(`[Sync] Found ${unsyncedIncomes.length} unsynced incomes`);
+    
     let syncedCount = 0;
     let errorCount = 0;
 
     // Sync each unsynced income
     for (const income of unsyncedIncomes) {
       try {
-        // Create a new object without the 'synced' field for Supabase
-        const { synced, ...incomeForSupabase } = income;
+        if (!income.id) {
+          console.warn('[Sync] Skipping income with missing ID:', income);
+          errorCount++;
+          continue;
+        }
+
+        console.log(`[Sync] Syncing income ${income.id} to Supabase`);
         
+        // Prepare the data for Supabase - map to snake_case for the database
+        const incomeData = {
+          id: income.id,
+          user_id: income.user_id || (income as any).userId || user.id, // Handle both user_id and userId
+          amount: income.amount,
+          source: income.source,
+          description: income.description || null,
+          date: income.date,
+          created_at: income.createdAt || (income as any).created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('[Sync] Syncing income data:', incomeData);
+
+        // Try to update existing record first, insert if not exists
         const { error } = await supabase
           .from('incomes')
-          .upsert({
-            ...incomeForSupabase,
-            // Map to snake_case for database
-            created_at: incomeForSupabase.createdAt || (incomeForSupabase as any).created_at,
-            updated_at: incomeForSupabase.updatedAt || (incomeForSupabase as any).updated_at,
-            description: incomeForSupabase.description || null,
-            // Remove any undefined values
-          } as Record<string, any>)
-          .select();
+          .upsert(incomeData, { onConflict: 'id' });
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         // Mark as synced in local DB
         await db.incomes.update(income.id, { 
           synced: true,
-          // Ensure we have the latest timestamps
           updatedAt: new Date().toISOString()
         });
+        
+        console.log(`[Sync] Successfully synced income ${income.id}`);
         syncedCount++;
+        
       } catch (error) {
-        console.error(`Error syncing income ${income.id}:`, {
-          error: error instanceof Error ? error.message : error,
-          incomeData: income,
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`[Sync] Error syncing income ${income?.id || 'unknown'}:`, {
+          error: errorMessage,
+          incomeId: income?.id,
           timestamp: new Date().toISOString()
         });
         errorCount++;
       }
     }
 
+    console.log(`[Sync] Sync completed: ${syncedCount} synced, ${errorCount} errors`);
     return { synced: syncedCount, errors: errorCount };
+    
   } catch (error) {
-    console.error('Error in syncIncomes:', error);
-    return { synced: 0, errors: 0 };
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Sync] Error in syncIncomes:', errorMessage);
+    return { synced: 0, errors: 1 };
   }
 }

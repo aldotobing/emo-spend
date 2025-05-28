@@ -111,6 +111,40 @@ export interface Database {
         }
       }
     } // Add these to your Database interface in types/supabase.ts
+    
+    incomes: {
+      Row: {
+        id: string
+        user_id: string
+        amount: number
+        source: string
+        description: string | null
+        date: string
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id?: string
+        user_id: string
+        amount: number
+        source: string
+        description?: string | null
+        date: string
+        created_at?: string
+        updated_at?: string
+      }
+      Update: {
+        id?: string
+        user_id?: string
+        amount?: number
+        source?: string
+        description?: string | null
+        date?: string
+        created_at?: string
+        updated_at?: string
+      }
+    }
+    
     badges: {
       Row: {
         id: string
