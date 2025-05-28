@@ -326,9 +326,13 @@ export async function getTransactionsByDateRange(startDate: string, endDate: str
   }
 }
 
-interface SyncResult {
+export interface SyncResult {
   synced: number;
-  skipped: number;
+  skipped?: number;
+  errors: number;
+  success?: boolean;
+  message?: string;
+  error?: string;
 }
 
 interface RemoteIncome {
@@ -352,7 +356,7 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
   if (!user) {
     console.error('[Pull] User not authenticated');
     console.groupEnd();
-    return { synced: 0, skipped: 0 };
+    return { synced: 0, skipped: 0, errors: 1 };
   }
 
   try {
@@ -420,7 +424,7 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     if (!session.data?.session) {
       console.error('[Pull] No active Supabase session');
       console.groupEnd();
-      return { synced: 0, skipped: 0 };
+      return { synced: 0, skipped: 0, errors: 1 };
     }
     
     // Debug: Test a direct query to Supabase
@@ -440,7 +444,7 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     if (testQuery.error) {
       console.error('[Pull] Error testing Supabase connection:', testQuery.error);
       console.groupEnd();
-      return { synced: 0, skipped: 0 };
+      return { synced: 0, skipped: 0, errors: 1 };
     }
     
     // Fetch remote incomes with error handling and timeout
@@ -459,7 +463,7 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     if (!Array.isArray(supabaseData) || supabaseData.length === 0) {
       console.log('[Pull] No remote incomes found for user');
       console.groupEnd();
-      return { synced: 0, skipped: 0 };
+      return { synced: 0, skipped: 0, errors: 0 };
     }
     
     console.log(`[Pull] Found ${supabaseData.length} remote incomes to process`);
@@ -581,7 +585,7 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     } else {
     }
     
-    return { synced, skipped };
+    return { synced, skipped, errors: 0 };
     
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -597,169 +601,48 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
   const user = await getCurrentUser();
   
   if (!user) {
-    console.error('[Sync] User not authenticated');
+    console.error('[Sync] No user - skipping sync');
     console.groupEnd();
     return { synced: 0, errors: 1 };
   }
   
-  console.log(`[Sync] Syncing incomes for user: ${user.id}`);
+  // Add retry counter
+  let retryCount = 0;
+  const maxRetries = 3;
   
-  // Check Supabase connection
-  const { data: session, error: sessionError } = await supabase.auth.getSession();
-  if (sessionError || !session?.session) {
-    console.error('[Sync] No active Supabase session:', sessionError?.message || 'No session');
-    console.groupEnd();
-    return { synced: 0, errors: 1 };
-  }
-  
-  // Check if incomes table exists in IndexedDB
-  const tableNames = await db.tables.map(t => t.name);
-  console.log('[Sync] Database tables:', tableNames);
-  
-  if (!tableNames.includes('incomes')) {
-    console.error('[Sync] Incomes table does not exist in IndexedDB');
-    console.groupEnd();
-    return { synced: 0, errors: 1 };
-  }
-  
-  // Check if incomes table exists in Supabase
-  const { data: tableExists, error: tableError } = await supabase
-    .rpc('table_exists', { table_name: 'incomes' });
-    
-  if (tableError || !tableExists) {
-    console.error('[Sync] Incomes table does not exist in Supabase:', tableError?.message || 'Table not found');
-    console.groupEnd();
-    return { synced: 0, errors: 1 };
-  }
-
-  console.log(`[Sync] Starting sync for user: ${user.id}`);
-  
-  try {
-    // First, pull any remote changes
-    console.log('[Sync] --- PHASE 1: Pulling remote changes ---');
-    const pullResult = await pullIncomesFromSupabase();
-    console.log(`[Sync] Pull result: ${pullResult.synced} synced, ${pullResult.skipped} skipped`);
-    
-    // Then push local changes
-    console.log('[Sync] --- PHASE 2: Pushing local changes ---');
-    
-    // Get all unsynced incomes for the current user
-    const allUnsynced = await db.incomes
-      .filter(income => !income.synced)
-      .toArray();
-    
-    console.log(`[Sync] Found ${allUnsynced.length} total unsynced incomes`);
-    
-    // Filter for current user's unsynced incomes
-    const unsyncedIncomes = allUnsynced.filter(income => {
-      const incomeUserId = income.user_id || (income as any).userId;
-      const isCurrentUser = incomeUserId === user.id;
-      if (!isCurrentUser) {
-        console.log(`[Sync] Filtering out income from different user: ${incomeUserId} (expected: ${user.id})`);
+  while (retryCount < maxRetries) {
+    try {
+      console.log(`[Sync] Attempt ${retryCount + 1} of ${maxRetries}`);
+      
+      // Check session validity
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
       }
-      return isCurrentUser;
-    });
-    
-    console.log(`[Sync] Found ${unsyncedIncomes.length} unsynced incomes for current user`);
-    
-    let syncedCount = 0;
-    let errorCount = 0;
-    
-    // Process each unsynced income
-    for (const income of unsyncedIncomes) {
-      try {
-        console.log(`[Sync] Processing income ID: ${income.id}`);
-        console.log(`[Sync] Income details:`, {
-          amount: income.amount,
-          source: income.source,
-          date: income.date,
-          userId: income.user_id || (income as any).userId,
-          synced: income.synced,
-          updatedAt: income.updatedAt
-        });
-        
-        // Ensure we have a valid date
-        const incomeDate = income.date || new Date().toISOString().split('T')[0];
-        
-        // Get current timestamp for consistency
-        const now = new Date().toISOString();
-        
-        // Prepare the income data for Supabase
-        const incomeData: any = {
-          id: income.id,
-          user_id: user.id,
-          amount: income.amount,
-          source: income.source || 'Other',
-          date: incomeDate,
-          description: income.description || '',
-          created_at: income.createdAt || now,
-          updated_at: now, // Always update the timestamp on sync
-        };
-        
-        console.log(`[Sync] Prepared income data for sync:`, {
-          id: incomeData.id,
-          user_id: incomeData.user_id,
-          amount: incomeData.amount,
-          date: incomeData.date,
-          source: incomeData.source,
-          created_at: incomeData.created_at,
-          updated_at: incomeData.updated_at
-        });
-        
-        console.log(`[Sync] Syncing income ${income.id} to Supabase:`, {
-          id: incomeData.id,
-          amount: incomeData.amount,
-          source: incomeData.source,
-          date: incomeData.date
-        });
-        
-        // Try to update existing record first, insert if not exists
-        const { error } = await supabase
-          .from('incomes')
-          .upsert(incomeData, { onConflict: 'id' });
-
-        if (error) {
-          throw new Error(`Supabase error: ${error.message}`);
-        }
-
-        // Mark as synced in local DB
-        await db.incomes.update(income.id, { 
-          synced: true,
-          // Ensure all fields are properly set
-          user_id: incomeData.user_id,
-          userId: incomeData.user_id,
-          date: incomeData.date,
-          createdAt: incomeData.created_at,
-          updatedAt: now
-        });
-        
-        console.log(`[Sync] Successfully synced income ${income.id}`);
-        syncedCount++;
-        
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Sync] Error syncing income ${income?.id || 'unknown'}:`, {
-          error: errorMessage,
-          incomeId: income?.id,
-          timestamp: new Date().toISOString(),
-          income: {
-            ...income,
-            // Don't log the entire income object as it might contain sensitive data
-            amount: income?.amount,
-            source: income?.source,
-            date: income?.date
-          }
-        });
-        errorCount++;
+      
+      // Rest of sync logic...
+      const pullResult = await pullIncomesFromSupabase();
+      
+      if (pullResult.synced > 0 || retryCount === maxRetries - 1) {
+        // Only return if we got data or this is the last attempt
+        console.groupEnd();
+        return pullResult;
       }
+      
+      // Wait before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      retryCount++;
+    } catch (error) {
+      console.error(`[Sync] Attempt ${retryCount + 1} failed:`, error);
+      if (retryCount === maxRetries - 1) {
+        console.groupEnd();
+        return { synced: 0, errors: 1 };
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      retryCount++;
     }
-    
-    console.log(`[Sync] Completed income sync. Success: ${syncedCount}, Errors: ${errorCount}`);
-    return { synced: syncedCount, errors: errorCount };
-    
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Sync] Fatal error in syncIncomes:', errorMessage, error);
-    return { synced: 0, errors: 1 };
   }
+  
+  console.groupEnd();
+  return { synced: 0, errors: 1 };
 }

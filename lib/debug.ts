@@ -16,12 +16,21 @@ export async function checkDatabaseState() {
     const db = getDb();
     try {
       const syncStatus = await db.syncStatus.get('incomes');
+      console.log('[Debug] Raw sync status:', syncStatus);
+      
       if (syncStatus) {
-        console.log('[Debug] Last sync attempt:', syncStatus.lastAttempt);
-        console.log('[Debug] Last successful sync:', syncStatus.lastSync || 'Never');
-        console.log('[Debug] Sync error count:', syncStatus.errorCount || 0);
-      } else {
-        console.log('[Debug] No sync status found');
+        // Safely handle any sync status format
+        const lastSync = 'lastSync' in syncStatus ? syncStatus.lastSync : 
+                     'updated_at' in syncStatus ? syncStatus.updated_at : 
+                     'lastAttempt' in syncStatus ? syncStatus.lastAttempt : 
+                     'Unknown';
+        
+        console.log('[Debug] Sync information:', {
+          lastSync,
+          status: 'status' in syncStatus ? syncStatus.status : 'Unknown',
+          lastAttempt: 'lastAttempt' in syncStatus ? syncStatus.lastAttempt : 'Unknown',
+          errorCount: 'errorCount' in syncStatus ? syncStatus.errorCount : 0
+        });
       }
     } catch (e) {
       console.log('[Debug] Error checking sync status:', e);
