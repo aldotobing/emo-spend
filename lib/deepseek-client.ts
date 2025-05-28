@@ -1,5 +1,5 @@
 // /lib/deepseek-client.ts
-import type { AIResponse} from "@/types/ai";
+import type { AIResponse } from "@/types/ai";
 
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
 
@@ -8,16 +8,89 @@ interface DeepSeekMessage {
   content: string;
 }
 
+/**
+ * Processes a ReadableStream from a streaming API response and returns a new ReadableStream
+ * that emits the text content as it's being streamed.
+ */
+function processStream(stream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = '';
+  
+  const transformStream = new TransformStream<Uint8Array, Uint8Array>({
+    async transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true });
+      
+      // Process complete SSE events
+      let eventEndIndex;
+      while ((eventEndIndex = buffer.indexOf('\n\n')) !== -1) {
+        const event = buffer.slice(0, eventEndIndex).trim();
+        buffer = buffer.slice(eventEndIndex + 2);
+        
+        if (!event.startsWith('data: ')) continue;
+        
+        const data = event.slice(6).trim(); // Remove 'data: ' prefix
+        if (data === '[DONE]') continue;
+        
+        try {
+          const parsed: StreamChunk = JSON.parse(data);
+          const content = parsed.choices[0]?.delta?.content;
+          if (content) {
+            controller.enqueue(encoder.encode(content));
+          }
+        } catch (e) {
+          console.error('Error parsing stream chunk:', e);
+        }
+      }
+    },
+    
+    flush(controller) {
+      // Process any remaining data in the buffer
+      if (buffer.trim()) {
+        try {
+          const event = buffer.trim();
+          if (event.startsWith('data: ')) {
+            const data = event.slice(6).trim();
+            if (data !== '[DONE]') {
+              const parsed: StreamChunk = JSON.parse(data);
+              const content = parsed.choices[0]?.delta?.content;
+              if (content) {
+                controller.enqueue(encoder.encode(content));
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error in flush:', e);
+        }
+      }
+      controller.terminate();
+    }
+  });
+  
+  return stream.pipeThrough(transformStream);
+}
+
+interface StreamChunk {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    delta: {
+      content?: string;
+      role?: string;
+    };
+    index: number;
+    finish_reason: string | null;
+  }[];
+}
+
 export async function callDeepSeekAPI(
   apiKey: string,
   prompt: string,
   isDetailedAnalysis: boolean = false,
   stream: boolean = false
 ): Promise<AIResponse> {
-  // Adjust prompt for detailed analysis if needed, though DeepSeek might be less nuanced with system prompts.
-  // For simplicity, we'll use the same context but expect potentially less depth.
-  // The main 'context' already has instructions.
-
   let finalContext = prompt;
   if (isDetailedAnalysis) {
     finalContext +=
@@ -29,7 +102,8 @@ export async function callDeepSeekAPI(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Authorization": `Bearer ${apiKey}`,
+        "Accept": stream ? "text/event-stream" : "application/json",
       },
       body: JSON.stringify({
         model: "deepseek-chat",
@@ -55,11 +129,10 @@ export async function callDeepSeekAPI(
 
     // Handle streaming response
     if (stream && response.body) {
-      const result: AIResponse = {
-        stream: response.body as ReadableStream<Uint8Array>,
+      return {
+        stream: processStream(response.body as ReadableStream<Uint8Array>),
         modelUsed: "DeepSeek",
       };
-      return result;
     }
 
     // Handle non-streaming response

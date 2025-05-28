@@ -1,18 +1,32 @@
 import React, { JSX } from "react";
 
 export const renderFormattedResponse = (text: string) => {
-  const lines = text.split("\n");
+  // First, handle code blocks separately to preserve their formatting
+  const codeBlocks: string[] = [];
+  const withPlaceholders = text.replace(/```([\s\S]*?)```/g, (_, code) => {
+    codeBlocks.push(code);
+    return `%%CODE_BLOCK_${codeBlocks.length - 1}%%`;
+  });
+
+  const lines = withPlaceholders.split("\n");
 
   const parseInlineFormatting = (line: string) => {
-    return line
+    // Handle arrow-based format (->) with proper spacing and styling
+    let formattedLine = line
+      .replace(/(^|\s)->(\s|$)/g, ' <span class="text-primary">→</span> ') // Replace -> with arrow icon
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(/~~(.*?)~~/g, "<del>$1</del>")
-      .replace(/`(.*?)`/g, "<code>$1</code>")
+      .replace(/`([^`]+)`/g, "<code class='bg-muted px-1 py-0.5 rounded text-sm'>$1</code>")
       .replace(
         /\[(.*?)\]\((.*?)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+        '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">$1</a>'
       );
+
+    // Add margin after colons for better readability
+    formattedLine = formattedLine.replace(/([:;])\s*/g, "$1 ");
+
+    return formattedLine;
   };
 
   const isTableDivider = (line: string) => /^(\|\s*:?-+:?\s*)+\|$/.test(line);
@@ -181,13 +195,43 @@ export const renderFormattedResponse = (text: string) => {
       continue;
     }
 
+    // Handle arrow-based format as a special case
+    if (line.trim().includes('->')) {
+      rendered.push(
+        <div 
+          key={`arrow-${i}`} 
+          className="my-2 pl-4 border-l-2 border-primary/20 break-words whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ 
+            __html: parseInlineFormatting(line.replace(/^`*|`*$/g, '').trim())
+          }} 
+        />
+      );
+    } 
+    // Handle code blocks
+    else if (line.includes('%%CODE_BLOCK_')) {
+      const match = line.match(/%%CODE_BLOCK_(\d+)%%/);
+      if (match) {
+        const codeIndex = parseInt(match[1], 10);
+        const codeContent = codeBlocks[codeIndex];
+        rendered.push(
+          <pre key={`code-${i}`} className="bg-muted p-4 rounded-md my-2 overflow-auto">
+            <code className="whitespace-pre-wrap break-words">{codeContent}</code>
+          </pre>
+        );
+      }
+    }
     // Default paragraph
-    rendered.push(
-      <p
-        key={`p-${i}`}
-        dangerouslySetInnerHTML={{ __html: parseInlineFormatting(line) }}
-      />
-    );
+    else {
+      rendered.push(
+        <p
+          key={`p-${i}`}
+          className="my-2 break-words whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ 
+            __html: parseInlineFormatting(line.replace(/^`*|`*$/g, '').trim()) 
+          }}
+        />
+      );
+    }
   }
 
   flushList("end");

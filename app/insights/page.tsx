@@ -174,20 +174,40 @@ export default function InsightsPage() {
       });
       return;
     }
+
     setIsGeneratingDetailed(true);
     setAnalysisStartTime(Date.now());
     setElapsedTime(0);
+    
+    // Clear any existing timer
     if (timerRef.current) clearInterval(timerRef.current);
+    
+    // Start a new timer to show elapsed time
     timerRef.current = setInterval(() => {
       setElapsedTime(prev => prev + 1);
     }, 1000);
+
     try {
+      // Call with streaming enabled
       const analysisResult = await generateDetailedAnalysis(
         geminiApiKey,
         deepSeekApiKey,
-        aiInsightResult.insights
+        aiInsightResult.insights,
+        true // Enable streaming
       );
+
+      // If we have a stream, we'll handle it in the DetailedAnalysisCard component
+      // Just set the result, the streaming will be handled by the component
       setDetailedAnalysisResult(analysisResult);
+      
+      // If it's not a stream, we can stop the timer and set loading to false
+      if (!('stream' in analysisResult)) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        setIsGeneratingDetailed(false);
+      }
     } catch (error) {
       console.error("Failed to generate detailed analysis:", error);
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -196,13 +216,16 @@ export default function InsightsPage() {
         modelUsed: "None (Error)",
         error: errorMessage,
       });
-    } finally {
-      setIsGeneratingDetailed(false);
+      
+      // Make sure to clear the timer on error
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      setIsGeneratingDetailed(false);
     }
+    // Note: We don't have a finally block here because we want to keep the loading state
+    // while streaming. The stream completion is handled by the DetailedAnalysisCard component
   };
 
   return (
@@ -251,6 +274,7 @@ export default function InsightsPage() {
             error={aiInsightResult.error}
             expenses={expenses}
             period={period}
+            aiResponse={aiInsightResult}
           />
 
           <DetailedAnalysisCard

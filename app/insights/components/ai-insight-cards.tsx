@@ -1,4 +1,4 @@
-import React, { JSX } from 'react';
+import React, { JSX, useEffect, useState } from 'react';
 import {
     Card,
     CardContent,
@@ -18,6 +18,7 @@ import {
   import { motion } from "framer-motion";
   import { renderFormattedResponse } from "@/lib/text-formatter";
   import type { Expense } from "@/types/expense";
+  import type { AIResponse } from "@/types/ai";
   
   interface AIInsightCardsProps {
     isLoading: boolean;
@@ -25,6 +26,7 @@ import {
     error?: string;
     expenses: Expense[];
     period: "week" | "month" | "year";
+    aiResponse?: AIResponse;
   }
   
   export function AIInsightCards({
@@ -33,8 +35,48 @@ import {
     error,
     expenses,
     period,
+    aiResponse,
   }: AIInsightCardsProps) {
+    const [streamingContent, setStreamingContent] = useState<string>('');
     const icons = [Lightbulb, TrendingUp, AlertTriangle, Brain, Sparkles];
+
+    // Handle streaming response if available
+    useEffect(() => {
+      if (aiResponse?.stream) {
+        const reader = aiResponse.stream.getReader();
+        const decoder = new TextDecoder();
+        let content = '';
+        
+        const processStream = async () => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              
+              const chunk = decoder.decode(value, { stream: true });
+              content += chunk;
+              setStreamingContent(content);
+            }
+            // Ensure all remaining content is processed
+            const finalChunk = decoder.decode();
+            if (finalChunk) {
+              content += finalChunk;
+              setStreamingContent(content);
+            }
+          } catch (error) {
+            console.error('Error reading stream:', error);
+          } finally {
+            reader.releaseLock();
+          }
+        };
+        
+        processStream();
+        
+        return () => {
+          reader.cancel().catch(console.error);
+        };
+      }
+    }, [aiResponse?.stream]);
   
     if (isLoading) {
       return (
@@ -50,6 +92,30 @@ import {
             </Card>
           ))}
         </div>
+      );
+    }
+    
+    // Show streaming content if available
+    if (aiResponse?.stream || streamingContent) {
+      return (
+        <Card className="border-2 border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Brain className="h-5 w-5 text-primary" />
+              </motion.div>
+              <span>Analisis Mendalam</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-sm dark:prose-invert whitespace-pre-line">
+              {streamingContent || 'Menganalisis data Anda...'}
+            </div>
+          </CardContent>
+        </Card>
       );
     }
   

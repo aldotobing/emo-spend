@@ -100,7 +100,8 @@ export async function generateAIInsights(
 export async function generateDetailedAnalysis(
   geminiApiKey: string | undefined,
   deepSeekApiKey: string | undefined,
-  currentInsights: string[]
+  currentInsights: string[],
+  stream: boolean = true // Add stream parameter, default to true
 ): Promise<AIDetailedAnalysisResponse> {
   if (!geminiApiKey && !deepSeekApiKey) {
     console.error(
@@ -125,7 +126,6 @@ export async function generateDetailedAnalysis(
     }
 
     const baseContext = prepareContextForAI(expenses, true);
-
     const detailedContext = getDetailedAnalysisPrompt(currentInsights);
 
     let result;
@@ -133,10 +133,23 @@ export async function generateDetailedAnalysis(
     // Use DeepSeek directly for detailed analysis
     if (deepSeekApiKey) {
       console.log("Using DeepSeek API for detailed analysis...");
-      result = await callDeepSeekAPI(deepSeekApiKey, detailedContext, true); // true for detailed
+      result = await callDeepSeekAPI(deepSeekApiKey, detailedContext, true, stream);
+      
+      // If streaming is enabled and we have a stream in the response, return it directly
+      if (stream && result.stream) {
+        return {
+          stream: result.stream,
+          modelUsed: result.modelUsed,
+        };
+      }
+      
+      // Handle non-streaming response
       if (!result.error && result.text) {
         console.log("Successfully generated detailed analysis with DeepSeek.");
-        return { analysis: result.text, modelUsed: result.modelUsed };
+        return { 
+          analysis: result.text, 
+          modelUsed: result.modelUsed 
+        };
       }
       console.warn(
         "DeepSeek API call for detailed analysis failed. Error:",
@@ -147,10 +160,23 @@ export async function generateDetailedAnalysis(
     // Fall back to Gemini only if DeepSeek is not available or fails
     if (geminiApiKey) {
       console.log("Falling back to Gemini API for detailed analysis...");
-      result = await callGeminiAPI(geminiApiKey, detailedContext, true); // true for detailed
+      result = await callGeminiAPI(geminiApiKey, detailedContext, true);
+      
+      // If streaming is enabled and we have a stream in the response, return it directly
+      if (stream && result.stream) {
+        return {
+          stream: result.stream,
+          modelUsed: result.modelUsed,
+        };
+      }
+      
+      // Handle non-streaming response
       if (!result.error && result.text) {
         console.log("Successfully generated detailed analysis with Gemini.");
-        return { analysis: result.text, modelUsed: result.modelUsed };
+        return { 
+          analysis: result.text, 
+          modelUsed: result.modelUsed 
+        };
       }
       console.warn(
         "Gemini API call for detailed analysis failed. Error:",

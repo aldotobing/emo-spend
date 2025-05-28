@@ -4,11 +4,19 @@ export interface AIInsightResponse {
   error?: string; // Optional error message if the process failed at a higher level
 }
 
-export interface AIDetailedAnalysisResponse {
-  analysis: string;
-  modelUsed: string;
-  error?: string;
-}
+export type AIDetailedAnalysisResponse =
+  | {
+      analysis: string;
+      modelUsed: string;
+      error?: string;
+      stream?: never;
+    }
+  | {
+      stream: ReadableStream<Uint8Array>;
+      modelUsed: string;
+      analysis?: never;
+      error?: never;
+    };
 
 // Union type for client functions which can return either list of insights, single text, or a stream
 export type AIResponse =
