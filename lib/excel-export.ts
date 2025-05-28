@@ -54,6 +54,8 @@ interface FinancialSummary {
   expenseToIncomeRatio: number;
   avgMonthlyIncome: number;
   avgMonthlyExpenses: number;
+  emergencyFundMonths: number;
+  discretionarySpending: number;
   topExpenseCategories: Array<{ category: string; amount: number; percentage: number }>;
   expensesByMood: Record<string, { amount: number; count: number; percentage: number }>;
   monthlyTrends: Array<{
@@ -179,6 +181,20 @@ async function generateEnhancedFinancialSummary(
   const monthsDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
   const avgMonthlyIncome = totalIncome / monthsDiff;
   const avgMonthlyExpenses = totalExpenses / monthsDiff;
+
+  // Calculate emergency fund months (savings / monthly expenses)
+  const emergencyFundMonths = avgMonthlyExpenses > 0 ? (netSavings / avgMonthlyExpenses) : 0;
+
+  // Calculate discretionary spending (non-essential expenses)
+  // Essential categories: Bills & Utilities, Transportation, Health & Fitness
+  const essentialCategories = ['bills', 'transport', 'health'];
+  const discretionaryExpenses = expenses
+    .filter(expense => !essentialCategories.includes(expense.category))
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
+  const discretionarySpending = totalExpenses > 0 
+    ? (discretionaryExpenses / totalExpenses) * 100 
+    : 0;
 
   // Enhanced category analysis
   const categoryTotals = expenses.reduce((acc, expense) => {
@@ -307,6 +323,8 @@ async function generateEnhancedFinancialSummary(
     expenseToIncomeRatio,
     avgMonthlyIncome,
     avgMonthlyExpenses,
+    emergencyFundMonths,
+    discretionarySpending,
     topExpenseCategories,
     expensesByMood,
     monthlyTrends,
@@ -782,18 +800,97 @@ function createDashboardWorksheet(summary: FinancialSummary, startDate: Date, en
   ]);
   rows.push([{ v: '', t: 's' }]);
 
-  // Calculate Financial Health Score (0-100)
+  // Calculate Financial Health Score (0-100) - Matching the web implementation
   let healthScore = 0;
-  healthScore += Math.min(summary.savingsRate * 2, 40); // Max 40 points for savings rate
-  healthScore += summary.expenseToIncomeRatio < 80 ? 30 : summary.expenseToIncomeRatio < 90 ? 20 : 10; // Expense control
-  healthScore += summary.totalIncome > summary.totalExpenses ? 30 : 0; // Positive cash flow
+  let status: 'Excellent' | 'Good' | 'Fair' | 'Needs Improvement' | 'Poor' = 'Poor';
+  let summaryText = '';
+  const recommendations: string[] = [];
 
-  const healthGrade = healthScore >= 90 ? 'A+' : healthScore >= 80 ? 'A' : healthScore >= 70 ? 'B' : healthScore >= 60 ? 'C' : 'D';
-  const healthColor = healthScore >= 80 ? COLORS.success : healthScore >= 60 ? COLORS.warning : COLORS.accent;
+  // Emergency Fund Score (Max 30 points)
+  const emergencyFundScore = Math.min(summary.emergencyFundMonths * 10, 30);
+  
+  // Expense to Income Ratio Score (Max 30 points)
+  let expenseRatioScore = 0;
+  if (summary.expenseToIncomeRatio <= 50) expenseRatioScore = 30;
+  else if (summary.expenseToIncomeRatio <= 70) expenseRatioScore = 20;
+  else if (summary.expenseToIncomeRatio <= 90) expenseRatioScore = 10;
+  
+  // Savings Rate Score (Max 30 points)
+  const savingsRateScore = Math.min(summary.savingsRate * 0.6, 30);
+  
+  // Discretionary Spending Score (Max 10 points)
+  let discretionaryScore = 0;
+  if (summary.discretionarySpending <= 30) {
+    discretionaryScore = 10;
+  } else if (summary.discretionarySpending <= 50) {
+    discretionaryScore = 5;
+  }
+  
+  healthScore = emergencyFundScore + expenseRatioScore + savingsRateScore + discretionaryScore;
+  
+  // Determine status and grade based on score
+  if (healthScore >= 80) {
+    status = 'Excellent';
+    summaryText = 'Your finances are in great shape! Keep up the good work.';
+  } else if (healthScore >= 60) {
+    status = 'Good';
+    summaryText = 'Your finances are in good shape, but there is room for improvement.';
+  } else if (healthScore >= 40) {
+    status = 'Fair';
+    summaryText = 'Your finances need attention. Consider making some adjustments.';
+    recommendations.push('Review your spending habits and look for areas to cut back.');
+    recommendations.push('Try to increase your savings rate gradually.');
+  } else if (healthScore >= 20) {
+    status = 'Needs Improvement';
+    summaryText = 'Your financial health needs attention.';
+    recommendations.push('Focus on building an emergency fund.');
+    recommendations.push('Create and stick to a strict budget.');
+  } else {
+    status = 'Poor';
+    summaryText = 'Your financial health needs immediate attention.';
+    recommendations.push('Focus on reducing expenses and increasing income.');
+    recommendations.push('Consider consulting a financial advisor.');
+  }
+  
+  // Calculate letter grade based on score
+  const healthGrade = healthScore >= 90 ? 'A+' :
+                     healthScore >= 80 ? 'A' :
+                     healthScore >= 70 ? 'B' :
+                     healthScore >= 60 ? 'C' :
+                     healthScore >= 50 ? 'D' : 'F';
+  
+  // Add specific recommendations based on scores
+  if (emergencyFundScore < 10) {
+    recommendations.push('Aim to save at least 3-6 months of expenses for emergencies.');
+  } else if (emergencyFundScore < 20) {
+    recommendations.push('Continue building your emergency fund to reach 6+ months of expenses.');
+  }
+  
+  if (expenseRatioScore < 10) {
+    recommendations.push('Work on reducing your expenses to below 110% of your income.');
+  } else if (expenseRatioScore < 20) {
+    recommendations.push('Aim to reduce expenses to below 90% of your income.');
+  } else if (expenseRatioScore < 30) {
+    recommendations.push('Great job! Maintain expenses below 70% of your income.');
+  }
+  
+  if (savingsRateScore < 10) {
+    recommendations.push('Try to save at least 10-20% of your income each month.');
+  } else if (savingsRateScore < 15) {
+    recommendations.push('Aim to increase your savings rate to 20-30% of your income.');
+  } else {
+    recommendations.push('Excellent savings rate! Consider investing your savings.');
+  }
+  
+  const healthColor = healthScore >= 80 ? COLORS.success : 
+                     healthScore >= 60 ? '#3b82f6' : // Blue for Good
+                     healthScore >= 40 ? COLORS.warning : 
+                     COLORS.accent;
 
+  // Display the letter grade prominently
   rows.push([
-    createCell(Math.round(healthScore), {
-      font: { bold: true, sz: 36, color: { rgb: healthColor } },
+    createCell(healthGrade, {
+      font: { bold: true, sz: 48, color: { rgb: healthColor } },
       alignment: { horizontal: 'center' }
     }),
     { v: '', t: 's' },
@@ -801,7 +898,7 @@ function createDashboardWorksheet(summary: FinancialSummary, startDate: Date, en
   ]);
 
   rows.push([
-    createCell(`Grade: ${healthGrade}`, {
+    createCell(`${status} (${Math.round(healthScore)}/100)`, {
       font: { bold: true, sz: 14, color: { rgb: healthColor } },
       alignment: { horizontal: 'center' }
     }),
