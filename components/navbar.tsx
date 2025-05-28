@@ -95,36 +95,26 @@ export default function Navbar() {
         scrolled ? "bg-background/95 border-primary/10" : "bg-transparent border-transparent",
       )}
     >
-      <div className="container flex h-16 items-center">
-        <div className="mr-4 hidden md:flex">
+      <div className="w-full max-w-[2000px] mx-auto flex h-16 items-center justify-between px-6 md:px-8 lg:px-12">
+        <div className="flex items-center flex-shrink-0">
           <Link href="/" className="flex items-center">
             <motion.div
-              whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
-              transition={{ duration: 0.5 }}
-              className="text-2xl flex items-center"
+              whileHover={{ scale: 1.02 }}
+              transition={{ duration: 0.3 }}
+              className="flex items-center space-x-2"
             >
-              💰
-            </motion.div>
-            <span className="ml-2 text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70 flex items-center">
-              EmoSpend
-            </span>
-          </Link>
-        </div>
-        <nav className="flex items-center justify-between w-full md:justify-end space-x-2">
-          <div className="flex-1 md:hidden">
-            <Link href="/" className="flex items-center">
-              <motion.div
-                whileHover={{ rotate: [0, -10, 10, -10, 0], scale: 1.1 }}
-                transition={{ duration: 0.5 }}
-                className="text-2xl flex items-center"
-              >
-                💰
-              </motion.div>
+              <img 
+                src="/header_logo.jpg" 
+                alt="EmoSpend Logo"
+                className="h-8 w-auto object-contain"
+              />
               <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
                 EmoSpend
               </span>
-            </Link>
-          </div>
+            </motion.div>
+          </Link>
+        </div>
+        <nav className="flex items-center space-x-4">
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center justify-between md:justify-end space-x-1 md:space-x-2">
