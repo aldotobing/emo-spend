@@ -2,6 +2,7 @@ import Dexie, { type Table } from "dexie";
 import type { Expense as AppExpense, MoodType, Income as AppIncome } from "@/types/expense";
 import { getSupabaseBrowserClient } from "./supabase";
 import { User } from "@supabase/supabase-js";
+import { Mutex } from 'async-mutex';
 
 // Debug logging disabled in production
 const DEBUG = false;
@@ -99,6 +100,10 @@ export class EmoSpendDatabase extends Dexie {
 }
 
 let dbInstance: EmoSpendDatabase | null = null;
+const syncMutex = new Mutex();
+let isSyncing = false;
+
+const SYNC_TIMEOUT = 30000; // 30 seconds
 
 export function getDb(): EmoSpendDatabase {
   if (!dbInstance) {
@@ -681,6 +686,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
 }
 
 export async function pullExpensesFromSupabase(): Promise<{ synced: number; skipped: number }> {
+  console.log('[Pull] Starting expense pull');
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();
@@ -818,20 +824,24 @@ export async function setupSync(): Promise<void> {
     return;
   }
   const supabase = getSupabaseBrowserClient();
-  let isSyncing = false;
-
-  // No need for custom events, using dispatchSyncEvent instead
-
+  
   const performFullSync = async (reason: string) => {
-    if (isSyncing) {
-      return;
-    }
-    
-    // Dispatch sync start event with background operation
-    dispatchSyncEvent('background');
-    isSyncing = true;
-    
+    const release = await syncMutex.acquire();
+    const timeout = setTimeout(() => {
+      console.error('[Sync] Timeout exceeded');
+      release();
+      isSyncing = false;
+    }, SYNC_TIMEOUT);
+
     try {
+      if (isSyncing) {
+        console.log('[Sync] Sync already in progress, skipping');
+        return;
+      }
+      
+      isSyncing = true;
+      dispatchSyncEvent('background');
+      
       await pullExpensesFromSupabase();
       await syncExpenses();
       await syncGamificationData();
@@ -841,8 +851,9 @@ export async function setupSync(): Promise<void> {
         error.message
       );
     } finally {
+      clearTimeout(timeout);
+      release();
       isSyncing = false;
-      // Dispatch sync end event
       dispatchSyncEvent(null);
     }
   };
