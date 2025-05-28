@@ -364,15 +364,15 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     console.log('[Pull] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
     console.log('[Pull] Supabase anon key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
     
-    // Debug: Check if we can access the incomes table
-    const { data: tableInfo, error: tableError } = await supabase
-      .rpc('get_table_info', { table_name: 'incomes' })
+    // Check if we can access the incomes table with a simple query
+    const { error: tableError } = await supabase
+      .from('incomes')
       .select('*')
-      .single();
+      .limit(1);
       
-    console.log('[Pull] Table info:', tableInfo);
     if (tableError) {
       console.error('[Pull] Error accessing incomes table:', tableError);
+      // Continue execution even if there's an error, as it might be an empty table
     }
     console.log(`[Pull] Starting to pull incomes for user ${user.id}`);
     
