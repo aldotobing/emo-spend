@@ -113,25 +113,42 @@ import {
               </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <div className="space-y-4 text-foreground/90">
-                {streamingContent ? (
-                  <div className="whitespace-pre-line">
-                    {renderFormattedResponse(streamingContent)}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3 text-muted-foreground">
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <div className="space-y-4 text-foreground/90">
+                  {streamingContent && (
+                    <div className="whitespace-pre-line">
+                      {renderFormattedResponse(streamingContent)}
+                    </div>
+                  )}
+                  <motion.div 
+                    className="flex flex-col items-center justify-center py-4 space-y-2 mt-2"
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
                     <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                      animate={{ 
+                        scale: [1, 1.1, 1],
+                        rotate: [0, 10, -10, 0]
+                      }}
+                      transition={{ 
+                        duration: 1.5, 
+                        repeat: Infinity, 
+                        ease: "easeInOut"
+                      }}
                     >
-                      <Brain className="h-4 w-4" />
+                      <Zap className="h-5 w-5 text-primary" />
                     </motion.div>
-                    <span>Menganalisis data Anda...</span>
-                  </div>
-                )}
+                    <motion.span 
+                      className="text-muted-foreground text-xs font-medium"
+                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      Menganalisis...
+                    </motion.span>
+                  </motion.div>
+                </div>
               </div>
-            </div>
           </CardContent>
         </Card>
       );

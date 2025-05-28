@@ -17,7 +17,7 @@ export const renderFormattedResponse = (text: string) => {
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
       .replace(/\*(.*?)\*/g, "<em>$1</em>")
       .replace(/~~(.*?)~~/g, "<del>$1</del>")
-      .replace(/`([^`]+)`/g, "<code class='bg-muted px-1 py-0.5 rounded text-sm'>$1</code>")
+      .replace(/`([^`]+)`/g, '&ldquo;$1&rdquo;') // Replace backticks with curly quotes
       .replace(
         /\[(.*?)\]\((.*?)\)/g,
         '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">$1</a>'
@@ -39,7 +39,7 @@ export const renderFormattedResponse = (text: string) => {
     const headers = headerLine
       .split("|")
       .slice(1, -1)
-      .map((h) => h.trim());
+      .map((h) => h.trim().replace(/\*\*/g, '')); // Remove markdown bold from headers
 
     const dataRows = rows.map((row) =>
       row
@@ -49,41 +49,43 @@ export const renderFormattedResponse = (text: string) => {
     );
 
     return (
-      <table
-        key={`table-${Math.random()}`}
-        className="markdown-table border border-collapse w-full my-4"
-      >
-        <thead>
-          <tr>
-            {headers.map((header, idx) => (
-              <th
-                key={`th-${idx}`}
-                className="border px-2 py-1 bg-gray-100 text-left"
-              >
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {dataRows.map((cells, rowIdx) => (
-            <tr key={`tr-${rowIdx}`}>
-              {cells.map((cell, cellIdx) => (
-                <td
-                  key={`td-${rowIdx}-${cellIdx}`}
-                  className="border px-2 py-1"
+      <div className="w-full overflow-x-auto my-4">
+        <table
+          key={`table-${Math.random()}`}
+          className="w-full border-collapse"
+        >
+          <thead>
+            <tr>
+              {headers.map((header, idx) => (
+                <th
+                  key={`th-${idx}`}
+                  className="border border-gray-300 dark:border-gray-600 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-left text-gray-800 dark:text-gray-200 font-semibold"
                 >
-                  <span
-                    dangerouslySetInnerHTML={{
-                      __html: parseInlineFormatting(cell),
-                    }}
-                  />
-                </td>
+                  {header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {dataRows.map((cells, rowIdx) => (
+              <tr key={`tr-${rowIdx}`} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                {cells.map((cell, cellIdx) => (
+                  <td
+                    key={`td-${rowIdx}-${cellIdx}`}
+                    className="border border-gray-200 dark:border-gray-600 px-3 py-2 text-gray-800 dark:text-gray-200"
+                  >
+                    <span
+                      dangerouslySetInnerHTML={{
+                        __html: parseInlineFormatting(cell),
+                      }}
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   };
 
