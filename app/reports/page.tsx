@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { MonthlyCategoryData } from "./components/monthly-category-spending";
 import { format, subMonths, startOfMonth, endOfMonth, isBefore, isAfter, isSameDay, startOfYear, subYears } from "date-fns";
-import { Calendar as CalendarIcon, Download, FileSpreadsheet, BarChart2, TrendingUp } from "lucide-react";
+import { Calendar as CalendarIcon, Download, FileSpreadsheet, BarChart2, PieChart, TrendingUp, BarChart, Table } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -10,8 +11,12 @@ import { useToast } from "@/components/ui/use-toast";
 import { exportExpensesToExcel, downloadExcel } from "@/lib/excel-export";
 import { Calendar } from "@/components/ui/calendar";
 import { getExpenses, getExpensesByDateRange } from "@/lib/db";
-import { YearOverYearChart } from "@/components/year-over-year-chart";
-import { SpendingTrendChart } from "@/components/spending-trend-chart";
+import { YearOverYearChart } from "./components/year-over-year-chart";
+import { SpendingTrendChart } from "./components/spending-trend-chart";
+import { CategorySpendingChart } from "./components/category-spending-chart";
+import { MonthlyCategorySpending } from "./components/monthly-category-spending";
+import { DailySpendingTrend } from "./components/daily-spending-trend";
+import { ExpensesTable } from "./components/expenses-table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,7 +24,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
 
 // Default date range: current month
 const today = new Date();
@@ -42,7 +46,13 @@ export default function ReportsPage() {
   const [isLoadingDates, setIsLoadingDates] = useState(true);
   const [yearlyExpenses, setYearlyExpenses] = useState<Array<{ date: string; amount: number }>>([]);
   const [isLoadingYearlyData, setIsLoadingYearlyData] = useState(true);
-  const [trendData, setTrendData] = useState<Array<{ month: string; amount: number }>>([]);
+  const [trendData, setTrendData] = useState<Array<{ date: string; amount: number }>>([]);
+  const [categorySpending, setCategorySpending] = useState<Array<{ name: string; value: number; color: string }>>([]);
+  const [monthlyCategoryData, setMonthlyCategoryData] = useState<MonthlyCategoryData[]>([]);
+  const [dailySpending, setDailySpending] = useState<Array<{ date: string; amount: number }>>([]);
+  const [recentExpenses, setRecentExpenses] = useState<Array<any>>([]);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  const [categories, setCategories] = useState<string[]>([]);
 
   // Load the oldest expense date on component mount
   useEffect(() => {
@@ -64,8 +74,10 @@ export default function ReportsPage() {
     };
 
     loadOldestExpenseDate();
-    loadYearlyExpenses();
-    loadTrendData();
+  }, []);
+
+  useEffect(() => {
+    loadChartData();
   }, []);
 
   // Load expenses for the current and previous year for the Year-over-Year chart
@@ -91,21 +103,21 @@ export default function ReportsPage() {
     }
   };
 
-  // Load trend data for the last 12 months
-  const loadTrendData = async () => {
+  // Load all chart data
+  const loadChartData = async () => {
     try {
-      const now = new Date();
-      const twelveMonthsAgo = subMonths(now, 11);
-      const startDate = startOfMonth(twelveMonthsAgo).toISOString().split('T')[0];
-      const endDate = endOfMonth(now).toISOString().split('T')[0];
+      setIsLoadingCharts(true);
+      const startDate = format(defaultStartDate, 'yyyy-MM-dd');
+      const endDate = format(defaultEndDate, 'yyyy-MM-dd');
       
+      // Load all expenses for the period
       const expenses = await getExpensesByDateRange(startDate, endDate);
       
-      // Group by month
+      // Process data for monthly trend chart
       const monthlyData = new Map();
       const months = [];
-      
-      // Initialize all months with 0
+      const now = new Date();
+      const twelveMonthsAgo = subMonths(now, 12);
       let current = startOfMonth(twelveMonthsAgo);
       while (current <= now) {
         const monthKey = format(current, 'MMM yyyy');
@@ -114,27 +126,94 @@ export default function ReportsPage() {
         current = new Date(current.getFullYear(), current.getMonth() + 1, 1);
       }
       
-      // Sum expenses by month
+      // Process data for category spending
+      const categoryMap = new Map();
+      const monthlyCategoryMap = new Map();
+      const dailySpendingMap = new Map();
+      
+      // Initialize category data
+      const allCategories = [...new Set(expenses.map(e => e.category))];
+      setCategories(allCategories);
+      
+      // Process each expense
       expenses.forEach(expense => {
         const date = new Date(expense.date);
         const monthKey = format(date, 'MMM yyyy');
+        const dateKey = format(date, 'yyyy-MM-dd');
+        
+        // Update monthly total
         monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + expense.amount);
+        
+        // Update category total
+        categoryMap.set(
+          expense.category, 
+          (categoryMap.get(expense.category) || 0) + expense.amount
+        );
+        
+        // Update monthly category data
+        if (!monthlyCategoryMap.has(monthKey)) {
+          monthlyCategoryMap.set(monthKey, { month: monthKey });
+          allCategories.forEach(cat => {
+            monthlyCategoryMap.get(monthKey)[cat] = 0;
+          });
+        }
+        monthlyCategoryMap.get(monthKey)[expense.category] += expense.amount;
+        
+        // Update daily spending
+        dailySpendingMap.set(
+          dateKey,
+          (dailySpendingMap.get(dateKey) || 0) + expense.amount
+        );
       });
       
-      // Convert to array for the chart
-      const trendData = months.map(month => ({
-        month,
+      // Set trend data
+      setTrendData(months.map(month => ({
+        date: month,  // Changed from month to date to match DataPoint type
         amount: monthlyData.get(month) || 0
-      }));
+      })));
       
-      setTrendData(trendData);
+      // Set category spending data
+      setCategorySpending(
+        Array.from(categoryMap.entries()).map(([name, value], index) => ({
+          name,
+          value,
+          color: `hsl(${(index * 60) % 360}, 70%, 50%)`
+        }))
+      );
+      
+      // Set monthly category data
+      setMonthlyCategoryData(Array.from(monthlyCategoryMap.values()));
+      
+      // Set daily spending data with 7-day moving average
+      const dailyData = Array.from(dailySpendingMap.entries())
+        .map(([date, amount]) => ({ date, amount }))
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      // Calculate 7-day moving average
+      const dailyWithAverage = dailyData.map((day, i, arr) => {
+        const start = Math.max(0, i - 6);
+        const week = arr.slice(start, i + 1);
+        const average = week.reduce((sum, d) => sum + d.amount, 0) / week.length;
+        return { ...day, average };
+      });
+      
+      setDailySpending(dailyWithAverage);
+      
+      // Set recent expenses (last 10)
+      const sortedExpenses = [...expenses]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10);
+      setRecentExpenses(sortedExpenses);
+      
     } catch (error) {
-      console.error('Error loading trend data:', error);
+      console.error('Error loading chart data:', error);
       toast({
         title: "Error",
-        description: "Failed to load trend data",
+        description: "Failed to load chart data",
         variant: "destructive",
       });
+    } finally {
+      setIsLoadingCharts(false);
     }
   };
 
@@ -392,37 +471,45 @@ export default function ReportsPage() {
           </TabsContent>
 
           <TabsContent value="insights" className="space-y-6">
-            {/* Year-over-Year Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Year-over-Year Comparison</CardTitle>
-                <CardDescription>
-                  Compare your spending between the current and previous year
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingYearlyData ? (
-                  <div className="space-y-4">
-                    <Skeleton className="h-[300px] w-full" />
-                  </div>
-                ) : (
-                  <YearOverYearChart 
-                    expenses={yearlyExpenses} 
-                    isLoading={isLoadingYearlyData} 
-                  />
-                )}
-              </CardContent>
-              <CardFooter>
-                <p className="text-xs text-muted-foreground">
-                  Data shown for {new Date().getFullYear()} and {new Date().getFullYear() - 1}
-                </p>
-              </CardFooter>
-            </Card>
+<div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+              {/* Category Spending Pie Chart */}
+              <CategorySpendingChart 
+                data={categorySpending}
+                isLoading={isLoadingCharts}
+              />
+              
+              {/* Daily Spending Trend */}
+              <DailySpendingTrend 
+                data={dailySpending}
+                isLoading={isLoadingCharts}
+              />
+            </div>
+            
+            {/* Monthly Category Spending */}
+            <MonthlyCategorySpending 
+              data={monthlyCategoryData}
+              categories={categories}
+              isLoading={isLoadingCharts}
+            />
+            
+            <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
+              {/* Year-over-Year Card */}
+              <YearOverYearChart 
+                expenses={yearlyExpenses} 
+                isLoading={isLoadingYearlyData} 
+              />
 
-            {/* Trend Analysis Card */}
-            <SpendingTrendChart 
-              trendData={trendData} 
-              isLoading={isLoadingYearlyData} 
+              {/* Trend Analysis Card */}
+              <SpendingTrendChart 
+                trendData={trendData} 
+                isLoading={isLoadingCharts} 
+              />
+            </div>
+            
+            {/* Recent Transactions Table */}
+            <ExpensesTable 
+              expenses={recentExpenses}
+              isLoading={isLoadingCharts}
             />
           </TabsContent>
         </Tabs>
