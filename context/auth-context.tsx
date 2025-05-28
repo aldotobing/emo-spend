@@ -43,17 +43,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log(`[Auth] Auth state changed: ${event}`);
+      
+      // Update state first
       setSession(session);
       setUser(session?.user ?? null);
-      setIsLoading(false);
-      if (event === "SIGNED_IN") {
-        // You might trigger a data sync here as well, if needed
-        // For Google SSO, the redirect handles this after login, so it's already in the login flow.
-      } else if (event === "SIGNED_OUT") {
-        // Optionally, add a safety net clear here if `signOut` is not always called directly.
-        // await clearLocalUserData();
+      
+      if (event === 'SIGNED_IN') {
+        try {
+          console.log('[Auth] User signed in, starting sync...');
+          await performPostLoginSync();
+          console.log('[Auth] Sync completed after sign in');
+          router.push('/');
+        } catch (error) {
+          console.error('[Auth] Error during post-login sync:', error);
+          toast({
+            title: 'Sync Error',
+            description: 'Could not sync all data. Some features may be limited.',
+            variant: 'destructive',
+          });
+        }
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[Auth] User signed out, clearing local data');
+        try {
+          await clearLocalUserData();
+          console.log('[Auth] Local data cleared');
+        } catch (error) {
+          console.error('[Auth] Error clearing local data:', error);
+        }
       }
+      
+      setIsLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
