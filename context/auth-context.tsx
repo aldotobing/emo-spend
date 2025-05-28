@@ -149,17 +149,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}/`,
           //redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
       if (error) throw error;
-      // After redirect, the onAuthStateChange listener will handle the session.
-      // The post-login sync should be triggered by the "SIGNED_IN" event or similar.
+      
+      // Wait for the auth state to change
+      return new Promise<void>((resolve, reject) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN') {
+            subscription.unsubscribe();
+            resolve();
+          } else if (event === 'SIGNED_OUT') {
+            subscription.unsubscribe();
+            reject(new Error('Sign in was cancelled'));
+          }
+        });
+      });
     } catch (error: any) {
       console.error("Google sign-in error:", error.message);
       toast({
@@ -169,6 +180,7 @@ redirectTo: `${window.location.origin}/`,
           "An error occurred during Google sign-in. Please try again.",
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }

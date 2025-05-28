@@ -131,8 +131,6 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     try {
-      await signInWithGoogle();
-
       // Show the sync toast
       const baseText = "Syncing your latest data";
       const dots = ["", ".", "..", "..."];
@@ -140,8 +138,8 @@ export default function LoginPage() {
       let isSyncing = true;
 
       const toastObj = toast({
-        title: "Welcome back! 🎉",
-        description: `${baseText}...`,
+        title: "Signing in with Google...",
+        description: "Please wait while we authenticate your account",
         variant: "default",
       });
 
@@ -149,12 +147,23 @@ export default function LoginPage() {
         if (!isSyncing) return;
         toastObj.update({
           id: toastObj.id,
-          title: "Welcome back! 🎉",
-          description: `${baseText}${dots[dotIndex]}`,
+          title: "Signing in with Google...",
+          description: `Please wait while we authenticate your account${dots[dotIndex]}`,
           variant: "default",
         });
         dotIndex = (dotIndex + 1) % dots.length;
       }, 500);
+
+      // Wait for Google sign-in to complete
+      await signInWithGoogle();
+      
+      // Update toast to show we're now syncing data
+      toastObj.update({
+        id: toastObj.id,
+        title: "Welcome back! 🎉",
+        description: `${baseText}...`,
+        variant: "default",
+      });
 
       // Wait for the sync to complete
       await performPostLoginSync();
@@ -169,16 +178,19 @@ export default function LoginPage() {
         variant: "default",
       });
 
-      // Use client-side navigation instead of full page reload
+      // Use client-side navigation
       router.push("/");
 
     } catch (error) {
       console.error("Google sign-in error:", error);
-      toast({
-        title: "Google sign-in failed",
-        description: "An error occurred during Google sign-in. Please try again.",
-        variant: "destructive",
-      });
+      // Don't show error if user closed the popup
+      if (error instanceof Error && error.message !== 'Sign in was cancelled') {
+        toast({
+          title: "Google sign-in failed",
+          description: "An error occurred during Google sign-in. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsGoogleLoading(false);
     }
