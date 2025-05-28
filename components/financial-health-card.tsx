@@ -43,46 +43,71 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
       </Card>
     );
   }
-  // Calculate color based on score for a smooth gradient from red to green
-  const getScoreColor = (value: number) => {
-    // Normalize the score to a 0-1 range
-    const normalizedScore = value / 100;
-    
-    // Calculate RGB values for a smooth gradient from red (0) to green (1)
-    const r = Math.round(255 * (1 - normalizedScore * 0.8));
-    const g = Math.round(255 * (normalizedScore * 0.8));
-    const b = 0;
-    
-    // Calculate text color (dark for light backgrounds, light for dark backgrounds)
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    const textColor = brightness > 128 ? 'text-gray-900' : 'text-white';
-    
+  // Get color classes based on score for both light and dark modes
+  const getStatusColors = () => {
+    if (score >= 80) return {
+      bg: 'bg-green-500 dark:bg-green-600',
+      text: 'text-green-700 dark:text-green-300',
+      border: 'border-green-500 dark:border-green-600',
+      progress: 'bg-green-500 dark:bg-green-600',
+      ring: 'ring-green-500/20 dark:ring-green-400/30',
+      alert: 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800',
+      alertText: 'text-green-800 dark:text-green-200',
+      alertTitle: 'text-green-800 dark:text-green-100',
+      circleBg: 'text-green-100 dark:text-green-900/30',
+      circleProgress: 'text-green-500 dark:text-green-400',
+    };
+    if (score >= 60) return {
+      bg: 'bg-blue-500 dark:bg-blue-600',
+      text: 'text-blue-700 dark:text-blue-300',
+      border: 'border-blue-500 dark:border-blue-600',
+      progress: 'bg-blue-500 dark:bg-blue-600',
+      ring: 'ring-blue-500/20 dark:ring-blue-400/30',
+      alert: 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-800',
+      alertText: 'text-blue-800 dark:text-blue-200',
+      alertTitle: 'text-blue-800 dark:text-blue-100',
+      circleBg: 'text-blue-100 dark:text-blue-900/30',
+      circleProgress: 'text-blue-500 dark:text-blue-400',
+    };
+    if (score >= 40) return {
+      bg: 'bg-yellow-500 dark:bg-yellow-600',
+      text: 'text-yellow-700 dark:text-yellow-300',
+      border: 'border-yellow-500 dark:border-yellow-600',
+      progress: 'bg-yellow-500 dark:bg-yellow-600',
+      ring: 'ring-yellow-500/20 dark:ring-yellow-400/30',
+      alert: 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-800',
+      alertText: 'text-yellow-800 dark:text-yellow-200',
+      alertTitle: 'text-yellow-800 dark:text-yellow-100',
+      circleBg: 'text-yellow-100 dark:text-yellow-900/30',
+      circleProgress: 'text-yellow-500 dark:text-yellow-400',
+    };
+    if (score >= 20) return {
+      bg: 'bg-orange-500 dark:bg-orange-600',
+      text: 'text-orange-700 dark:text-orange-300',
+      border: 'border-orange-500 dark:border-orange-600',
+      progress: 'bg-orange-500 dark:bg-orange-600',
+      ring: 'ring-orange-500/20 dark:ring-orange-400/30',
+      alert: 'bg-orange-50 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800',
+      alertText: 'text-orange-800 dark:text-orange-200',
+      alertTitle: 'text-orange-800 dark:text-orange-100',
+      circleBg: 'text-orange-100 dark:text-orange-900/30',
+      circleProgress: 'text-orange-500 dark:text-orange-400',
+    };
     return {
-      bg: `rgb(${r}, ${g}, ${b})`,
-      text: textColor,
-      ring: `ring-rgb(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, 0)`
+      bg: 'bg-red-500 dark:bg-red-600',
+      text: 'text-red-700 dark:text-red-300',
+      border: 'border-red-500 dark:border-red-600',
+      progress: 'bg-red-500 dark:bg-red-600',
+      ring: 'ring-red-500/20 dark:ring-red-400/30',
+      alert: 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800',
+      alertText: 'text-red-800 dark:text-red-200',
+      alertTitle: 'text-red-800 dark:text-red-100',
+      circleBg: 'text-red-100 dark:text-red-900/30',
+      circleProgress: 'text-red-500 dark:text-red-400',
     };
   };
 
-  const scoreColor = getScoreColor(score);
-  
-  // For the circular progress indicator
-  const getStatusColor = () => {
-    if (score >= 80) return 'bg-green-500';
-    if (score >= 60) return 'bg-blue-500';
-    if (score >= 40) return 'bg-yellow-500';
-    if (score >= 20) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-  
-  // For text and other elements that need status-based colors
-  const getStatusTextColor = () => {
-    if (score >= 80) return 'text-green-700';
-    if (score >= 60) return 'text-blue-700';
-    if (score >= 40) return 'text-yellow-700';
-    if (score >= 20) return 'text-orange-700';
-    return 'text-red-700';
-  };
+  const statusColors = getStatusColors();
 
   return (
     <Card className={cn("w-full max-w-2xl mx-auto", className)}>
@@ -113,44 +138,47 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
         <div className="flex items-center justify-between">
           <div>
             <div 
-              className="text-5xl font-bold transition-colors duration-300"
-              style={{ color: scoreColor.bg }}
+              className={`text-5xl font-bold ${statusColors.text} transition-colors duration-300`}
             >
               {score}
             </div>
             <div 
-              className={`text-lg font-medium ${getStatusTextColor()} transition-colors duration-300`}
+              className={`text-lg font-medium ${statusColors.text} transition-colors duration-300`}
             >
               {status}
             </div>
           </div>
           <div className="w-24 h-24 relative">
             <svg className="w-full h-full" viewBox="0 0 100 100">
+              {/* Background circle */}
               <circle
-                className="text-gray-200"
-                strokeWidth="8"
+                className={statusColors.circleBg}
+                strokeWidth="10"
                 stroke="currentColor"
                 fill="transparent"
                 r="40"
                 cx="50"
                 cy="50"
               />
+              {/* Progress circle */}
               <circle
-                strokeWidth="8"
+                className={statusColors.circleProgress}
+                strokeWidth="10"
                 strokeLinecap="round"
-                stroke={scoreColor.bg}
                 fill="transparent"
                 r="40"
                 cx="50"
                 cy="50"
                 strokeDasharray={`${(score / 100) * 251.2} 251.2`}
                 transform="rotate(-90 50 50)"
-                className="transition-all duration-1000 ease-out"
+                style={{
+                  stroke: 'currentColor',
+                  transition: 'stroke-dasharray 1s ease-out, stroke 0.3s ease',
+                }}
               />
             </svg>
             <div 
-              className="absolute inset-0 flex items-center justify-center text-lg font-bold transition-colors duration-300"
-              style={{ color: scoreColor.bg }}
+              className={`absolute inset-0 flex items-center justify-center text-lg font-bold ${statusColors.text} transition-colors duration-300`}
             >
               {score}/100
             </div>
@@ -161,12 +189,12 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
           <p className="text-sm text-muted-foreground mb-4">{summary}</p>
           
           {recommendations.length > 0 && (
-            <Alert className="bg-blue-50 border-blue-200">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertTitle className="text-blue-800">Recommendations</AlertTitle>
+            <Alert className={`${statusColors.alert} ${statusColors.border}`}>
+              <Info className={`h-4 w-4 ${statusColors.text}`} />
+              <AlertTitle className={`font-medium ${statusColors.alertTitle}`}>Recommendations</AlertTitle>
               <ul className="list-disc pl-5 mt-2 space-y-1">
                 {recommendations.map((rec, i) => (
-                  <li key={i} className="text-sm text-blue-700">{rec}</li>
+                  <li key={i} className={`text-sm ${statusColors.alertText}`}>{rec}</li>
                 ))}
               </ul>
             </Alert>
@@ -195,7 +223,7 @@ export function FinancialHealthCard({ score, status, summary, recommendations, m
                 value={Math.min(metrics.expenseToIncomeRatio, 100)} 
                 className={cn(
                   'h-full transition-all duration-500',
-                  metrics.expenseToIncomeRatio > 70 ? 'bg-red-500' : 'bg-green-500'
+                  metrics.expenseToIncomeRatio > 70 ? 'bg-red-500 dark:bg-red-600' : 'bg-green-500 dark:bg-green-600'
                 )}
               />
             </div>
