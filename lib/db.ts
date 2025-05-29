@@ -500,67 +500,81 @@ export async function clearAllLocalAndRemoteData(): Promise<void> {
 }
 
 export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemote: number; skipped: number }> {
-  // Check if we're in a browser environment
-  const isClient = typeof window !== 'undefined' && typeof navigator !== 'undefined';
-  
-  const db = getDb();
-  const supabase = getSupabaseBrowserClient();
-  const user = await getCurrentUser();
-  const startTime = Date.now();
-  
-  // Initialize counters
-  let syncedLocal = 0;
-  let syncedRemote = 0;
-  let skipped = 0;
-
-  // Check preconditions
-  if (!user) {
-    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
-  }
-
-  // Only check online status in browser environment
-  if (isClient && !navigator.onLine) {
-    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
-  }
-
-  // First, pull any remote changes
-  const pullResult = await pullExpensesFromSupabase();
-  syncedRemote = pullResult.synced;
-  skipped += pullResult.skipped;
-
-  // Find all local changes that need to be synced
-  let unsyncedStatusEntries: SyncStatusEntry[] = [];
-  try {
-    const allStatusEntries = await db.syncStatus.toArray();
-    unsyncedStatusEntries = allStatusEntries.filter((entry) => {
-      if (typeof entry.id !== "string" || entry.id.trim() === "") return false;
-      return entry.synced === false;
-    });
-  } catch (error: any) {
-    const errorMsg = `Error finding unsynced changes: ${error.message}`;
-    console.error('[Sync]', errorMsg);
+  // Add a timeout to prevent hanging
+  const syncTimeout = setTimeout(() => {
+    console.error('[Sync] Sync operation timed out');
     window.dispatchEvent(new CustomEvent("sync:error", { 
       detail: { 
         operation: 'sync',
-        error: errorMsg
+        error: 'Sync operation timed out'
       } 
     }));
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
+    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
+  }, 30000); // 30 seconds timeout
 
-  // If no local changes, we're done
-  if (unsyncedStatusEntries.length === 0) {
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
-
-  // Get the actual expense data for unsynced items
-  const validExpenseIds = unsyncedStatusEntries.map(s => s.id).filter(Boolean) as string[];
-  let localExpensesToSync: SyncedExpense[] = [];
-  
   try {
+    const db = getDb();
+    const supabase = getSupabaseBrowserClient();
+    const user = await getCurrentUser();
+    
+    // Initialize counters
+    let syncedLocal = 0;
+    let syncedRemote = 0;
+    let skipped = 0;
+
+    // Check preconditions
+    if (!user) {
+      console.log('[Sync] No user - skipping sync');
+      return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
+    }
+
+    // Check online status
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('[Sync] Offline - skipping sync');
+      return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
+    }
+
+    // First, pull any remote changes
+    console.log('[Sync] Pulling remote changes...');
+    const pullResult = await pullExpensesFromSupabase();
+    console.log(`[Sync] Pulled ${pullResult.synced} remote changes, skipped ${pullResult.skipped}`);
+    syncedRemote = pullResult.synced;
+    skipped = pullResult.skipped;
+
+    // Find all local changes that need to be synced
+    console.log('[Sync] Finding unsynced local changes...');
+    let unsyncedStatusEntries: SyncStatusEntry[] = [];
+    try {
+      const allStatusEntries = await db.syncStatus.toArray();
+      unsyncedStatusEntries = allStatusEntries.filter(entry => 
+        entry.id && entry.id.trim() !== "" && entry.synced === false
+      );
+    } catch (error: any) {
+      const errorMsg = `Error finding unsynced changes: ${error.message}`;
+      console.error('[Sync]', errorMsg);
+      window.dispatchEvent(new CustomEvent("sync:error", { 
+        detail: { 
+          operation: 'sync',
+          error: errorMsg
+        } 
+      }));
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
+
+    // If no local changes, we're done
+    if (unsyncedStatusEntries.length === 0) {
+      console.log('[Sync] No local changes to sync');
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
+
+    console.log(`[Sync] Found ${unsyncedStatusEntries.length} unsynced items`);
+
+    // Get the actual expense data for unsynced items
+    const validExpenseIds = unsyncedStatusEntries.map(s => s.id).filter(Boolean) as string[];
     const potentialExpenses = await db.expenses.bulkGet(validExpenseIds);
     
     // Process each potential expense
+    const localExpensesToSync: SyncedExpense[] = [];
     for (let i = 0; i < potentialExpenses.length; i++) {
       const expense = potentialExpenses[i];
       const statusEntry = unsyncedStatusEntries[i];
@@ -568,7 +582,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
       if (!expense) {
         // Clean up orphaned sync status
         if (statusEntry) {
-          await db.syncStatus.delete(statusEntry.id);
+          await db.syncStatus.delete(statusEntry.id).catch(console.error);
         }
         continue;
       }
@@ -578,79 +592,51 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
         await db.syncStatus.update(expense.id, {
           synced: true,
           lastAttempt: new Date().toISOString(),
-        });
+        }).catch(console.error);
         continue;
       }
       
       // Add to sync queue
-      if (expense.id && typeof expense.id === 'string') {
+      if (expense.id) {
         localExpensesToSync.push(expense);
       }
     }
-  } catch (error: any) {
-    const errorMsg = `Error preparing local changes: ${error.message}`;
-    console.error('[Sync]', errorMsg);
-    window.dispatchEvent(new CustomEvent("sync:error", { 
-      detail: { 
-        operation: 'sync',
-        error: errorMsg
-      } 
-    }));
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
 
-  if (localExpensesToSync.length === 0) {
-    return { syncedLocal: 0, syncedRemote, skipped };
-  }
+    if (localExpensesToSync.length === 0) {
+      console.log('[Sync] No valid local changes to sync after processing');
+      return { syncedLocal: 0, syncedRemote, skipped };
+    }
 
-  // Prepare the payload for Supabase
-  const syncTimestamp = new Date().toISOString();
-  const supabasePayload = localExpensesToSync.map((exp) => {
-    const { synced, category, mood, moodReason, createdAt, updatedAt, ...rest } = exp;
-    return {
-      ...rest,
-      category_id: category,
-      mood_id: mood,
-      mood_reason: moodReason,
-      created_at: createdAt,
-      updated_at: updatedAt || syncTimestamp,
-      user_id: user.id,
-    };
-  });
+    console.log(`[Sync] Syncing ${localExpensesToSync.length} local changes...`);
 
-  try {
+    // Prepare the payload for Supabase
+    const syncTimestamp = new Date().toISOString();
+    const supabasePayload = localExpensesToSync.map((exp) => {
+      const { synced, category, mood, moodReason, createdAt, updatedAt, ...rest } = exp;
+      return {
+        ...rest,
+        category_id: category,
+        mood_id: mood,
+        mood_reason: moodReason,
+        created_at: createdAt,
+        updated_at: updatedAt || syncTimestamp,
+        user_id: user.id,
+      };
+    });
+
+    // Send to Supabase
     const { error: supabaseError } = await supabase
       .from("expenses")
       .upsert(supabasePayload, { onConflict: "id" });
 
     if (supabaseError) {
-      const errorMsg = `Error syncing to Supabase: ${supabaseError.message}`;
-      console.error('[Sync]', errorMsg);
-      
-      // Update last attempt time for failed syncs
-      await db.transaction("rw", db.syncStatus, async () => {
-        for (const expense of localExpensesToSync) {
-          await db.syncStatus.update(expense.id, {
-            lastAttempt: syncTimestamp,
-          });
-        }
-      });
-      
-      window.dispatchEvent(new CustomEvent("sync:error", { 
-        detail: { 
-          operation: 'sync',
-          error: errorMsg,
-          message: 'Failed to sync with Supabase'
-        } 
-      }));
-      
-      return { syncedLocal: 0, syncedRemote, skipped };
+      throw new Error(`Supabase error: ${supabaseError.message}`);
     }
 
     // Update local sync status for successful syncs
-    await db.transaction("rw", [db.expenses, db.syncStatus], async () => {
-      for (const expense of localExpensesToSync) {
-        try {
+    for (const expense of localExpensesToSync) {
+      try {
+        await db.transaction("rw", [db.expenses, db.syncStatus], async () => {
           await db.expenses.update(expense.id, { 
             synced: true,
             updatedAt: syncTimestamp
@@ -659,99 +645,117 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
             synced: true,
             lastAttempt: syncTimestamp,
           });
-          syncedLocal++;
-        } catch (updateError: any) {
-          console.error(
-            `[Sync] Failed to update local status for ${expense.id}:`,
-            updateError.message
-          );
-        }
+        });
+        syncedLocal++;
+      } catch (updateError) {
+        console.error(`[Sync] Failed to update local status for ${expense.id}:`, updateError);
       }
-    });
-    
-    return { syncedLocal, syncedRemote, skipped };
-    
-  } catch (error: any) {
-    const errorMsg = `Unexpected error during sync: ${error.message}`;
-    console.error('[Sync]', errorMsg);
+    }
+
+    console.log(`[Sync] Successfully synced ${syncedLocal} expenses`);
+    return { 
+      syncedLocal, 
+      syncedRemote, 
+      skipped 
+    };
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Sync] Error during sync:', error);
     window.dispatchEvent(new CustomEvent("sync:error", { 
       detail: { 
         operation: 'sync',
         error: errorMsg,
-        message: 'Unexpected error during sync'
+        message: 'Failed to sync with Supabase'
       } 
     }));
-    return { syncedLocal: 0, syncedRemote, skipped };
+    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
+  } finally {
+    clearTimeout(syncTimeout);
   }
 }
 
-export async function pullExpensesFromSupabase(): Promise<{ synced: number; skipped: number }> {
-  console.log('[Pull] Starting expense pull');
-  const db = getDb();
-  const supabase = getSupabaseBrowserClient();
-  const user = await getCurrentUser();
-
-  // Initialize counters
-  let syncedCount = 0;
-  let skippedCount = 0;
+export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: number; skipped: number }> {
+  console.log(`[Pull] Starting expense pull attempt ${attempt}`);
   const startTime = Date.now();
-
-  // Dispatch sync start event with pull operation
-  dispatchSyncEvent('pull');
-
-  if (!user) {
-    dispatchSyncEvent(null);
-    return { synced: 0, skipped: 0 };
-  }
-
-  if (!navigator.onLine) {
-    dispatchSyncEvent(null);
-    return { synced: 0, skipped: 0 };
-  }
+  const MAX_ATTEMPTS = 3;
+  
+  // Add a timeout to prevent hanging
+  let pullTimeout: NodeJS.Timeout;
+  const timeoutPromise = new Promise<{ synced: number; skipped: number }>((_, reject) => {
+    pullTimeout = setTimeout(() => {
+      const error = new Error('Pull operation timed out after 15s');
+      console.error('[Pull]', error.message);
+      reject(error);
+    }, 15000); // 15 seconds timeout for pull operation
+  });
 
   try {
-
-    const { data: supabaseData, error: supabaseError } = await supabase
-      .from("expenses")
-      .select("id, amount, category_id, mood_id, mood_reason, date, notes, created_at, updated_at")
-      .eq("user_id", user.id)
-      .order('updated_at', { ascending: false });
-
-    if (supabaseError) {
-      const errorMsg = `Failed to fetch from Supabase: ${supabaseError.message}`;
-
-      window.dispatchEvent(new CustomEvent("sync:error", { 
-        detail: { 
-          operation: 'pull',
-          error: supabaseError,
-          message: errorMsg
-        } 
-      }));
-      return { synced: 0, skipped: 0 };
-    }
-
-    if (!supabaseData || supabaseData.length === 0) {
-
-      return { synced: 0, skipped: 0 };
-    }
-
-
+    console.log('[Pull] Getting database instance...');
+    const db = getDb();
+    const supabase = getSupabaseBrowserClient();
     
+    console.log('[Pull] Getting current user...');
+    const user = await getCurrentUser();
+
+    // Check preconditions
+    if (!user) {
+      console.log('[Pull] No user - skipping pull');
+      return { synced: 0, skipped: 0 };
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      console.log('[Pull] Offline - skipping pull');
+      return { synced: 0, skipped: 0 };
+    }
+
+    console.log('[Pull] Fetching expenses from Supabase...');
+    
+    // Add a timeout to the Supabase query
+    const supabaseQuery = async () => {
+      console.log('[Pull] Executing Supabase query...');
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("id, amount, category_id, mood_id, mood_reason, date, notes, created_at, updated_at")
+        .eq("user_id", user.id)
+        .order('updated_at', { ascending: false });
+      
+      if (error) {
+        console.error('[Pull] Supabase query error:', error);
+        throw error;
+      }
+      return data || [];
+    };
+
+    const supabasePromise = supabaseQuery();
+    const result = await Promise.race([supabasePromise, timeoutPromise]) as any[];
+
+    console.log(`[Pull] Found ${result.length} remote expenses`);
+
     // Get local expenses for comparison
+    console.log('[Pull] Getting local expenses...');
     const localExpenses = await db.expenses.toArray();
     const localMap = new Map(localExpenses.map(e => [e.id, e]));
     const syncTimestamp = new Date().toISOString();
 
     // Process each remote expense
-    for (const remote of supabaseData) {
+    console.log('[Pull] Processing remote expenses...');
+    let syncedCount = 0;
+    let skippedCount = 0;
+
+    for (const [index, remote] of result.entries()) {
       try {
+        // Add a small delay every 10 items to prevent UI freezing
+        if (index > 0 && index % 10 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
         const local = localMap.get(remote.id);
         const remoteUpdated = new Date(remote.updated_at || 0);
         const localUpdated = local ? new Date(local.updatedAt || 0) : new Date(0);
 
         // Skip if local version is newer and already synced
         if (local && local.synced && localUpdated > remoteUpdated) {
-
           skippedCount++;
           continue;
         }
@@ -766,7 +770,7 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
           date: remote.date,
           notes: remote.notes || '',
           createdAt: remote.created_at,
-          updatedAt: remote.updated_at,
+          updatedAt: remote.updated_at || syncTimestamp,
           synced: true
         };
 
@@ -781,25 +785,37 @@ export async function pullExpensesFromSupabase(): Promise<{ synced: number; skip
         syncedCount++;
 
       } catch (expenseError) {
-        console.error(`[Pull] Error processing expense ${remote.id}:`, expenseError);
+        console.error(`[Pull] Error processing expense ${remote?.id}:`, expenseError);
       }
     }
 
-
+    console.log(`[Pull] Pull completed. Synced: ${syncedCount}, Skipped: ${skippedCount}`);
     return { synced: syncedCount, skipped: skippedCount };
+
   } catch (error) {
+    clearTimeout(pullTimeout!);
+    
+    // If we haven't exceeded max attempts, retry
+    if (attempt < MAX_ATTEMPTS) {
+      console.log(`[Pull] Retrying... (${attempt + 1}/${MAX_ATTEMPTS})`);
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      return pullExpensesFromSupabase(attempt + 1);
+    }
+
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[Pull] Error during sync:', error);
+    console.error('[Pull] Final error after retries:', error);
     window.dispatchEvent(new CustomEvent("sync:error", { 
       detail: { 
         operation: 'pull',
         error: errorMsg,
-        message: 'Failed to sync with Supabase'
+        message: 'Failed to pull from Supabase after multiple attempts'
       } 
     }));
     return { synced: 0, skipped: 0 };
   } finally {
-    dispatchSyncEvent(null);
+    clearTimeout(pullTimeout!);
+    console.log(`[Pull] Pull operation completed in ${Date.now() - startTime}ms`);
   }
 }
 
@@ -825,38 +841,61 @@ export async function setupSync(): Promise<void> {
   }
   const supabase = getSupabaseBrowserClient();
   
-  const performFullSync = async (reason: string) => {
-    const release = await syncMutex.acquire();
-    const timeout = setTimeout(() => {
-      console.error('[Sync] Timeout exceeded');
-      release();
-      isSyncing = false;
-    }, SYNC_TIMEOUT);
+  // In db.ts, update the performFullSync function
+const performFullSync = async (reason: string) => {
+  let release: (() => void) | null = null;
+  let timeout: NodeJS.Timeout | null = null;
 
+  try {
+    // Try to acquire the lock with a timeout
     try {
-      if (isSyncing) {
-        console.log('[Sync] Sync already in progress, skipping');
-        return;
-      }
-      
-      isSyncing = true;
-      dispatchSyncEvent('background');
-      
-      await pullExpensesFromSupabase();
-      await syncExpenses();
-      await syncGamificationData();
-    } catch (error: any) {
-      console.error(
-        `[SyncSetup] Error during full sync (${reason}):`,
-        error.message
-      );
-    } finally {
-      clearTimeout(timeout);
-      release();
-      isSyncing = false;
-      dispatchSyncEvent(null);
+      release = await Promise.race([
+        syncMutex.acquire(),
+        new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Mutex acquisition timeout')), 5000)
+        )
+      ]);
+    } catch (e) {
+      console.error('[Sync] Failed to acquire sync lock:', e);
+      return;
     }
-  };
+
+    // Set a timeout for the entire sync operation
+    timeout = setTimeout(() => {
+      console.error('[Sync] Sync operation timeout');
+      if (release) {
+        release();
+        release = null;
+      }
+      isSyncing = false;
+    }, 30000); // 30 seconds total timeout
+
+    if (isSyncing) {
+      console.log('[Sync] Sync already in progress, skipping');
+      return;
+    }
+
+    console.log(`[Sync] Starting sync (${reason})`);
+    isSyncing = true;
+    dispatchSyncEvent('background');
+    
+    // Run sync operations in sequence
+    await pullExpensesFromSupabase();
+    await syncExpenses();
+    await syncGamificationData();
+    
+    console.log('[Sync] Sync completed successfully');
+  } catch (error: any) {
+    console.error(`[Sync] Error during sync (${reason}):`, error.message);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+    if (release) {
+      release();
+    }
+    isSyncing = false;
+    dispatchSyncEvent(null);
+  }
+};
 
   window.addEventListener("online", () => performFullSync("App online"));
   supabase.auth.onAuthStateChange(async (event, session) => {
