@@ -108,37 +108,39 @@ export function DetailedAnalysisCard({
   const showContent = (detailedAnalysisResult || streamingContent) && !showLoading;
 
   return (
-    <div className="mt-8 space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Analisis Perilaku Mendalam</CardTitle>
-          <CardDescription>
+    <div className="mt-10 mb-12 space-y-6">
+      <Card className="border-2">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl">Analisis Perilaku Mendalam</CardTitle>
+          <CardDescription className="text-muted-foreground">
             Dapatkan pemahaman yang lebih dalam tentang kebiasaan belanja
             emosional Anda.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-2 space-y-6">
           {showContent && (
-            <>
+            <div className="space-y-6">
               {detailedAnalysisResult?.modelUsed &&
                 detailedAnalysisResult.modelUsed !== "None" &&
                 !detailedAnalysisResult.modelUsed.includes("(Error)") && (
-                  <div className="flex items-center text-xs text-muted-foreground mb-3">
-                    <MessageSquareText className="h-3 w-3 mr-1.5" />
-                    Analisis mendalam oleh:{" "}
-                    {detailedAnalysisResult.modelUsed.replace(
-                      /\s*\(Error\)\s*/, ""
-                    )}
+                  <div className="flex items-center text-sm text-muted-foreground bg-muted/50 px-3 py-2 rounded-md">
+                    <MessageSquareText className="h-3.5 w-3.5 mr-2 flex-shrink-0" />
+                    <span>Analisis mendalam oleh:{" "}
+                    <span className="font-medium">
+                      {detailedAnalysisResult.modelUsed.replace(
+                        /\s*\(Error\)\s*/, ""
+                      )}
+                    </span></span>
                   </div>
                 )}
-              <div className="prose prose-sm dark:prose-invert max-w-none space-y-2">
+              <div className="prose prose-sm dark:prose-invert max-w-none space-y-4 bg-muted/20 p-4 rounded-lg border">
                 {streamingContent ? (
                   renderFormattedResponse(streamingContent)
                 ) : detailedAnalysisResult?.analysis ? (
                   renderFormattedResponse(detailedAnalysisResult.analysis)
                 ) : null}
               </div>
-            </>
+            </div>
           )}
 
           {showLoading && (
