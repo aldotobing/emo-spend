@@ -44,14 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[Auth] Auth state changed: ${event}`);
+      // console.log(`[Auth] Auth state changed: ${event}`);
       
       // Update state first
       setSession(session);
       setUser(session?.user ?? null);
       
       if (event === 'SIGNED_IN') {
-        console.log('[Auth] User signed in, starting sync...');
+        // console.log('[Auth] User signed in, starting sync...');
         
         let retryCount = 0;
         const maxRetries = 5;
@@ -60,19 +60,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data: { user }, error } = await supabase.auth.getUser();
             
             if (user) {
-              console.log('[Auth] User verified:', user.id);
+              // console.log('[Auth] User verified:', user.id);
               await performPostLoginSync();
               router.push('/');
             } else if (retryCount < maxRetries) {
               retryCount++;
               const delay = Math.pow(2, retryCount) * 100;
-              console.log(`[Auth] Retry ${retryCount} in ${delay}ms`);
+              // console.log(`[Auth] Retry ${retryCount} in ${delay}ms`);
               setTimeout(checkUserAndSync, delay);
             } else {
               throw new Error('User not available after retries');
             }
           } catch (error) {
-            console.error('[Auth] Sync error:', error);
+            // console.error('[Auth] Sync error:', error);
             toast({
               title: 'Gagal Sync Data',
               description: 'Pastikan koneksi internet stabil dan coba lagi',
@@ -83,12 +83,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setTimeout(checkUserAndSync, 500);
       } else if (event === 'SIGNED_OUT') {
-        console.log('[Auth] User signed out, clearing local data');
+        // console.log('[Auth] User signed out, clearing local data');
         try {
           await clearLocalUserData();
-          console.log('[Auth] Local data cleared');
+          // console.log('[Auth] Local data cleared');
         } catch (error) {
-          console.error('[Auth] Error clearing local data:', error);
+          // console.error('[Auth] Error clearing local data:', error);
         }
       }
       
@@ -115,26 +115,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     try {
-      console.log('[Auth] Starting post-login sync...');
+      // console.log('[Auth] Starting post-login sync...');
       // Pull and sync expenses
-      console.log('[Sync] Pulling expenses...');
+      // console.log('[Sync] Pulling expenses...');
       const expensePull = await pullExpensesFromSupabase();
-      console.log(`[Sync] Pulled ${expensePull.synced} expenses, skipped ${expensePull.skipped}`);
+      // console.log(`[Sync] Pulled ${expensePull.synced} expenses, skipped ${expensePull.skipped}`);
       
-      console.log('[Sync] Syncing expenses...');
+      // console.log('[Sync] Syncing expenses...');
       const expenseSync = await syncExpenses();
-      console.log(`[Sync] Synced ${expenseSync.syncedLocal + expenseSync.syncedRemote} expenses`);
+      // console.log(`[Sync] Synced ${expenseSync.syncedLocal + expenseSync.syncedRemote} expenses`);
       
       // Then sync incomes
-      console.log('[Sync] Pulling incomes...');
+      // console.log('[Sync] Pulling incomes...');
       const incomePull = await pullIncomesFromSupabase();
-      console.log(`[Sync] Pulled ${incomePull.synced} incomes, skipped ${incomePull.skipped}`);
+      // console.log(`[Sync] Pulled ${incomePull.synced} incomes, skipped ${incomePull.skipped}`);
       
-      console.log('[Sync] Syncing incomes...');
+      // console.log('[Sync] Syncing incomes...');
       const incomeSync = await syncIncomes();
-      console.log(`[Sync] Synced ${incomeSync.synced} incomes, errors: ${incomeSync.errors}`);
+      // console.log(`[Sync] Synced ${incomeSync.synced} incomes, errors: ${incomeSync.errors}`);
       
-      console.log('[Sync] Post-login sync completed successfully');
+      // console.log('[Sync] Post-login sync completed successfully');
       
       // The toast will auto-dismiss after its duration
       return {
@@ -161,10 +161,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [toast]);
 
   const forceSync = useCallback(async () => {
-    console.log('[Auth] Forcing manual sync');
+    // console.log('[Auth] Forcing manual sync');
     try {
       await performPostLoginSync();
-      console.log('[Auth] Manual sync completed');
+      // console.log('[Auth] Manual sync completed');
       return true;
     } catch (error) {
       console.error('[Auth] Manual sync failed:', error);
@@ -219,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('[Google Auth] Starting Google OAuth flow...');
+      // console.log('[Google Auth] Starting Google OAuth flow...');
       
       // First, sign in with Google
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -239,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
-      console.log('[Google Auth] OAuth flow started, waiting for auth state change...');
+      // console.log('[Google Auth] OAuth flow started, waiting for auth state change...');
       
       // Wait for the auth state to change and handle the sign-in
       await new Promise<void>((resolve, reject) => {
@@ -251,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-          console.log('[Google Auth] Auth state changed:', event);
+          // console.log('[Google Auth] Auth state changed:', event);
           
           if (event === 'SIGNED_IN') {
             clearTimeout(timeout);
@@ -259,12 +259,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // Small delay to ensure session is fully established
             setTimeout(async () => {
               try {
-                console.log('[Google Auth] Triggering post-login sync...');
+                // console.log('[Google Auth] Triggering post-login sync...');
                 await performPostLoginSync();
-                console.log('[Google Auth] Sync completed');
+                // console.log('[Google Auth] Sync completed');
                 resolve();
               } catch (syncError) {
-                console.error('[Google Auth] Sync error:', syncError);
+                // console.error('[Google Auth] Sync error:', syncError);
                 reject(syncError);
               }
             }, 1000); // 1 second delay
@@ -278,7 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       });
       
-      console.log('[Google Auth] Google sign-in and sync completed successfully');
+      // console.log('[Google Auth] Google sign-in and sync completed successfully');
     } catch (error: any) {
       console.error("[Google Auth] Google sign-in error:", error.message, error);
       toast({

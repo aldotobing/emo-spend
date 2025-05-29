@@ -80,7 +80,7 @@ export async function addIncome(income: Omit<Income, 'id' | 'createdAt' | 'updat
 }
 
 export async function getIncomesByDateRange(startDate: string, endDate: string): Promise<Income[]> {
-  console.group(`[getIncomesByDateRange] Starting for range: ${startDate} to ${endDate}`);
+  // console.group(`[getIncomesByDateRange] Starting for range: ${startDate} to ${endDate}`);
   const db = getDb();
   
   try {
