@@ -13,7 +13,7 @@ export function BottomNavigation() {
 
   const navItems = [
     { href: "/", icon: Home, label: "", id: "dashboard" },
-    ...(!["/add", "/income"].includes(pathname) ? [{ href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true }] : []),
+    ...(!["/add", "/income", "/insights"].includes(pathname) ? [{ href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true }] : []),
     { href: "/insights", icon: BarChart, label: "", id: "insights" },
   ];
 
@@ -74,7 +74,7 @@ export function BottomNavigation() {
               opacity: { duration: 0.15 }
             }
           }}
-          className="sm:hidden fixed inset-x-0 bottom-0 z-[9999] bg-background/90 backdrop-blur-3xl border-t border-border/20 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]"
+          className="sm:hidden fixed inset-x-0 bottom-0 z-[9999] bg-background/90 backdrop-blur-3xl border-t border-border/20 shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)] pb-4"
         >
           {/* Frosted glass effect */}
           <div className="absolute inset-0 bg-background/70 backdrop-blur-3xl pointer-events-none" />

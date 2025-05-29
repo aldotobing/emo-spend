@@ -58,7 +58,7 @@ export const renderFormattedResponse = (text: string) => {
     rows: string[],
     tableIndex: number
   ) => {
-    const tableId = `${sessionId}-table-${tableIndex}`;
+    const tableId = `table-${sessionId}-${tableIndex}`;
     
     const headers = headerLine
       .split("|")
@@ -79,43 +79,91 @@ export const renderFormattedResponse = (text: string) => {
         }))
     }));
     
+    // Add a unique ID for the scrollable container
+    const containerId = `table-container-${tableId}`;
+    
+    // Add a scroll reset effect for this specific table
+    const scrollScript = `
+      (function() {
+        const container = document.getElementById('${containerId}');
+        if (container) {
+          // Reset scroll position when component mounts
+          container.scrollLeft = 0;
+          
+          // Prevent scrolling past the table bounds
+          container.addEventListener('scroll', function() {
+            if (container.scrollLeft < 0) {
+              container.scrollLeft = 0;
+            } else if (container.scrollLeft > container.scrollWidth - container.clientWidth) {
+              container.scrollLeft = container.scrollWidth - container.clientWidth;
+            }
+          });
+        }
+      })();
+    `;
+
     return (
-      <div key={tableId} className="w-full overflow-x-auto my-4">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr>
-              {headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="border border-gray-300 dark:border-gray-600 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-left text-gray-800 dark:text-gray-200 font-semibold"
-                >
-                  {header.content}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {dataRows.map((row) => (
-              <tr 
-                key={row.id} 
-                className="hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                {row.cells.map((cell) => (
-                  <td
-                    key={cell.id}
-                    className="border border-gray-200 dark:border-gray-600 px-3 py-2 text-gray-800 dark:text-gray-200"
+      <div key={tableId} className="w-full my-4">
+        <div 
+          id={containerId}
+          className="w-full overflow-x-auto overflow-y-hidden whitespace-nowrap scroll-smooth"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent',
+            msOverflowStyle: 'none',
+          }}
+        >
+          <style jsx>{`
+            #${containerId}::-webkit-scrollbar {
+              height: 6px;
+              background-color: transparent;
+            }
+            #${containerId}::-webkit-scrollbar-thumb {
+              background-color: rgba(156, 163, 175, 0.5);
+              border-radius: 3px;
+            }
+            #${containerId}::-webkit-scrollbar-track {
+              background-color: transparent;
+            }
+          `}</style>
+          <table className="min-w-full border-collapse">
+            <thead>
+              <tr>
+                {headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="border border-gray-300 dark:border-gray-600 px-3 py-2 bg-gray-100 dark:bg-gray-700 text-left text-gray-800 dark:text-gray-200 font-semibold whitespace-nowrap"
                   >
-                    <span
-                      dangerouslySetInnerHTML={{
-                        __html: parseInlineFormatting(cell.content),
-                      }}
-                    />
-                  </td>
+                    {header.content}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {dataRows.map((row) => (
+                <tr 
+                  key={row.id} 
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  {row.cells.map((cell) => (
+                    <td
+                      key={cell.id}
+                      className="border border-gray-200 dark:border-gray-600 px-3 py-2 text-gray-800 dark:text-gray-200 whitespace-nowrap"
+                    >
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: parseInlineFormatting(cell.content),
+                        }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <script dangerouslySetInnerHTML={{ __html: scrollScript }} />
+        </div>
       </div>
     );
   };
