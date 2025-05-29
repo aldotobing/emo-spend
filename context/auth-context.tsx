@@ -51,19 +51,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (event === 'SIGNED_IN') {
-        try {
-          console.log('[Auth] User signed in, starting sync...');
-          await performPostLoginSync();
-          console.log('[Auth] Sync completed after sign in');
-          router.push('/');
-        } catch (error) {
-          console.error('[Auth] Error during post-login sync:', error);
-          toast({
-            title: 'Sync Error',
-            description: 'Could not sync all data. Some features may be limited.',
-            variant: 'destructive',
-          });
-        }
+        console.log('[Auth] User signed in, starting sync...');
+        
+        let retryCount = 0;
+        const maxRetries = 5;
+        const checkUserAndSync = async () => {
+          try {
+            const { data: { user }, error } = await supabase.auth.getUser();
+            
+            if (user) {
+              console.log('[Auth] User verified:', user.id);
+              await performPostLoginSync();
+              router.push('/');
+            } else if (retryCount < maxRetries) {
+              retryCount++;
+              const delay = Math.pow(2, retryCount) * 100;
+              console.log(`[Auth] Retry ${retryCount} in ${delay}ms`);
+              setTimeout(checkUserAndSync, delay);
+            } else {
+              throw new Error('User not available after retries');
+            }
+          } catch (error) {
+            console.error('[Auth] Sync error:', error);
+            toast({
+              title: 'Gagal Sync Data',
+              description: 'Pastikan koneksi internet stabil dan coba lagi',
+              variant: 'destructive'
+            });
+          }
+        };
+
+        setTimeout(checkUserAndSync, 500);
       } else if (event === 'SIGNED_OUT') {
         console.log('[Auth] User signed out, clearing local data');
         try {

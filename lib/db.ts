@@ -180,17 +180,30 @@ export function getDb(): EmoSpendDatabase {
 
 export async function getCurrentUser(): Promise<User | null> {
   const supabase = getSupabaseBrowserClient();
+  
+  let attempts = 0;
+  const MAX_ATTEMPTS = 2;
+  const RETRY_DELAY = 200;
+  
+  while (attempts < MAX_ATTEMPTS) {
+    if (document.cookie.includes('sb-auth-token=')) break;
+    console.log(`[Auth] Menunggu cookie (${attempts + 1}/${MAX_ATTEMPTS})`);
+    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+    attempts++;
+  }
+
   try {
-    const {
-      data: { user },
-      error,
-    } = await supabase.auth.getUser();
-    if (error) {
+    const { data: { user }, error } = await supabase.auth.getUser();
+    
+    if (!user?.id) {
+      console.error('[Auth] User ID tidak valid');
       return null;
     }
+    
+    console.log('[Auth] User berhasil diverifikasi:', user.id.substring(0, 6));
     return user;
-  } catch (e: any) {
-    console.error("Error getting current user:", e);
+  } catch (error) {
+    console.error('[Auth] Gagal mengambil user:', error);
     return null;
   }
 }
@@ -500,6 +513,30 @@ export async function clearAllLocalAndRemoteData(): Promise<void> {
 }
 
 export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemote: number; skipped: number }> {
+  const controller = new AbortController();
+  try {
+    return await Promise.race([
+      actualSyncOperation(controller.signal),
+      new Promise<never>((_, reject) => setTimeout(
+        () => reject(new Error('Sync timed out after 30 seconds')), 
+        30000
+      ))
+    ]);
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[Sync] Error during sync:', error);
+    window.dispatchEvent(new CustomEvent("sync:error", { 
+      detail: { 
+        operation: 'sync',
+        error: errorMsg,
+        message: 'Failed to sync with Supabase'
+      } 
+    }));
+    return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
+  }
+}
+
+async function actualSyncOperation(signal: AbortSignal) {
   // Add a timeout to prevent hanging
   const syncTimeout = setTimeout(() => {
     console.error('[Sync] Sync operation timed out');
@@ -612,9 +649,9 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
     // Prepare the payload for Supabase
     const syncTimestamp = new Date().toISOString();
     const supabasePayload = localExpensesToSync.map((exp) => {
-      const { synced, category, mood, moodReason, createdAt, updatedAt, ...rest } = exp;
+      const { synced, category, mood, moodReason, createdAt, updatedAt, ...baseData } = exp;
       return {
-        ...rest,
+        ...baseData,
         category_id: category,
         mood_id: mood,
         mood_reason: moodReason,
@@ -660,15 +697,7 @@ export async function syncExpenses(): Promise<{ syncedLocal: number; syncedRemot
     };
 
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Sync] Error during sync:', error);
-    window.dispatchEvent(new CustomEvent("sync:error", { 
-      detail: { 
-        operation: 'sync',
-        error: errorMsg,
-        message: 'Failed to sync with Supabase'
-      } 
-    }));
     return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
   } finally {
     clearTimeout(syncTimeout);
@@ -679,15 +708,17 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
   console.log(`[Pull] Starting expense pull attempt ${attempt}`);
   const startTime = Date.now();
   const MAX_ATTEMPTS = 3;
+  const PAGE_SIZE = 100;
+  const TIMEOUT = 25000; // 25 seconds
   
   // Add a timeout to prevent hanging
   let pullTimeout: NodeJS.Timeout;
   const timeoutPromise = new Promise<{ synced: number; skipped: number }>((_, reject) => {
     pullTimeout = setTimeout(() => {
-      const error = new Error('Pull operation timed out after 15s');
+      const error = new Error('Pull operation timed out after 25s');
       console.error('[Pull]', error.message);
       reject(error);
-    }, 15000); // 15 seconds timeout for pull operation
+    }, TIMEOUT); // 25 seconds timeout
   });
 
   try {
@@ -711,87 +742,55 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
 
     console.log('[Pull] Fetching expenses from Supabase...');
     
-    // Add a timeout to the Supabase query
-    const supabaseQuery = async () => {
-      console.log('[Pull] Executing Supabase query...');
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("id, amount, category_id, mood_id, mood_reason, date, notes, created_at, updated_at")
-        .eq("user_id", user.id)
-        .order('updated_at', { ascending: false });
+    let page = 0;
+    let hasMore = true;
+    let totalSynced = 0;
+    let totalSkipped = 0;
+
+    while (hasMore) {
+      console.log(`[Pull] Fetching page ${page + 1}`);
       
+      const { data, error, count } = await supabase
+        .from("expenses")
+        .select("*", { count: 'exact' })
+        .eq("user_id", user.id)
+        .order('updated_at', { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
       if (error) {
-        console.error('[Pull] Supabase query error:', error);
+        if(error.message.includes('rate limit') || error.message.includes('quota')) {
+          console.error('[Pull] Supabase free tier limit reached');
+          window.dispatchEvent(new CustomEvent("sync:error", { 
+            detail: { 
+              error: 'Batas paket gratis Supabase tercapai',
+              solution: 'Upgrade ke Pro Plan atau kurangi data sync'
+            }
+          }));
+          return { synced: 0, skipped: 0 };
+        }
         throw error;
       }
-      return data || [];
-    };
+      
+      hasMore = data.length === PAGE_SIZE;
+      page++;
 
-    const supabasePromise = supabaseQuery();
-    const result = await Promise.race([supabasePromise, timeoutPromise]) as any[];
+      // Process page data
+      const { synced, skipped } = await processPageData(data);
+      totalSynced += synced;
+      totalSkipped += skipped;
 
-    console.log(`[Pull] Found ${result.length} remote expenses`);
-
-    // Get local expenses for comparison
-    console.log('[Pull] Getting local expenses...');
-    const localExpenses = await db.expenses.toArray();
-    const localMap = new Map(localExpenses.map(e => [e.id, e]));
-    const syncTimestamp = new Date().toISOString();
-
-    // Process each remote expense
-    console.log('[Pull] Processing remote expenses...');
-    let syncedCount = 0;
-    let skippedCount = 0;
-
-    for (const [index, remote] of result.entries()) {
-      try {
-        // Add a small delay every 10 items to prevent UI freezing
-        if (index > 0 && index % 10 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+      // Send progress event every 500ms
+      window.dispatchEvent(new CustomEvent('sync:progress', {
+        detail: {
+          operation: 'pull',
+          currentPage: page,
+          totalItems: count,
+          processedItems: page * PAGE_SIZE
         }
-
-        const local = localMap.get(remote.id);
-        const remoteUpdated = new Date(remote.updated_at || 0);
-        const localUpdated = local ? new Date(local.updatedAt || 0) : new Date(0);
-
-        // Skip if local version is newer and already synced
-        if (local && local.synced && localUpdated > remoteUpdated) {
-          skippedCount++;
-          continue;
-        }
-
-        // Convert remote format to local format
-        const expense: SyncedExpense = {
-          id: remote.id,
-          amount: remote.amount,
-          category: remote.category_id,
-          mood: remote.mood_id,
-          moodReason: remote.mood_reason,
-          date: remote.date,
-          notes: remote.notes || '',
-          createdAt: remote.created_at,
-          updatedAt: remote.updated_at || syncTimestamp,
-          synced: true
-        };
-
-        // Update or create the expense
-        await db.expenses.put(expense);
-        await db.syncStatus.put({
-          id: expense.id,
-          synced: true,
-          lastAttempt: syncTimestamp,
-        });
-
-        syncedCount++;
-
-      } catch (expenseError) {
-        console.error(`[Pull] Error processing expense ${remote?.id}:`, expenseError);
-      }
+      }));
     }
 
-    console.log(`[Pull] Pull completed. Synced: ${syncedCount}, Skipped: ${skippedCount}`);
-    return { synced: syncedCount, skipped: skippedCount };
-
+    return { synced: totalSynced, skipped: totalSkipped };
   } catch (error) {
     clearTimeout(pullTimeout!);
     
@@ -818,6 +817,67 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
     console.log(`[Pull] Pull operation completed in ${Date.now() - startTime}ms`);
   }
 }
+
+async function processPageData(data: any[]) {
+  const db = getDb();
+  const supabase = getSupabaseBrowserClient();
+  const user = await getCurrentUser();
+
+  let syncedCount = 0;
+  let skippedCount = 0;
+
+  for (const [index, remote] of data.entries()) {
+    try {
+      // Add a small delay every 10 items to prevent UI freezing
+      if (index > 0 && index % 10 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      const local = await db.expenses.get(remote.id);
+      const remoteUpdated = new Date(remote.updated_at || 0);
+      const localUpdated = local ? new Date(local.updatedAt || 0) : new Date(0);
+
+      // Skip if local version is newer and already synced
+      if (local && local.synced && localUpdated > remoteUpdated) {
+        skippedCount++;
+        continue;
+      }
+
+      // Convert remote format to local format
+      const expense: SyncedExpense = {
+        id: remote.id,
+        amount: remote.amount,
+        category: remote.category_id,
+        mood: remote.mood_id,
+        moodReason: remote.mood_reason,
+        date: remote.date,
+        notes: remote.notes || '',
+        createdAt: remote.created_at,
+        updatedAt: remote.updated_at || new Date().toISOString(),
+        synced: true
+      };
+
+      // Update or create the expense
+      await db.expenses.put(expense);
+      await db.syncStatus.put({
+        id: expense.id,
+        synced: true,
+        lastAttempt: new Date().toISOString(),
+      });
+
+      syncedCount++;
+
+    } catch (expenseError) {
+      console.error(`[Pull] Error processing expense ${remote?.id}:`, expenseError);
+    }
+  }
+
+  return { synced: syncedCount, skipped: skippedCount };
+}
+
+// Recommended Supabase SQL index for better performance:
+// CREATE INDEX IF NOT EXISTS expenses_user_updated_idx ON expenses (user_id, updated_at DESC);
+// Run this in your Supabase SQL editor for better query performance
 
 export type SyncOperation = 'push' | 'pull' | 'background' | 'gamification' | null;
 
@@ -1114,8 +1174,6 @@ function calculateStreak(expenses: SyncedExpense[]): number {
   
   return streak;
 }
-
-
 
 // Helper function to calculate badges
 function calculateBadges(expenses: SyncedExpense[], streak: number): {
