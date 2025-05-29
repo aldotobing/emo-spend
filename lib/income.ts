@@ -100,28 +100,28 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
       return [];
     }
     
-    console.log(`[getIncomesByDateRange] User ID: ${user.id}`);
+    // console.log(`[getIncomesByDateRange] User ID: ${user.id}`);
     
     // Debug: Log all tables and their schemas
-    console.log('[getIncomesByDateRange] Database tables:', tableNames);
+    // console.log('[getIncomesByDateRange] Database tables:', tableNames);
     
     // Get all incomes from IndexedDB
     const allIncomes = await db.incomes.toArray();
-    console.log(`[getIncomesByDateRange] Found ${allIncomes.length} total incomes in IndexedDB`);
+    // console.log(`[getIncomesByDateRange] Found ${allIncomes.length} total incomes in IndexedDB`);
     
     if (allIncomes.length > 0) {
-      console.log('[getIncomesByDateRange] Sample income from IndexedDB:', {
-        id: allIncomes[0].id,
-        user_id: allIncomes[0].user_id,
-        amount: allIncomes[0].amount,
-        source: allIncomes[0].source,
-        date: allIncomes[0].date,
-        hasDescription: !!allIncomes[0].description,
-        createdAt: allIncomes[0].createdAt,
-        updatedAt: allIncomes[0].updatedAt,
-        synced: allIncomes[0].synced,
-        raw: allIncomes[0]
-      });
+      // console.log('[getIncomesByDateRange] Sample income from IndexedDB:', {
+      //   id: allIncomes[0].id,
+      //   user_id: allIncomes[0].user_id,
+      //   amount: allIncomes[0].amount,
+      //   source: allIncomes[0].source,
+      //   date: allIncomes[0].date,
+      //   hasDescription: !!allIncomes[0].description,
+      //   createdAt: allIncomes[0].createdAt,
+      //   updatedAt: allIncomes[0].updatedAt,
+      //   synced: allIncomes[0].synced,
+      //   raw: allIncomes[0]
+      // });
     }
     
     // Filter by user ID
@@ -129,12 +129,12 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
       const incomeUserId = income.user_id || (income as any).userId;
       const matchesUser = incomeUserId === user.id;
       if (!matchesUser) {
-        console.log(`[getIncomesByDateRange] Filtering out income with user ID: ${incomeUserId} (expected: ${user.id})`);
+        // console.log(`[getIncomesByDateRange] Filtering out income with user ID: ${incomeUserId} (expected: ${user.id})`);
       }
       return matchesUser;
     });
     
-    console.log(`[getIncomesByDateRange] Found ${userIncomes.length} incomes for current user`);
+    // console.log(`[getIncomesByDateRange] Found ${userIncomes.length} incomes for current user`);
     
     // Parse the input dates once
     const start = new Date(startDate);
@@ -144,7 +144,7 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     start.setHours(0, 0, 0, 0);
     end.setHours(23, 59, 59, 999);
     
-    console.log(`[getIncomesByDateRange] Filtering for date range: ${start.toISOString()} to ${end.toISOString()}`);
+    // console.log(`[getIncomesByDateRange] Filtering for date range: ${start.toISOString()} to ${end.toISOString()}`);
     
     // Filter incomes by date range
     const filteredIncomes = userIncomes.filter(income => {
@@ -166,9 +166,9 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
         const isInRange = date >= start && date <= end;
         
         if (isInRange) {
-          console.log(`[Income] Including income - ID: ${income.id}, Date: ${date.toISOString()}, Amount: ${income.amount}, Source: ${income.source}, UserID: ${income.user_id || (income as any).userId}`);
+          // console.log(`[Income] Including income - ID: ${income.id}, Date: ${date.toISOString()}, Amount: ${income.amount}, Source: ${income.source}, UserID: ${income.user_id || (income as any).userId}`);
         } else {
-          console.log(`[Income] Excluding income (out of range) - ID: ${income.id}, Date: ${date.toISOString()}, Amount: ${income.amount}`);
+          // console.log(`[Income] Excluding income (out of range) - ID: ${income.id}, Date: ${date.toISOString()}, Amount: ${income.amount}`);
         }
         
         return isInRange;
@@ -178,7 +178,7 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
       }
     });
     
-    console.log(`[getIncomesByDateRange] Found ${filteredIncomes.length} incomes in date range`);
+    // console.log(`[getIncomesByDateRange] Found ${filteredIncomes.length} incomes in date range`);
     console.groupEnd();
     
     // Map database fields to TypeScript types with proper type safety
@@ -361,8 +361,8 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
 
   try {
     // Debug: Verify Supabase URL and key
-    console.log('[Pull] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log('[Pull] Supabase anon key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
+    // console.log('[Pull] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
+    // console.log('[Pull] Supabase anon key:', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? 'Present' : 'Missing');
     
     // Check if we can access the incomes table with a simple query
     const { error: tableError } = await supabase
@@ -374,28 +374,28 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
       console.error('[Pull] Error accessing incomes table:', tableError);
       // Continue execution even if there's an error, as it might be an empty table
     }
-    console.log(`[Pull] Starting to pull incomes for user ${user.id}`);
+    // console.log(`[Pull] Starting to pull incomes for user ${user.id}`);
     
     // Get all local incomes for the current user
-    console.log('[Pull] Fetching local incomes...');
+    // console.log('[Pull] Fetching local incomes...');
     const allLocalIncomes = await db.incomes.toArray().catch(error => {
       console.error('[Pull] Error fetching local incomes:', error);
       throw new Error('Failed to fetch local incomes');
     });
     
-    console.log(`[Pull] Found ${allLocalIncomes.length} total local incomes`);
+    // console.log(`[Pull] Found ${allLocalIncomes.length} total local incomes`);
     
     // Filter incomes for the current user
     const localIncomes = allLocalIncomes.filter(income => {
       const incomeUserId = income.user_id || (income as any).userId;
       const matchesUser = incomeUserId === user.id;
       if (!matchesUser) {
-        console.log(`[Pull] Filtering out local income with user ID: ${incomeUserId} (expected: ${user.id})`);
+        // console.log(`[Pull] Filtering out local income with user ID: ${incomeUserId} (expected: ${user.id})`);
       }
       return matchesUser;
     });
     
-    console.log(`[Pull] Found ${localIncomes.length} local incomes for current user`);
+    // console.log(`[Pull] Found ${localIncomes.length} local incomes for current user`);
     
     const localMap = new Map<string, SyncedIncome>();
     localIncomes.forEach(income => {
@@ -409,17 +409,17 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
           updatedAt: income.updatedAt || new Date().toISOString(),
           synced: income.synced ?? true
         };
-        console.log(`[Pull] Local income: ID=${income.id}, UserID=${cleanIncome.user_id}, Amount=${income.amount}, Synced=${cleanIncome.synced}`);
+        // console.log(`[Pull] Local income: ID=${income.id}, UserID=${cleanIncome.user_id}, Amount=${income.amount}, Synced=${cleanIncome.synced}`);
         localMap.set(income.id, cleanIncome);
       }
     });
     
-    console.log('[Pull] Fetching remote incomes from Supabase...');
+    // console.log('[Pull] Fetching remote incomes from Supabase...');
     
     // Debug: Check Supabase client and auth state
-    console.log('[Pull] Supabase client:', supabase ? 'Initialized' : 'Not initialized');
+    // console.log('[Pull] Supabase client:', supabase ? 'Initialized' : 'Not initialized');
     const session = await supabase.auth.getSession();
-    console.log('[Pull] Supabase session:', session.data?.session ? 'Exists' : 'No session');
+    // console.log('[Pull] Supabase session:', session.data?.session ? 'Exists' : 'No session');
     
     if (!session.data?.session) {
       console.error('[Pull] No active Supabase session');
@@ -428,21 +428,21 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     }
     
     // Debug: Test a direct query to Supabase
-    console.log('[Pull] Testing Supabase connection with a simple query...');
+    // console.log('[Pull] Testing Supabase connection with a simple query...');
     const testQuery = await supabase
       .from('incomes')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id);
     
-    console.log('[Pull] Supabase test query result:', {
-      count: testQuery.count,
-      error: testQuery.error,
-      status: testQuery.status,
-      statusText: testQuery.statusText
-    });
+    // console.log('[Pull] Supabase test query result:', {
+    //   count: testQuery.count,
+    //   error: testQuery.error,
+    //   status: testQuery.status,
+    //   statusText: testQuery.statusText
+    // });
     
     if (testQuery.error) {
-      console.error('[Pull] Error testing Supabase connection:', testQuery.error);
+      // console.error('[Pull] Error testing Supabase connection:', testQuery.error);
       console.groupEnd();
       return { synced: 0, skipped: 0, errors: 1 };
     }
@@ -461,28 +461,28 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
     }
 
     if (!Array.isArray(supabaseData) || supabaseData.length === 0) {
-      console.log('[Pull] No remote incomes found for user');
+      // console.log('[Pull] No remote incomes found for user');
       console.groupEnd();
       return { synced: 0, skipped: 0, errors: 0 };
     }
     
-    console.log(`[Pull] Found ${supabaseData.length} remote incomes to process`);
+    // console.log(`[Pull] Found ${supabaseData.length} remote incomes to process`);
     
     // Log details about remote incomes
     supabaseData.slice(0, 3).forEach((inc, index) => {
-      console.log(`[Pull] Remote income ${index + 1}:`, {
-        id: inc.id,
-        user_id: inc.user_id,
-        amount: inc.amount,
-        source: inc.source,
-        date: inc.date,
-        updated_at: inc.updated_at,
-        created_at: inc.created_at
-      });
+      // console.log(`[Pull] Remote income ${index + 1}:`, {
+      //   id: inc.id,
+      //   user_id: inc.user_id,
+      //   amount: inc.amount,
+      //   source: inc.source,
+      //   date: inc.date,
+      //   updated_at: inc.updated_at,
+      //   created_at: inc.created_at
+      // });
     });
     
     if (supabaseData.length > 3) {
-      console.log(`[Pull] ...and ${supabaseData.length - 3} more remote incomes`);
+      // console.log(`[Pull] ...and ${supabaseData.length - 3} more remote incomes`);
     }
     
     // Define result types for better type safety
@@ -612,7 +612,7 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
   
   while (retryCount < maxRetries) {
     try {
-      console.log(`[Sync] Attempt ${retryCount + 1} of ${maxRetries}`);
+      // console.log(`[Sync] Attempt ${retryCount + 1} of ${maxRetries}`);
       
       // Check session validity
       const { data: { session } } = await supabase.auth.getSession();
@@ -633,7 +633,7 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
       retryCount++;
     } catch (error) {
-      console.error(`[Sync] Attempt ${retryCount + 1} failed:`, error);
+      // console.error(`[Sync] Attempt ${retryCount + 1} failed:`, error);
       if (retryCount === maxRetries - 1) {
         console.groupEnd();
         return { synced: 0, errors: 1 };
