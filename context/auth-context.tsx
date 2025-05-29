@@ -173,8 +173,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw authError;
         }
 
-        // Success case - Let the calling component handle the success state
-        console.log("Login successful");
+        // Success case - The onAuthStateChange handler will handle the redirect
+        console.log("Login successful - Auth state change will handle the redirect");
         try {
           console.log("Starting post-login sync");
           await performPostLoginSync();
@@ -189,9 +189,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             duration: 5000,
           });
         }
-
-        // Use router.push instead of window.location for better SPA behavior
-        router.push("/");
       } catch (error: any) {
         // console.error("Sign-in error:", error);
         // Just re-throw the error - let the login page handle the toast

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -20,8 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { motion } from "framer-motion";
 import { Sparkles, Smile, ArrowRight } from "lucide-react";
-import { pullExpensesFromSupabase, syncExpenses } from "@/lib/db";
-import { getSupabaseBrowserClient } from "@/lib/supabase";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -31,10 +28,8 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const supabase = getSupabaseBrowserClient();
   const { signIn, signInWithGoogle } = useAuth();
   const { toast } = useToast();
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
@@ -46,77 +41,14 @@ export default function LoginPage() {
     },
   });
 
-  // Helper function to sync data after successful login
-  async function performPostLoginSync() {
-    try {
-      console.log("[Login] Starting post-login data sync...");
-
-      // Pull latest data from Supabase
-      await pullExpensesFromSupabase();
-
-      // Sync any pending local changes
-      await syncExpenses();
-
-      console.log("[Login] Post-login sync completed successfully");
-    } catch (error) {
-      console.error("[Login] Error during post-login sync:", error);
-      // Don't show error to user as login was successful
-    }
-  }
-
-  // Helper function to handle successful login
-  async function handleSuccessfulLogin() {
-    // Animasi titik berjalan
-    const baseText = "Syncing your latest data";
-    const dots = ["", ".", "..", "..."];
-    let dotIndex = 0;
-    let isSyncing = true;
-    let toastId: string | undefined = undefined;
-
-    // Tampilkan toast pertama kali
-    const toastObj = toast({
-      title: "Welcome back! 🎉",
-      description: `${baseText}...`,
-      variant: "default",
-    });
-    toastId = toastObj.id;
-
-    // Interval untuk update animasi
-    const interval = setInterval(() => {
-      if (!isSyncing) return;
-      toastObj.update({
-        id: toastObj.id,
-        title: "Welcome back! 🎉",
-        description: `${baseText}${dots[dotIndex]}`,
-        variant: "default",
-      });
-      dotIndex = (dotIndex + 1) % dots.length;
-    }, 500);
-
-    // Lakukan sync
-    await performPostLoginSync();
-    isSyncing = false;
-    clearInterval(interval);
-
-    // Update toast menjadi selesai
-    toastObj.update({
-      id: toastObj.id,
-      title: "Welcome back! 🎉",
-      description: "Data kamu sudah tersinkronisasi! 🚀",
-      variant: "default",
-    });
-
-    // Navigasi ke home page
-    router.push("/");
-  }
+  // Sync and redirect are now handled by the auth context's onAuthStateChange
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
       await signIn(values.email, values.password);
-      await handleSuccessfulLogin();
+      // The auth context will handle the redirect via onAuthStateChange
     } catch (error: any) {
-      // console.error("Login error:", error);
       toast({
         title: "Oops! Login failed 😕",
         description:
@@ -131,55 +63,15 @@ export default function LoginPage() {
   async function handleGoogleSignIn() {
     setIsGoogleLoading(true);
     try {
-      // Show the sync toast
-      const baseText = "Syncing your latest data";
-      const dots = ["", ".", "..", "..."];
-      let dotIndex = 0;
-      let isSyncing = true;
-
-      const toastObj = toast({
+      // Show loading toast
+      toast({
         title: "Signing in with Google...",
         description: "Please wait while we authenticate your account",
         variant: "default",
       });
 
-      const interval = setInterval(() => {
-        if (!isSyncing) return;
-        toastObj.update({
-          id: toastObj.id,
-          title: "Signing in with Google...",
-          description: `Please wait while we authenticate your account${dots[dotIndex]}`,
-          variant: "default",
-        });
-        dotIndex = (dotIndex + 1) % dots.length;
-      }, 500);
-
-      // Wait for Google sign-in to complete
+      // The auth context will handle the redirect via onAuthStateChange
       await signInWithGoogle();
-      
-      // Update toast to show we're now syncing data
-      toastObj.update({
-        id: toastObj.id,
-        title: "Welcome back! 🎉",
-        description: `${baseText}...`,
-        variant: "default",
-      });
-
-      // Wait for the sync to complete
-      await performPostLoginSync();
-
-      // Update the toast to show completion
-      isSyncing = false;
-      clearInterval(interval);
-      toastObj.update({
-        id: toastObj.id,
-        title: "Welcome back! 🎉",
-        description: "Data kamu sudah tersinkronisasi! 🚀",
-        variant: "default",
-      });
-
-      // Use client-side navigation
-      router.push("/");
 
     } catch (error) {
       console.error("Google sign-in error:", error);
