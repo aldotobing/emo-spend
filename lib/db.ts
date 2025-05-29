@@ -113,29 +113,29 @@ export function getDb(): EmoSpendDatabase {
       
       // Set up version change handler
       dbInstance.on('versionchange', (event: any) => {
-        console.log('[DB] Database version change detected:', event);
+        // console.log('[DB] Database version change detected:', event);
         // Close the database to allow the upgrade to proceed
         dbInstance?.close();
         dbInstance = null;
         // Notify the user if needed
         if (event.newVersion !== null) { // null means database is being deleted
-          console.log('[DB] Database is being upgraded. Please refresh the page when complete.');
+          // console.log('[DB] Database is being upgraded. Please refresh the page when complete.');
         }
       });
       
       // Log successful initialization
       dbInstance.open().then(() => {
-        console.log('[DB] Database opened successfully');
+        // console.log('[DB] Database opened successfully');
       }).catch((error: any) => {
-        console.error('[DB] Error opening database:', error);
+        // console.error('[DB] Error opening database:', error);
       });
       
     } catch (e) {
-      console.error("[DB] Failed to initialize database:", e);
+      // console.error("[DB] Failed to initialize database:", e);
       
       // Try to recover by deleting the database and recreating it
       if (typeof window !== 'undefined' && window.indexedDB && window.indexedDB.deleteDatabase) {
-        console.log('[DB] Attempting to reset database...');
+        // console.log('[DB] Attempting to reset database...');
         
         // Close any existing connection first
         if (dbInstance) {
@@ -147,7 +147,7 @@ export function getDb(): EmoSpendDatabase {
         const deleteRequest = window.indexedDB.deleteDatabase("emoSpendDb");
         
         deleteRequest.onsuccess = () => {
-          console.log("[DB] Database deleted successfully, recreating...");
+          // console.log("[DB] Database deleted successfully, recreating...");
           try {
             dbInstance = new EmoSpendDatabase();
           } catch (innerError) {
@@ -187,7 +187,7 @@ export async function getCurrentUser(): Promise<User | null> {
   
   while (attempts < MAX_ATTEMPTS) {
     if (document.cookie.includes('sb-auth-token=')) break;
-    console.log(`[Auth] Menunggu cookie (${attempts + 1}/${MAX_ATTEMPTS})`);
+    // console.log(`[Auth] Menunggu cookie (${attempts + 1}/${MAX_ATTEMPTS})`);
     await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
     attempts++;
   }
@@ -200,10 +200,10 @@ export async function getCurrentUser(): Promise<User | null> {
       return null;
     }
     
-    console.log('[Auth] User berhasil diverifikasi:', user.id.substring(0, 6));
+    // console.log('[Auth] User berhasil diverifikasi:', user.id.substring(0, 6));
     return user;
   } catch (error) {
-    console.error('[Auth] Gagal mengambil user:', error);
+    // console.error('[Auth] Gagal mengambil user:', error);
     return null;
   }
 }
@@ -217,7 +217,7 @@ export async function addExpense(
   const createdAtDate = new Date();
   
   if (typeof id !== "string" || id.trim() === "") {
-    console.error("[DB] Generated ID for addExpense is invalid:", id);
+    // console.error("[DB] Generated ID for addExpense is invalid:", id);
     return null;
   }
 
@@ -561,25 +561,25 @@ async function actualSyncOperation(signal: AbortSignal) {
 
     // Check preconditions
     if (!user) {
-      console.log('[Sync] No user - skipping sync');
+      // console.log('[Sync] No user - skipping  sync');
       return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
     }
 
     // Check online status
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('[Sync] Offline - skipping sync');
+      // console.log('[Sync] Offline - skipping sync');
       return { syncedLocal: 0, syncedRemote: 0, skipped: 0 };
     }
 
     // First, pull any remote changes
-    console.log('[Sync] Pulling remote changes...');
+    // console.log('[Sync] Pulling remote changes...');
     const pullResult = await pullExpensesFromSupabase();
-    console.log(`[Sync] Pulled ${pullResult.synced} remote changes, skipped ${pullResult.skipped}`);
+    // console.log(`[Sync] Pulled ${pullResult.synced} remote changes, skipped ${pullResult.skipped}`);
     syncedRemote = pullResult.synced;
     skipped = pullResult.skipped;
 
     // Find all local changes that need to be synced
-    console.log('[Sync] Finding unsynced local changes...');
+    // console.log('[Sync] Finding unsynced local changes...');
     let unsyncedStatusEntries: SyncStatusEntry[] = [];
     try {
       const allStatusEntries = await db.syncStatus.toArray();
@@ -588,7 +588,7 @@ async function actualSyncOperation(signal: AbortSignal) {
       );
     } catch (error: any) {
       const errorMsg = `Error finding unsynced changes: ${error.message}`;
-      console.error('[Sync]', errorMsg);
+      // console.error('[Sync]', errorMsg);
       window.dispatchEvent(new CustomEvent("sync:error", { 
         detail: { 
           operation: 'sync',
@@ -600,11 +600,11 @@ async function actualSyncOperation(signal: AbortSignal) {
 
     // If no local changes, we're done
     if (unsyncedStatusEntries.length === 0) {
-      console.log('[Sync] No local changes to sync');
+      // console.log('[Sync] No local changes to sync');
       return { syncedLocal: 0, syncedRemote, skipped };
     }
 
-    console.log(`[Sync] Found ${unsyncedStatusEntries.length} unsynced items`);
+    // console.log(`[Sync] Found ${unsyncedStatusEntries.length} unsynced items`);
 
     // Get the actual expense data for unsynced items
     const validExpenseIds = unsyncedStatusEntries.map(s => s.id).filter(Boolean) as string[];
@@ -640,11 +640,11 @@ async function actualSyncOperation(signal: AbortSignal) {
     }
 
     if (localExpensesToSync.length === 0) {
-      console.log('[Sync] No valid local changes to sync after processing');
+      // console.log('[Sync] No valid local changes to sync after processing');
       return { syncedLocal: 0, syncedRemote, skipped };
     }
 
-    console.log(`[Sync] Syncing ${localExpensesToSync.length} local changes...`);
+    // console.log(`[Sync] Syncing ${localExpensesToSync.length} local changes...`);
 
     // Prepare the payload for Supabase
     const syncTimestamp = new Date().toISOString();
@@ -689,7 +689,7 @@ async function actualSyncOperation(signal: AbortSignal) {
       }
     }
 
-    console.log(`[Sync] Successfully synced ${syncedLocal} expenses`);
+    // console.log(`[Sync] Successfully synced ${syncedLocal} expenses`);
     return { 
       syncedLocal, 
       syncedRemote, 
@@ -705,7 +705,7 @@ async function actualSyncOperation(signal: AbortSignal) {
 }
 
 export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: number; skipped: number }> {
-  console.log(`[Pull] Starting expense pull attempt ${attempt}`);
+  // console.log(`[Pull] Starting expense pull attempt ${attempt}`);
   const startTime = Date.now();
   const MAX_ATTEMPTS = 3;
   const PAGE_SIZE = 100;
@@ -722,25 +722,25 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
   });
 
   try {
-    console.log('[Pull] Getting database instance...');
+    // console.log('[Pull] Getting database instance...');
     const db = getDb();
     const supabase = getSupabaseBrowserClient();
     
-    console.log('[Pull] Getting current user...');
+    // console.log('[Pull] Getting current user...');
     const user = await getCurrentUser();
 
     // Check preconditions
     if (!user) {
-      console.log('[Pull] No user - skipping pull');
+      // console.log('[Pull] No user - skipping pull');
       return { synced: 0, skipped: 0 };
     }
 
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      console.log('[Pull] Offline - skipping pull');
+      // console.log('[Pull] Offline - skipping pull');
       return { synced: 0, skipped: 0 };
     }
 
-    console.log('[Pull] Fetching expenses from Supabase...');
+    // console.log('[Pull] Fetching expenses from Supabase...');
     
     let page = 0;
     let hasMore = true;
@@ -748,7 +748,7 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
     let totalSkipped = 0;
 
     while (hasMore) {
-      console.log(`[Pull] Fetching page ${page + 1}`);
+      // console.log(`[Pull] Fetching page ${page + 1}`);
       
       const { data, error, count } = await supabase
         .from("expenses")
@@ -796,7 +796,7 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
     
     // If we haven't exceeded max attempts, retry
     if (attempt < MAX_ATTEMPTS) {
-      console.log(`[Pull] Retrying... (${attempt + 1}/${MAX_ATTEMPTS})`);
+      // console.log(`[Pull] Retrying... (${attempt + 1}/${MAX_ATTEMPTS})`);
       // Wait before retrying (exponential backoff)
       await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       return pullExpensesFromSupabase(attempt + 1);
@@ -814,7 +814,7 @@ export async function pullExpensesFromSupabase(attempt = 1): Promise<{ synced: n
     return { synced: 0, skipped: 0 };
   } finally {
     clearTimeout(pullTimeout!);
-    console.log(`[Pull] Pull operation completed in ${Date.now() - startTime}ms`);
+    // console.log(`[Pull] Pull operation completed in ${Date.now() - startTime}ms`);
   }
 }
 
@@ -868,7 +868,7 @@ async function processPageData(data: any[]) {
       syncedCount++;
 
     } catch (expenseError) {
-      console.error(`[Pull] Error processing expense ${remote?.id}:`, expenseError);
+      // console.error(`[Pull] Error processing expense ${remote?.id}:`, expenseError);
     }
   }
 
@@ -931,11 +931,11 @@ const performFullSync = async (reason: string) => {
     }, 30000); // 30 seconds total timeout
 
     if (isSyncing) {
-      console.log('[Sync] Sync already in progress, skipping');
+      // console.log('[Sync] Sync already in progress, skipping');
       return;
     }
 
-    console.log(`[Sync] Starting sync (${reason})`);
+    // console.log(`[Sync] Starting sync (${reason})`);
     isSyncing = true;
     dispatchSyncEvent('background');
     
@@ -944,9 +944,9 @@ const performFullSync = async (reason: string) => {
     await syncExpenses();
     await syncGamificationData();
     
-    console.log('[Sync] Sync completed successfully');
+    // console.log('[Sync] Sync completed successfully');
   } catch (error: any) {
-    console.error(`[Sync] Error during sync (${reason}):`, error.message);
+    // console.error(`[Sync] Error during sync (${reason}):`, error.message);
   } finally {
     if (timeout) clearTimeout(timeout);
     if (release) {
@@ -963,7 +963,7 @@ const performFullSync = async (reason: string) => {
       if (navigator.onLine) performFullSync(`Auth: ${event}`);
       else console.log("[SyncSetup] User signed in but offline.");
     } else if (event === "SIGNED_OUT") {
-      console.log("[SyncSetup] User signed out. Clearing local data...");
+      // console.log("[SyncSetup] User signed out. Clearing local data...");
       // This is a good place to clear local data specific to the user.
       // But it's often more robust to do it *explicitly* in the logout handler
       // in auth-context, as onAuthStateChange might not always fire reliably
@@ -982,21 +982,21 @@ export async function fixStreakBadge(): Promise<void> {
   const user = await getCurrentUser();
 
   if (!user || !navigator.onLine) {
-    console.log("[Badge Fix] No user or offline");
+    // console.log("[Badge Fix] No user or offline");
     return;
   }
 
   try {
-    console.log("[Badge Fix] Starting badge fix for user:", user.id);
+    // console.log("[Badge Fix] Starting badge fix for user:", user.id);
     
     // Get local expenses for streak calculation
     const expenses = await getExpenses();
     const calculatedStreak = calculateStreak(expenses);
-    console.log("[Badge Fix] Calculated streak:", calculatedStreak);
+    // console.log("[Badge Fix] Calculated streak:", calculatedStreak);
     
     // Force add the 3-day streak badge if streak is >= 3
     if (calculatedStreak >= 3) {
-      console.log("[Badge Fix] Adding 3-day streak badge");
+      // console.log("[Badge Fix] Adding 3-day streak badge");
       const { error } = await supabase.from("user_badges").upsert({
         user_id: user.id,
         badge_id: "3-day-streak",
@@ -1006,7 +1006,7 @@ export async function fixStreakBadge(): Promise<void> {
       if (error) {
         console.error("[Badge Fix] Error adding badge:", error);
       } else {
-        console.log("[Badge Fix] Badge added successfully!");
+        // console.log("[Badge Fix] Badge added successfully!");
       }
     }
     
@@ -1021,7 +1021,7 @@ export async function fixStreakBadge(): Promise<void> {
     if (streakError) {
       console.error("[Badge Fix] Error updating streak:", streakError);
     } else {
-      console.log("[Badge Fix] Streak updated successfully!");
+      // console.log("[Badge Fix] Streak updated successfully!");
     }
     
     return;
@@ -1081,12 +1081,12 @@ export async function syncGamificationData(): Promise<void> {
     
     // Sync badges based on local calculations
     const badges = calculateBadges(expenses, calculatedStreak);
-    console.log("[Gamification] Calculated badges:", badges);
-    console.log("[Gamification] Current streak:", calculatedStreak);
+    // console.log("[Gamification] Calculated badges:", badges);
+    // console.log("[Gamification] Current streak:", calculatedStreak);
     
     // Force sync the 3-day streak badge if streak is >= 3
     if (calculatedStreak >= 3) {
-      console.log("[Gamification] Forcing sync of 3-day streak badge");
+      // console.log("[Gamification] Forcing sync of 3-day streak badge");
       await supabase.from("user_badges").upsert({
         user_id: user.id,
         badge_id: "3-day-streak",
@@ -1105,7 +1105,7 @@ export async function syncGamificationData(): Promise<void> {
       }
     }
   } catch (error: any) {
-    console.error("[GAMIFICATION] Error syncing gamification data:", error.message);
+    // console.error("[GAMIFICATION] Error syncing gamification data:", error.message);
     // Dispatch sync error event
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("sync:error", { 

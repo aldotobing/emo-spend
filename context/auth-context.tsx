@@ -21,9 +21,10 @@ import { pullIncomesFromSupabase, syncIncomes } from "@/lib/income";
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
-  isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
+  loading: boolean;
+  isLoading: boolean; // Alias for loading for backward compatibility
+  isSyncing: boolean; // New state for data syncing
+  signIn: (email: string, password: string) => Promise<{ error: any } | null>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   forceSync: () => Promise<boolean>;
@@ -34,11 +35,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // VVVV IMPORTANT: HOOKS MUST BE CALLED HERE, AT THE TOP LEVEL OF THIS FUNCTION COMPONENT (AuthProvider) VVVV
-  const router = useRouter(); // Correct place for useRouter
-  const supabase = getSupabaseBrowserClient(); // Can also be called here or within functions, but here is fine
+  const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const router = useRouter();
+  const supabase = getSupabaseBrowserClient();
 
   useEffect(() => {
     const {
@@ -92,13 +92,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      setIsLoading(false);
+      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setIsLoading(false);
+      setLoading(false);
     });
 
     return () => {
@@ -107,10 +107,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase]); // Depend on supabase to ensure correct instance if it changes
 
   const performPostLoginSync = useCallback(async () => {
+    // Show sync started toast that will auto-dismiss when the page changes
+    toast({
+      title: "Syncing your data...",
+      variant: "default",
+      duration: 3000, // Will auto-dismiss after 3 seconds
+    });
+
     try {
-      console.log('[Sync] Starting post-login sync');
-      
-      // Sync expenses first
+      console.log('[Auth] Starting post-login sync...');
+      // Pull and sync expenses
       console.log('[Sync] Pulling expenses...');
       const expensePull = await pullExpensesFromSupabase();
       console.log(`[Sync] Pulled ${expensePull.synced} expenses, skipped ${expensePull.skipped}`);
@@ -130,6 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('[Sync] Post-login sync completed successfully');
       
+      // The toast will auto-dismiss after its duration
       return {
         success: true,
         expensePull,
@@ -138,10 +145,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         incomeSync
       };
     } catch (error) {
-      console.error("[Login] Error during post-login sync:", error);
-      throw error; // Re-throw to allow handling in the calling function
+      console.error('[Auth] Error in post-login sync:', error);
+      
+      toast({
+        title: "Sync Error",
+        description: "There was an issue syncing your data. Some features may not work correctly.",
+        variant: "destructive",
+        duration: 5000,
+      });
+      
+      return false;
+    } finally {
+      // The toast will auto-dismiss when new toasts are shown
     }
-  }, []);
+  }, [toast]);
 
   const forceSync = useCallback(async () => {
     console.log('[Auth] Forcing manual sync');
@@ -155,71 +172,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [performPostLoginSync]);
 
-  const signIn = useCallback(
-    async (email: string, password: string) => {
-      console.log("Starting signIn function");
-      setIsLoading(true);
-      try {
-        // Basic validation
-        if (!email || !password) {
-          const err = new Error("Please enter both email and password");
-          console.log("Validation error:", err.message);
-          throw err;
-        }
+  const signIn = useCallback(async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        console.log("Attempting to sign in with email:", email);
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password: password,
-        });
-
-        if (error) {
-          console.log("Auth error occurred:", error);
-          // More specific error handling
-          let errorMessage = error.message;
-          if (error.message.includes("Invalid login credentials")) {
-            errorMessage =
-              "The email or password you entered is incorrect. Please try again.";
-          } else if (error.message.includes("Email not confirmed")) {
-            errorMessage = "Please verify your email before signing in.";
-          } else if (error.message.includes("network")) {
-            errorMessage =
-              "Network error. Please check your internet connection.";
-          }
-          const authError = new Error(errorMessage);
-          console.log("Throwing auth error:", authError.message);
-          throw authError;
-        }
-
-        // Success case - The onAuthStateChange handler will handle the redirect
-        console.log("Login successful - Auth state change will handle the redirect");
+      if (error) return { error };
+      
+      // Show redirecting toast
+      toast({
+        title: "Success!",
+        description: "Preparing your dashboard...",
+        variant: "default",
+      });
+      
+      // Update user state immediately
+      setUser(data.user);
+      
+      // Redirect to home page
+      router.push('/');
+      
+      // Start syncing in background after redirect
+      setIsSyncing(true);
+      setTimeout(async () => {
         try {
-          console.log("Starting post-login sync");
           await performPostLoginSync();
         } catch (syncError) {
-          console.error("Sync error after login:", syncError);
-          // Don't block the login flow for sync errors
-          toast({
-            title: "Sync Error",
-            description:
-              "Could not sync all data. Some features may be limited.",
-            variant: "destructive" as const,
-            duration: 5000,
-          });
+          console.error('Background sync error:', syncError);
+        } finally {
+          setIsSyncing(false);
         }
-      } catch (error: any) {
-        // console.error("Sign-in error:", error);
-        // Just re-throw the error - let the login page handle the toast
-        throw error;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [toast, performPostLoginSync, supabase]
-  );
+      }, 0);
+      
+      return { error: null };
+    } catch (error) {
+      console.error('Error signing in:', error);
+      return { error };
+    } finally {
+      setLoading(false);
+    }
+  }, [router, performPostLoginSync]);
 
   const signInWithGoogle = useCallback(async () => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       console.log('[Google Auth] Starting Google OAuth flow...');
       
@@ -292,13 +290,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   }, [toast, supabase]);
 
   const signOut = useCallback(async () => {
-    // Router and toast are now variables in the scope of AuthProvider,
-    // so they are accessible here without calling hooks again.
     try {
       await clearLocalUserData(); // Clear local database
 
@@ -334,7 +330,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         error.stack
       );
       toast({
-        // <-- This is using the `toast` variable from above
         title: "Logout Failed",
         description: `An unexpected error occurred during logout: ${error.message}`,
         variant: "destructive",
@@ -345,14 +340,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       user,
-      session,
-      isLoading,
+      loading,
+      isLoading: loading, // Alias for backward compatibility
+      isSyncing,
       signIn,
       signInWithGoogle,
       signOut,
       forceSync,
     }),
-    [user, session, isLoading, signIn, signInWithGoogle, signOut, forceSync]
+    [user, loading, isSyncing, signIn, signInWithGoogle, signOut, forceSync]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

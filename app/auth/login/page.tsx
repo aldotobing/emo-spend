@@ -45,14 +45,27 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
+    
+    // Show signing in toast
+    toast({
+      title: "Signing in...",
+      description: "Please wait while we log you in.",
+      variant: "default",
+    });
+
     try {
-      await signIn(values.email, values.password);
-      // The auth context will handle the redirect via onAuthStateChange
+      const result = await signIn(values.email, values.password);
+      
+      if (result?.error) {
+        throw new Error(result.error.message || "Failed to sign in. Please try again.");
+      }
+      
+      // The auth context will handle the success toast and redirect
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
-        title: "Oops! Login failed 😕",
-        description:
-          error?.message || "Please check your credentials and try again.",
+        title: "Login Failed",
+        description: error?.message || "Invalid email or password. Please try again.",
         variant: "destructive",
       });
     } finally {
