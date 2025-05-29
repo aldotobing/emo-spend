@@ -49,7 +49,7 @@ export default function LoginPage() {
     // Show signing in toast
     toast({
       title: "Signing in...",
-      description: "Please wait while we log you in.",
+      description: "Redirecting to dashboard.",
       variant: "default",
     });
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
       // Show loading toast
       toast({
         title: "Signing in with Google...",
-        description: "Please wait while we authenticate your account",
+        description: "Redirecting to dashboard.",
         variant: "default",
       });
 
