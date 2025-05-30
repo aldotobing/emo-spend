@@ -10,9 +10,10 @@ import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
-import { Analytics } from "@vercel/analytics/next";
+import {Analytics}  from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SyncManager } from "@/components/sync-manager";
+
 
 const inter = Inter({
   subsets: ["latin"],
