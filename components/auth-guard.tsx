@@ -2,8 +2,9 @@
 
 import type React from "react";
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
+import { Loader2 } from "lucide-react";
 
 interface AuthGuardProps {
   readonly children: React.ReactNode;
@@ -11,24 +12,29 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, isLoading } = useAuth();
+  const router = useRouter();
   const pathname = usePathname();
 
-  // Check if the path is an auth page
+  // Check if the path is an auth page or the home page
   const isAuthPage = pathname?.startsWith("/auth");
+  const isHomePage = pathname === "/";
 
-  // Show nothing while checking authentication
-  if (isLoading) {
-    return null;
+  useEffect(() => {
+    if (!isLoading && !user && !isAuthPage && !isHomePage) {
+      // Store the current path to redirect back after login
+      const redirectPath = encodeURIComponent(pathname || "/");
+      router.push(`/auth/login?redirect=${redirectPath}`);
+    }
+  }, [isLoading, user, isAuthPage, isHomePage, pathname, router]);
+
+  // Show loading indicator while checking authentication
+  if (isLoading || (!user && !isAuthPage && !isHomePage)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    );
   }
-
-  // If user is not authenticated and not on an auth page, redirect to login
-  if (!user && !isAuthPage && pathname !== "/") {
-    // The auth context will handle the actual redirection
-    return null;
-  }
-
-  // If user is authenticated and on an auth page, the auth context will handle the redirect
-  // via the onAuthStateChange listener
 
   return <>{children}</>;
 }

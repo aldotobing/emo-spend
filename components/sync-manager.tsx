@@ -92,6 +92,18 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     
     const getPendingSyncCount = async () => {
       if (!isMounted) return;
+      
+      // Check if user is authenticated before proceeding
+      const { getCurrentUser } = await import('@/lib/db');
+      const user = await getCurrentUser();
+      
+      if (!user) {
+        // console.log('[SyncManager] User not authenticated, skipping sync count check');
+        setPendingSyncCount(null);
+        setIsLoadingPendingCount(false);
+        return;
+      }
+      
       setIsLoadingPendingCount(true);
       
       try {

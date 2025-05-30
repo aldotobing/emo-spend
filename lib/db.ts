@@ -179,31 +179,34 @@ export function getDb(): EmoSpendDatabase {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const supabase = getSupabaseBrowserClient();
-  
-  let attempts = 0;
-  const MAX_ATTEMPTS = 2;
-  const RETRY_DELAY = 200;
-  
-  while (attempts < MAX_ATTEMPTS) {
-    if (document.cookie.includes('sb-auth-token=')) break;
-    // console.log(`[Auth] Menunggu cookie (${attempts + 1}/${MAX_ATTEMPTS})`);
-    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-    attempts++;
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return null;
   }
 
+  const supabase = getSupabaseBrowserClient();
+  
+  // First try to get the session
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
     
-    if (!user?.id) {
-      console.error('[Auth] User ID tidak valid');
-      return null;
+    // If we have a valid session with user, return the user
+    if (session?.user?.id) {
+      return session.user;
     }
     
-    // console.log('[Auth] User berhasil diverifikasi:', user.id.substring(0, 6));
-    return user;
+    // If no session, try to get the user directly
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (user?.id) {
+      return user;
+    }
+    
+    // If we get here, no valid user was found
+    return null;
+    
   } catch (error) {
-    // console.error('[Auth] Gagal mengambil user:', error);
+    // console.error('[Auth] Error getting user:', error);
     return null;
   }
 }
