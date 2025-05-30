@@ -6,7 +6,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
 import { Toaster as SonnerToaster } from "sonner";
 import { SyncProvider } from "./providers";
-import { TestToastButton } from "@/components/test-toast-button";
 import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
