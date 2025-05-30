@@ -1,6 +1,7 @@
 import { useCallback, useRef, useEffect, useState } from "react";
 import { syncExpenses } from "@/lib/db";
 import { syncIncomes } from "@/lib/income";
+import { getCurrentUser } from "@/lib/db";
 
 export interface SyncResult {
   success: boolean;
@@ -36,6 +37,18 @@ export function useSync() {
         return {
           success: false,
           message: "Sync skipped - not in browser environment",
+          syncedExpenses: 0,
+          syncedIncomes: 0,
+          skipped: 0,
+        };
+      }
+
+      // Check if user is authenticated
+      const user = await getCurrentUser();
+      if (!user) {
+        return {
+          success: false,
+          message: "Sync skipped - user not authenticated",
           syncedExpenses: 0,
           syncedIncomes: 0,
           skipped: 0,

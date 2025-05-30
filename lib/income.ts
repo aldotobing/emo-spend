@@ -601,9 +601,8 @@ export async function syncIncomes(): Promise<{ synced: number; errors: number }>
   const user = await getCurrentUser();
   
   if (!user) {
-    console.error('[Sync] No user - skipping sync');
     console.groupEnd();
-    return { synced: 0, errors: 1 };
+    return { synced: 0, errors: 1 }; // Count as error if we can't check user
   }
   
   // Add retry counter
