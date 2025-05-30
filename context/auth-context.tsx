@@ -231,24 +231,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     setLoading(true);
-    let popupWindow: Window | null = null;
-    let authStateUnsubscribe: (() => void) | null = null;
-    let timeout: NodeJS.Timeout | null = null;
     
     try {
       // console.log('[Google Auth] Starting Google OAuth flow...');
       
-      // First, sign in with Google
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      // First, sign in with Google using the default redirect flow
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}`,
-          //redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/dashboard`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
           },
-          skipBrowserRedirect: true, // We'll handle the popup manually
         },
       });
 
@@ -257,70 +252,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
       
-      if (!data.url) {
-        throw new Error('No authentication URL returned');
-      }
-      
-      // Open the OAuth URL in a popup
-      popupWindow = window.open(data.url, 'oauth-popup', 'width=500,height=600');
-      
-      if (!popupWindow) {
-        throw new Error('Popup was blocked. Please allow popups for this site.');
-      }
-      
-      // Wait for the auth state to change and handle the sign-in
-      await new Promise<void>((resolve, reject) => {
-        // Set a timeout to prevent hanging
-        timeout = setTimeout(() => {
-          console.error('[Google Auth] Auth state change timeout');
-          reject(new Error('Authentication timed out. Please try again.'));
-        }, 30000); // 30 second timeout
-        
-        // Listen for popup being closed
-        const checkPopup = setInterval(() => {
-          if (popupWindow?.closed) {
-            clearInterval(checkPopup);
-            clearTimeout(timeout!);
-            if (authStateUnsubscribe) authStateUnsubscribe();
-            reject(new Error('Sign in was cancelled'));
-          }
-        }, 500);
-        
-        // Listen for auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-          // console.log('[Google Auth] Auth state changed:', event);
-          
-          if (event === 'SIGNED_IN') {
-            clearTimeout(timeout!);
-            clearInterval(checkPopup);
-            
-            // Small delay to ensure session is fully established
-            setTimeout(async () => {
-              try {
-                // console.log('[Google Auth] Triggering post-login sync...');
-                await performPostLoginSync();
-                // console.log('[Google Auth] Sync completed');
-                resolve();
-              } catch (syncError) {
-                // console.error('[Google Auth] Sync error:', syncError);
-                reject(syncError);
-              }
-            }, 1000); // 1 second delay
-          }
-        });
-        
-        // Store the unsubscribe function
-        authStateUnsubscribe = () => {
-          subscription?.unsubscribe();
-        };
-      });
-      
-      // Close the popup if it's still open
-      if (popupWindow && !popupWindow.closed) {
-        popupWindow.close();
-      }
-      
-      // console.log('[Google Auth] Google sign-in and sync completed successfully');
+      // The rest will be handled by the onAuthStateChange listener in the AuthProvider
+      // which will trigger the sync and update the user state
     } catch (error: any) {
       console.error("[Google Auth] Google sign-in error:", error.message, error);
       toast({
