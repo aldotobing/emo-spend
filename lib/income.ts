@@ -595,53 +595,51 @@ export async function pullIncomesFromSupabase(): Promise<SyncResult> {
 }
 
 export async function syncIncomes(): Promise<{ synced: number; errors: number }> {
-  console.group('[Sync] Starting income sync');
+  // Don't log sync start to reduce console noise
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
-  const user = await getCurrentUser();
   
-  if (!user) {
-    console.groupEnd();
-    return { synced: 0, errors: 1 }; // Count as error if we can't check user
-  }
-  
-  // Add retry counter
-  let retryCount = 0;
-  const maxRetries = 3;
-  
-  while (retryCount < maxRetries) {
-    try {
-      // console.log(`[Sync] Attempt ${retryCount + 1} of ${maxRetries}`);
-      
-      // Check session validity
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
-      }
-      
-      // Rest of sync logic...
-      const pullResult = await pullIncomesFromSupabase();
-      
-      if (pullResult.synced > 0 || retryCount === maxRetries - 1) {
-        // Only return if we got data or this is the last attempt
-        console.groupEnd();
-        return pullResult;
-      }
-      
-      // Wait before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      retryCount++;
-    } catch (error) {
-      // console.error(`[Sync] Attempt ${retryCount + 1} failed:`, error);
-      if (retryCount === maxRetries - 1) {
-        console.groupEnd();
-        return { synced: 0, errors: 1 };
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      retryCount++;
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { synced: 0, errors: 0 }; // Not an error, just not authenticated
     }
+    
+    // Check session without throwing if not available
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      return { synced: 0, errors: 0 }; // Not an error, just not authenticated
+    }
+    
+    // Add retry counter
+    let retryCount = 0;
+    const maxRetries = 2; // Reduced from 3 to 2 for faster failure
+    
+    while (retryCount < maxRetries) {
+      try {
+        const pullResult = await pullIncomesFromSupabase();
+        
+        // Return if we got data or this is the last attempt
+        if (pullResult.synced > 0 || retryCount === maxRetries - 1) {
+          return pullResult;
+        }
+        
+        // Wait before retrying with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+        retryCount++;
+      } catch (error) {
+        // Don't log errors to reduce console noise
+        if (retryCount === maxRetries - 1) {
+          return { synced: 0, errors: 1 };
+        }
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, retryCount)));
+        retryCount++;
+      }
+    }
+    
+    return { synced: 0, errors: 1 };
+  } catch (error) {
+    // Catch any unexpected errors and fail silently
+    return { synced: 0, errors: 1 };
   }
-  
-  console.groupEnd();
-  return { synced: 0, errors: 1 };
 }

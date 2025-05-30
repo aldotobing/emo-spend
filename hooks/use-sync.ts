@@ -2,6 +2,7 @@ import { useCallback, useRef, useEffect, useState } from "react";
 import { syncExpenses } from "@/lib/db";
 import { syncIncomes } from "@/lib/income";
 import { getCurrentUser } from "@/lib/db";
+import { useRouter } from "next/navigation";
 
 export interface SyncResult {
   success: boolean;
@@ -46,6 +47,7 @@ export function useSync() {
       // Check if user is authenticated
       const user = await getCurrentUser();
       if (!user) {
+        // Don't log this to avoid console spam
         return {
           success: false,
           message: "Sync skipped - user not authenticated",
@@ -72,24 +74,36 @@ export function useSync() {
         };
       }
 
-      isSyncingRef.current = true;
-      
-      // Dispatch sync start event
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('sync:start', { 
-          detail: { operation: 'push' } 
-        }));
+      // Don't proceed if already syncing
+      if (isSyncingRef.current) {
+        return {
+          success: false,
+          message: "Sync already in progress",
+          syncedExpenses: 0,
+          syncedIncomes: 0,
+          skipped: 0,
+        };
       }
 
+      isSyncingRef.current = true;
+      
       try {
         if (!silent) {
           console.log("[useSync] Starting sync...");
         }
+        
+        // Dispatch sync start event
+        window.dispatchEvent(new CustomEvent('sync:start', { 
+          detail: { operation: 'push' } 
+        }));
 
-        // Sync both expenses and incomes
-        const expensesResult = await syncExpenses();
-        const incomesResult = await syncIncomes();
-        lastSyncTimeRef.current = now;
+        // Sync both expenses and incomes in parallel
+        const [expensesResult, incomesResult] = await Promise.all([
+          syncExpenses(),
+          syncIncomes()
+        ]);
+        
+        lastSyncTimeRef.current = Date.now();
 
         if (!silent) {
           console.log("[useSync] Sync completed:", { expenses: expensesResult, incomes: incomesResult });

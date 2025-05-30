@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
@@ -39,6 +40,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSyncing, setIsSyncing] = useState(false);
   const router = useRouter();
   const supabase = getSupabaseBrowserClient();
+  const isInitialLoad = useRef(true);
+  const lastSignInTime = useRef<number | null>(null);
+  const isProcessingAuth = useRef(false);
 
   useEffect(() => {
     const {
@@ -50,7 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (event === 'SIGNED_IN') {
+      // Only process SIGNED_IN event if we're not already processing auth
+      if (event === 'SIGNED_IN' && !isProcessingAuth.current) {
+        isProcessingAuth.current = true;
+        lastSignInTime.current = Date.now();
         // console.log('[Auth] User signed in, starting sync...');
         
         let retryCount = 0;
@@ -62,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (user) {
               // console.log('[Auth] User verified:', user.id);
               await performPostLoginSync();
-              router.push('/');
+              // Never redirect automatically - let the user stay on their current page
+              // This prevents unwanted redirects when reconnecting or refreshing
             } else if (retryCount < maxRetries) {
               retryCount++;
               const delay = Math.pow(2, retryCount) * 100;
@@ -98,11 +106,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Mark initial load as complete after first render
+      isInitialLoad.current = false;
       setLoading(false);
     });
 
     return () => {
       subscription.unsubscribe();
+      // Reset processing flag when unmounting
+      isProcessingAuth.current = false;
     };
   }, [supabase]); // Depend on supabase to ensure correct instance if it changes
 

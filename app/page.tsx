@@ -42,13 +42,22 @@ export default function Dashboard() {
     setIsLoading(true);
     try {
       const { start, end } = getDateRangeForPeriod(period);
+      
+      // First, get local data for immediate UI update
       const [expensesData, incomesData] = await Promise.all([
         getExpensesByDateRange(start, end),
         getIncomesByDateRange(start, end)
       ]);
+      
       setExpenses(expensesData);
       setIncomes(incomesData);
-      await sync({ silent: true });
+      
+      // Then trigger sync in the background without awaiting it
+      // This prevents blocking the UI and potential redirects
+      sync({ silent: true }).catch(error => {
+        console.error("Background sync failed:", error);
+      });
+      
     } catch (err) {
       console.error("Error fetching data:", err);
     } finally {
@@ -135,9 +144,8 @@ export default function Dashboard() {
       // Debounce to prevent too many rapid updates
       debounceTimer = setTimeout(() => {
         if (!mounted) return;
-        console.log("Refreshing data after change...");
         fetchData();
-      }, 1000); // Increased to 1000ms for better debouncing
+      }, 1500); // Increased to 1500ms for better debouncing
     };
 
     // Simple handler for database changes
@@ -147,7 +155,6 @@ export default function Dashboard() {
       // Skip if this is a sync operation to prevent loops
       if (obj.synced === true) return;
       
-      console.log("DB change detected, scheduling refresh...");
       debouncedFetchData();
     };
 
