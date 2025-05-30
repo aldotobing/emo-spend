@@ -142,26 +142,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const showSyncToast = () => {
-    return toast.custom((t) => (
-      <div className={`${styles.toastContent}`}>
-        <SyncIcon className="h-5 w-5 text-primary flex-shrink-0" />
-        <div className="text-left">
-          <p className="font-medium text-foreground">Menyinkronkan Data</p>
-          <p className="text-sm text-muted-foreground">Harap tunggu sebentar...</p>
+    // Dismiss any existing toasts first
+    toast.dismiss();
+    
+    // Return a promise that resolves with the toast ID
+    return new Promise<string | number>((resolve) => {
+      const toastId = toast.custom((t) => (
+        <div className={`${styles.toastContent}`}>
+          <SyncIcon className="h-5 w-5 text-primary flex-shrink-0" />
+          <div className="text-left">
+            <p className="font-medium text-foreground">Menyinkronkan Data</p>
+            <p className="text-sm text-muted-foreground">Harap tunggu sebentar...</p>
+          </div>
         </div>
-      </div>
-    ), {
-      duration: Infinity,
-      className: styles.toast,
-      style: {
-        background: 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-        padding: 0,
-        margin: 0,
-        width: 'auto',
-        maxWidth: '90%',
-      }
+      ), {
+        id: 'sync-toast', // Use a fixed ID to prevent duplicates
+        duration: Infinity,
+        className: styles.toast,
+        style: {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+          margin: 0,
+          width: 'auto',
+          maxWidth: '90%',
+        }
+      });
+      
+      resolve(toastId);
     });
   };
 
@@ -169,39 +178,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   const showSuccessToast = async () => {
-    // Add a 1-second delay before showing the success toast
-    await delay(1000);
+    // Dismiss any existing toasts first
+    toast.dismiss();
     
-    toast.custom((t) => (
-      <div className={styles.toastContent}>
-        <div className="h-5 w-5 flex items-center justify-center text-green-500">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 6L9 17l-5-5" />
-          </svg>
+    // Add a small delay before showing the success toast
+    await delay(300);
+    
+    return new Promise((resolve) => {
+      toast.custom((t) => (
+        <div className={styles.toastContent}>
+          <div className="h-5 w-5 flex items-center justify-center text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium">Sinkronisasi Berhasil</p>
+            <p className="text-sm text-muted-foreground">Data Anda sudah diperbarui</p>
+          </div>
         </div>
-        <div>
-          <p className="font-medium">Sinkronisasi Berhasil</p>
-          <p className="text-sm text-muted-foreground">Data Anda sudah diperbarui</p>
-        </div>
-      </div>
-    ), {
-      duration: 3000,
-      className: styles.toast,
-      style: {
-        background: 'transparent',
-        border: 'none',
-        boxShadow: 'none',
-        padding: 0,
-        margin: 0,
-        width: 'auto',
-        maxWidth: '90%',
-      }
+      ), {
+        duration: 3000,
+        className: styles.toast,
+        style: {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+          margin: 0,
+          width: 'auto',
+          maxWidth: '90%',
+        },
+        onDismiss: () => resolve(undefined),
+      });
     });
   };
 
   const showSyncErrorToast = async (error?: Error | string, retryFn?: () => void) => {
-    // Add a 1-second delay before showing the error toast
-    await delay(1000);
+    // Dismiss any existing toasts first
+    toast.dismiss();
+    
+    // Add a small delay before showing the error toast
+    await delay(300);
     
     // Use the new error toast component with retry functionality
     const toastOptions = {
@@ -217,12 +235,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     
-    showErrorToast(error || 'Gagal menyinkronkan data', retryFn || (() => {
-      // Default retry behavior if no retry function is provided
-      if (user) {
-        performPostLoginSync();
-      }
-    }));
+    return new Promise((resolve) => {
+      showErrorToast(error || 'Gagal menyinkronkan data', retryFn || (() => {
+        // Default retry behavior if no retry function is provided
+        if (user) {
+          performPostLoginSync();
+        }
+      }));
+      resolve(undefined);
+    });
   };
 
   const performPostLoginSync = useCallback(async () => {
@@ -230,7 +251,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       // Show sync toast only when starting to sync
-      loadingToast = showSyncToast();
+      loadingToast = await showSyncToast();
       
       // console.log('[Auth] Starting post-login sync...');
       
@@ -254,9 +275,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Dismiss the loading toast and show success
       if (loadingToast) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure toast is shown
         toast.dismiss(loadingToast);
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before showing next toast
       }
-      showSuccessToast();
+      await showSuccessToast();
       
       return {
         success: true,
@@ -270,13 +293,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Dismiss the loading toast and show error
       if (loadingToast) {
+        await new Promise(resolve => setTimeout(resolve, 100));
         toast.dismiss(loadingToast);
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-      showSyncErrorToast();
+      await showSyncErrorToast();
       
       return false;
-    } finally {
-      // The toast will auto-dismiss when new toasts are shown
     }
   }, [toast]);
 

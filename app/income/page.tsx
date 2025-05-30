@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, TrendingUp, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import styles from '@/styles/toast.module.css';
 import { useSync } from '@/hooks/use-sync';
 import {
   AlertDialog,
@@ -118,8 +119,30 @@ export default function IncomePage() {
       await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
 
       // Show success toast
-      toast.success("Pendapatan dihapus!", {
-        description: "Pendapatan berhasil dihapus dan perubahan sedang disinkronisasi."
+      toast.custom((t) => (
+        <div className={styles.toastContent}>
+          <div className="h-5 w-5 flex items-center justify-center text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium">Pendapatan dihapus!</p>
+            <p className="text-sm text-muted-foreground">Pendapatan berhasil dihapus dan perubahan sedang disinkronisasi.</p>
+          </div>
+        </div>
+      ), {
+        duration: 3000,
+        className: styles.toast,
+        style: {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+          margin: 0,
+          width: 'auto',
+          maxWidth: '90%',
+        }
       });
       
       // Refresh the page to reflect changes
@@ -128,8 +151,30 @@ export default function IncomePage() {
       console.error('Error deleting income:', error);
       
       // Show error toast
-      toast.error("Ups! Terjadi kesalahan", {
-        description: "Gagal menghapus pendapatan. Silakan coba lagi."
+      toast.custom((t) => (
+        <div className={styles.toastContent}>
+          <div className="h-5 w-5 flex items-center justify-center text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium">Ups! Terjadi kesalahan</p>
+            <p className="text-sm text-muted-foreground">Gagal menghapus pendapatan. Silakan coba lagi.</p>
+          </div>
+        </div>
+      ), {
+        duration: 4000,
+        className: styles.toast,
+        style: {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+          margin: 0,
+          width: 'auto',
+          maxWidth: '90%',
+        }
       });
     } finally {
       setIsDeleting(false);

@@ -124,9 +124,8 @@ export function ErrorToast({
     <div 
       ref={toastRef}
       className={cn(
-        'toastContent bg-background border rounded-lg shadow-lg p-3 relative',
-        iconToShow === 'wifi-off' || iconToShow === 'alert' ? 'error-toast' : '',
-        isSwiping ? 'transition-transform duration-100' : ''
+        'toastContent relative',
+        isSwiping && 'transition-transform duration-100'
       )}
       style={{
         transform: `translateX(${currentX}px)`,
