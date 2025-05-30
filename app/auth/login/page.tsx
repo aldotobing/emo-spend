@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -15,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import { motion } from "framer-motion";
 import { Sparkles, Smile, ArrowRight } from "lucide-react";
@@ -29,9 +30,9 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const { signIn, signInWithGoogle } = useAuth();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -43,16 +44,9 @@ export default function LoginPage() {
 
   // Sync and redirect are now handled by the auth context's onAuthStateChange
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     
-    // Show signing in toast
-    toast({
-      title: "Signing in...",
-      description: "Redirecting to dashboard.",
-      variant: "default",
-    });
-
     try {
       const result = await signIn(values.email, values.password);
       
@@ -60,46 +54,39 @@ export default function LoginPage() {
         throw new Error(result.error.message || "Failed to sign in. Please try again.");
       }
       
-      // The auth context will handle the success toast and redirect
+      // Show success toast (redirect is handled by auth context)
+      toast.success("Welcome back!");
+      
     } catch (error: any) {
       console.error("Login error:", error);
-      toast({
-        title: "Login Failed",
-        description: error?.message || "Invalid email or password. Please try again.",
-        variant: "destructive",
-      });
+      // Don't show error if it's a navigation error
+      if (error.message !== 'Navigation cancelled from signInWithGoogle') {
+        toast.error("Login Failed", {
+          description: error?.message || "Invalid email or password. Please try again."
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  async function handleGoogleSignIn() {
+  const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
-      // Show loading toast
-      toast({
-        title: "Signing in with Google...",
-        description: "Redirecting to dashboard.",
-        variant: "default",
-      });
-
-      // The auth context will handle the redirect via onAuthStateChange
       await signInWithGoogle();
-
-    } catch (error) {
+      // The OAuth flow will handle redirect and success/error states
+    } catch (error: any) {
       console.error("Google sign-in error:", error);
-      // Don't show error if user closed the popup
-      if (error instanceof Error && error.message !== 'Sign in was cancelled') {
-        toast({
-          title: "Google sign-in failed",
-          description: "An error occurred during Google sign-in. Please try again.",
-          variant: "destructive",
+      // Only show error toast if it's not a navigation error
+      if (error.message !== 'Navigation cancelled from signInWithGoogle') {
+        toast.error("Google sign-in failed", {
+          description: error.message || "An error occurred during Google sign-in. Please try again.",
         });
       }
     } finally {
       setIsGoogleLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-b from-background to-primary/5">

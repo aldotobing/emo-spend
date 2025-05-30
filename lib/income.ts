@@ -348,7 +348,7 @@ interface RemoteIncome {
 }
 
 export async function pullIncomesFromSupabase(): Promise<SyncResult> {
-  console.group('[pullIncomesFromSupabase] Starting income sync from Supabase');
+  // console.group('[pullIncomesFromSupabase] Starting income sync from Supabase');
   const db = getDb();
   const supabase = getSupabaseBrowserClient();
   const user = await getCurrentUser();

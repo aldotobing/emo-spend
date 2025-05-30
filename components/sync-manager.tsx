@@ -23,7 +23,9 @@ interface SyncManagerProps {
 }
 
 export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
-  const { sync, isSyncing, isMounted } = useSync();
+  const { sync, isSyncing } = useSync();
+  const isMounted = useRef(true);
+  const toastTimer = useRef<NodeJS.Timeout | null>(null);
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
@@ -50,9 +52,7 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
       if (result.success) {
         setLastSync(new Date());
         setLastError(null);
-        setSyncStatus('success');
-        setSyncMessage('Sync completed successfully!');
-
+        
         // Update stats if we have them
         if (
           result.syncedExpenses !== undefined ||
@@ -67,8 +67,16 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
           }));
           
           if (syncedItems > 0) {
+            setSyncStatus('success');
             setSyncMessage(`Synced ${syncedItems} item${syncedItems !== 1 ? 's' : ''}`);
+          } else {
+            // If no items were synced, don't show success message
+            setSyncStatus('idle');
+            setSyncMessage('');
           }
+        } else {
+          setSyncStatus('idle');
+          setSyncMessage('');
         }
 
         // Refresh the page data after successful sync
@@ -79,6 +87,10 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
         setSyncMessage('Sync failed. Tap to retry.');
       } else if (result.message) {
         console.log("[Sync]", result.message);
+        setSyncStatus('idle');
+        setSyncMessage('');
+      } else {
+        // Default case - ensure we don't leave the toast showing
         setSyncStatus('idle');
         setSyncMessage('');
       }
@@ -93,10 +105,18 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
       return { success: false, error: errorMessage };
     } finally {
       // Reset status after a delay if not already changed
-      if (syncStatus !== 'error') {
-        setTimeout(() => {
-          setSyncStatus('idle');
-          setSyncMessage('');
+      if (syncStatus !== 'error' && syncStatus !== 'idle') {
+        // Clear any existing timer
+        if (toastTimer.current) {
+          clearTimeout(toastTimer.current);
+        }
+        
+        // Set a new timer
+        toastTimer.current = setTimeout(() => {
+          if (isMounted.current) {
+            setSyncStatus('idle');
+            setSyncMessage('');
+          }
         }, 3000);
       }
     }
@@ -238,12 +258,16 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
+      }
+      isMounted.current = false;
     };
   }, []);
 
   const formatTimeAgo = (date: Date | null) => {
     if (!date) return "Never";
-
+    
     const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);

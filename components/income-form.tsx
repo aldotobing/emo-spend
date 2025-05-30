@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addIncome } from '@/lib/income';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { useSync } from '@/hooks/use-sync';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,7 +66,7 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { sync } = useSync();
-  const { toast } = useToast();
+
   const router = useRouter();
 
   // Parse Indonesian formatted number
@@ -138,10 +138,8 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
       await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
 
       // Show success toast
-      toast({
-        title: "Pendapatan ditambahkan!",
-        description: "Pendapatanmu berhasil dicatat dan sedang disinkronisasi.",
-        variant: "default",
+      toast.success("Pendapatan ditambahkan!", {
+        description: "Pendapatanmu berhasil dicatat dan sedang disinkronisasi."
       });
 
       // Reset form if this is a new income (not editing)
@@ -161,10 +159,8 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
       setError('Gagal menambahkan pendapatan. Silakan coba lagi.');
       
       // Show error toast
-      toast({
-        title: "Ups! Terjadi kesalahan",
-        description: "Gagal menambahkan pendapatan. Silakan coba lagi.",
-        variant: "destructive",
+      toast.error("Ups! Terjadi kesalahan", {
+        description: "Gagal menambahkan pendapatan. Silakan coba lagi."
       });
     } finally {
       setIsSubmitting(false);

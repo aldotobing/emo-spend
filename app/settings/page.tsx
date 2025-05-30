@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "next-themes";
 import { clearLocalUserData } from "@/lib/db";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/context/auth-context";
 import {
   AlertDialog,
@@ -39,7 +39,7 @@ import TermsOfService from "../terms-of-service";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
-  const { toast } = useToast();
+
   const { user } = useAuth();
   const [isClearing, setIsClearing] = useState(false);
   const [privacyOpen, setPrivacyOpen] = useState(false);
@@ -82,10 +82,8 @@ export default function SettingsPage() {
       
     } catch (error) {
       console.error('Error clearing data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to clear data. Please try again.",
-        variant: "destructive",
+      toast.error("Error", {
+        description: "Failed to clear data. Please try again."
       });
       setIsClearing(false);
     }

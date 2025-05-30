@@ -7,7 +7,7 @@ import { Calendar as CalendarIcon, Download, FileSpreadsheet, BarChart2, PieChar
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { exportExpensesToExcel, downloadExcel } from "@/lib/excel-export";
 import { Calendar } from "@/components/ui/calendar";
 import { getExpenses, getExpensesByDateRange } from "@/lib/db";
@@ -36,7 +36,7 @@ type DateRange = {
 };
 
 export default function ReportsPage() {
-  const { toast } = useToast();
+
   const [isExporting, setIsExporting] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange>({
     from: defaultStartDate,
@@ -93,10 +93,8 @@ export default function ReportsPage() {
       setYearlyExpenses(expenses);
     } catch (error) {
       console.error('Error loading yearly expenses:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load yearly expense data",
-        variant: "destructive",
+      toast.error("Error", {
+        description: "Failed to load yearly expense data"
       });
     } finally {
       setIsLoadingYearlyData(false);
@@ -207,10 +205,8 @@ export default function ReportsPage() {
       
     } catch (error) {
       console.error('Error loading chart data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chart data",
-        variant: "destructive",
+      toast.error("Error", {
+        description: "Failed to load chart data"
       });
     } finally {
       setIsLoadingCharts(false);
@@ -271,16 +267,13 @@ export default function ReportsPage() {
       
       downloadExcel(excelBlob, `EmoSpend-Report_${dateRangeText}.xlsx`);
       
-      toast({
-        title: "Export successful",
-        description: "Your expense data has been exported to Excel.",
+      toast.success("Export successful", {
+        description: "Your expense data has been exported to Excel."
       });
     } catch (error) {
       console.error('Export error:', error);
-      toast({
-        title: "Export failed",
-        description: "Failed to export data. Please try again.",
-        variant: "destructive",
+      toast.error("Export failed", {
+        description: "Failed to export data. Please try again."
       });
     } finally {
       setIsExporting(false);

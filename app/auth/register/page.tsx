@@ -16,10 +16,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/auth-context";
 import { motion } from "framer-motion";
 import { Sparkles, UserPlus, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 
 const formSchema = z
   .object({
@@ -38,7 +38,6 @@ const formSchema = z
 
 export default function RegisterPage() {
   const { signUp, signInWithGoogle } = useAuth();
-  const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -52,41 +51,38 @@ export default function RegisterPage() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
       await signUp(values.email, values.password);
-      toast({
-        title: "Registration successful! 🎉",
-        description: "Please check your email to verify your account.",
-        variant: "default",
-      });
-      router.push("/auth/verify");
-    } catch (error) {
+      // The success toast and redirect are now handled in the auth context
+    } catch (error: any) {
       console.error("Registration error:", error);
-      toast({
-        title: "Oops! Registration failed 😕",
-        description: "An error occurred during registration. Please try again.",
-        variant: "destructive",
-      });
+      // Only show error toast if it's not a navigation error
+      if (error.message !== 'Navigation cancelled from signInWithGoogle') {
+        toast.error("Registration failed", {
+          description: error.message || "An error occurred during registration. Please try again.",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
-  }
+  };
 
-  async function handleGoogleSignIn() {
+  const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     try {
       await signInWithGoogle();
-      // No need for toast or redirect here as the OAuth flow will handle it
-    } catch (error) {
+      // The OAuth flow will handle redirect and success/error states
+    } catch (error: any) {
       console.error("Google sign-in error:", error);
-      toast({
-        title: "Google sign-in failed",
-        description:
-          "An error occurred during Google sign-in. Please try again.",
-        variant: "destructive",
-      });
+      // Only show error toast if it's not a navigation error
+      if (error.message !== 'Navigation cancelled from signInWithGoogle') {
+        toast.error("Google sign-in failed", {
+          description: error.message || "An error occurred during Google sign-in. Please try again.",
+        });
+      }
+    } finally {
       setIsGoogleLoading(false);
     }
   }

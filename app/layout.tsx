@@ -4,15 +4,18 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
-import { Toaster as SonnerToaster } from "sonner";
+import { Toaster as SonnerToaster, toast } from "sonner";
 import { SyncProvider } from "./providers";
 import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
 import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
-import {Analytics}  from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SyncManager } from "@/components/sync-manager";
+import "@/styles/toast.module.css";
+import NetworkMonitor from '@/components/NetworkMonitor';
+
 
 
 const inter = Inter({
@@ -298,10 +301,52 @@ export default function RootLayout({
                       role="main"
                     >
                       {children}
+                      <NetworkMonitor />
                     </main>
                     <ConditionalBottomNavigation />
                   </div>
-                  <SonnerToaster position="top-center" richColors closeButton />
+                  <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+                    <SonnerToaster
+                      position="bottom-center"
+                      toastOptions={{
+                        unstyled: true,
+                        classNames: {
+                          // Base styles
+                          toast: '!bg-transparent !p-0 !m-0 !shadow-none !border-none',
+                          // Text styles
+                          title: 'font-semibold text-foreground text-sm sm:text-base flex items-center gap-2 !m-0',
+                          description: 'text-muted-foreground/90 text-sm leading-relaxed mt-1 !m-0',
+                          // Button styles
+                          actionButton: 'bg-primary/90 hover:bg-primary text-primary-foreground text-sm font-medium px-4 py-2 h-auto min-h-0 rounded-lg transition-all duration-200',
+                          cancelButton: 'bg-muted/60 hover:bg-muted/80 text-muted-foreground text-sm font-medium px-4 py-2 h-auto min-h-0 rounded-lg transition-all duration-200',
+                          // Status styles
+                          success: 'border-emerald-300/30 bg-emerald-50/80 dark:bg-emerald-900/30 dark:border-emerald-800/50',
+                          error: 'border-rose-300/30 bg-rose-50/80 dark:bg-rose-900/30 dark:border-rose-800/50',
+                          warning: 'border-amber-300/30 bg-amber-50/80 dark:bg-amber-900/30 dark:border-amber-800/50',
+                          info: 'border-blue-300/30 bg-blue-50/80 dark:bg-blue-900/30 dark:border-blue-800/50',
+                          loading: 'border-gray-200/30 bg-background/80 dark:bg-gray-900/40 dark:border-gray-800/50',
+                          // Icon styles
+                          icon: 'h-5 w-5',
+                        },
+                        style: {
+                          position: 'fixed',
+                          bottom: '20px',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          margin: 0,
+                          padding: 0,
+                          width: '90%',
+                          maxWidth: '400px',
+                        },
+                      }}
+                      visibleToasts={1}
+                      expand={false}
+                      containerAriaLabel="Notifications"
+                      offset="1rem"
+                      gap={12}
+                      duration={4000}
+                    />
+                  </div>
                   <Analytics />
                   <SpeedInsights />
                 </AuthGuard>

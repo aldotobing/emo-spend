@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/auth-context";
 import { useSyncStatus } from "@/context/sync-context";
 import { toast, Toaster } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { CalendarIcon, Sparkles, PiggyBank, ArrowRight, Loader2, CheckCircle, XCircle, AlertCircle, Info } from "lucide-react";
+import { CalendarIcon, Sparkles, PiggyBank, ArrowRight, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -41,7 +40,6 @@ import { FunMoodSelector } from "@/components/fun-mood-selector";
 import { categories } from "@/data/categories";
 import { cn } from "@/lib/utils";
 import { addExpense } from "@/lib/db";
-import { useToast } from "@/components/ui/use-toast";
 import { useSync } from "@/hooks/use-sync";
 import type { MoodType } from "@/types/expense";
 
@@ -147,10 +145,7 @@ export default function AddExpensePage() {
       // Show success message
       toast.success('Pengeluaran berhasil ditambahkan!', {
         description: `Berhasil menambahkan pengeluaran sebesar ${formatToIDR(submitStatus.amount || 0)}`,
-        icon: <CheckCircle className="h-5 w-5 text-green-500" />,
         duration: 4000,
-        className: 'border-green-200 bg-green-50',
-        descriptionClassName: 'text-green-700',
         action: {
           label: 'Lihat',
           onClick: () => router.push('/')
@@ -167,10 +162,7 @@ export default function AddExpensePage() {
       // Show error message
       toast.error('Gagal menambahkan pengeluaran', {
         description: submitStatus.error || 'Terjadi kesalahan. Silakan coba lagi.',
-        icon: <XCircle className="h-5 w-5 text-red-500" />,
         duration: 5000,
-        className: 'border-red-200 bg-red-50',
-        descriptionClassName: 'text-red-700',
         action: {
           label: 'Coba Lagi',
           onClick: () => {}
@@ -268,18 +260,7 @@ export default function AddExpensePage() {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center py-4 lg:py-6 xl:py-8 bg-gradient-to-b from-background to-primary/5 px-4 mb-8 sm:mb-0">
-      <Toaster 
-        position="top-center" 
-        theme="light"
-        toastOptions={{
-          classNames: {
-            toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border group-[.toaster]:shadow-lg rounded-lg',
-            description: 'group-[.toast]:text-muted-foreground text-sm',
-            actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
-            cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
-          },
-        }}
-      />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

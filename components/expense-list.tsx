@@ -22,10 +22,14 @@ export function ExpenseList({ expenses, onDelete }: ExpenseListProps) {
     try {
       setIsDeleting(id);
       await Promise.resolve(onDelete(id));
-      toast.success("Expense deleted successfully");
+      toast.success("Pengeluaran berhasil dihapus", {
+        description: 'Pengeluaran telah dihapus dari catatan Anda.'
+      });
     } catch (error) {
       console.error("Failed to delete expense:", error);
-      toast.error("Failed to delete expense");
+      toast.error("Gagal menghapus pengeluaran", {
+        description: 'Terjadi kesalahan saat menghapus pengeluaran. Silakan coba lagi.'
+      });
     } finally {
       setIsDeleting(null);
     }

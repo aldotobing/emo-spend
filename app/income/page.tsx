@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, TrendingUp, ArrowLeft, Loader2, Trash2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 import { useSync } from '@/hooks/use-sync';
 import {
   AlertDialog,
@@ -66,7 +66,7 @@ export default function IncomePage() {
   const [incomeToDelete, setIncomeToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { sync } = useSync();
-  const { toast } = useToast();
+
 
   // Helper function to sync data after successful deletion
   async function performPostDeleteSync() {
@@ -118,10 +118,8 @@ export default function IncomePage() {
       await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
 
       // Show success toast
-      toast({
-        title: "Pendapatan dihapus!",
-        description: "Pendapatan berhasil dihapus dan perubahan sedang disinkronisasi.",
-        variant: "default",
+      toast.success("Pendapatan dihapus!", {
+        description: "Pendapatan berhasil dihapus dan perubahan sedang disinkronisasi."
       });
       
       // Refresh the page to reflect changes
@@ -130,10 +128,8 @@ export default function IncomePage() {
       console.error('Error deleting income:', error);
       
       // Show error toast
-      toast({
-        title: "Ups! Terjadi kesalahan",
-        description: "Gagal menghapus pendapatan. Silakan coba lagi.",
-        variant: "destructive",
+      toast.error("Ups! Terjadi kesalahan", {
+        description: "Gagal menghapus pendapatan. Silakan coba lagi."
       });
     } finally {
       setIsDeleting(false);
