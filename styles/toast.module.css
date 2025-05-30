@@ -41,25 +41,38 @@
 
 /* Mobile styles */
 @media (max-width: 640px) {
-  :global(.sonner-toast) {
-    top: auto !important;
-    bottom: 2rem !important;
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-    width: auto !important;
-    max-width: 90% !important;
+  .toast {
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
-    padding: 0 !important;
-  }
-  
-  :global(.sonner-toast .toast) {
-    margin: 0 auto !important;
+    padding: 0.5rem 1rem !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 2rem !important;
+    top: auto !important;
     transform: none !important;
+    border-radius: 0.5rem !important;
   }
   
   .toast[data-visible='true'] {
     transform: none !important;
+  }
+  
+  .toastContent {
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    font-size: 0.75rem !important;
+  }
+  
+  .toastTitle {
+    font-size: 0.8125rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  .toastDescription {
+    font-size: 0.75rem !important;
+    line-height: 1.1 !important;
   }
 }
 

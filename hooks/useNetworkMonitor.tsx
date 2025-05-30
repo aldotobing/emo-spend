@@ -115,28 +115,32 @@ export default function useNetworkMonitor() {
       message: status.isSlow ? MESSAGES.slow() : 'Koneksi internet tersedia',
       icon: 'check-circle',
       iconColor: 'text-green-500',
-      duration: 5000, // 5 seconds
+      animation: 'animate-pulse',
+      duration: 3000, // 3 seconds
     },
     offline: {
       title: MESSAGES.offline,
       message: 'Tidak dapat terhubung ke internet',
-      icon: 'alert-circle',
+      icon: 'wifi-off',
       iconColor: 'text-red-500',
-      duration: 15000, // 15 seconds
+      animation: 'animate-pulse',
+      duration: 10000, // 10 seconds
     },
     slow: {
       title: MESSAGES.slow(),
       message: 'Kecepatan internet Anda lambat',
-      icon: 'alert-triangle',
+      icon: 'signal',
       iconColor: 'text-amber-500',
-      duration: 8000, // 8 seconds
+      animation: 'animate-ping',
+      duration: 5000, // 5 seconds
     },
     recovered: {
       title: MESSAGES.online,
       message: 'Koneksi kembali normal',
       icon: 'check-circle',
       iconColor: 'text-green-500',
-      duration: 5000, // 5 seconds
+      animation: 'animate-bounce',
+      duration: 3000, // 3 seconds
     },
   }), [status.isSlow]);
 
@@ -155,42 +159,85 @@ export default function useNetworkMonitor() {
     
     // Create the appropriate icon component
     let iconComponent;
+    const iconClass = `w-5 h-5 ${config.iconColor} flex-shrink-0 ${config.animation || ''}`;
+    
     switch (config.icon) {
       case 'check-circle':
         iconComponent = React.createElement(CheckCircle, { 
           key: 'check-circle',
-          className: `w-4 h-4 ${config.iconColor} flex-shrink-0` 
+          className: iconClass,
+          'aria-hidden': 'true'
         });
         break;
-      case 'alert-circle':
-        iconComponent = React.createElement(AlertCircle, { 
-          key: 'alert-circle',
-          className: `w-4 h-4 ${config.iconColor} flex-shrink-0` 
-        });
+      case 'wifi-off':
+        iconComponent = React.createElement('svg', {
+          key: 'wifi-off',
+          className: iconClass,
+          xmlns: 'http://www.w3.org/2000/svg',
+          width: '24',
+          height: '24',
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          strokeWidth: '2',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          'aria-hidden': 'true'
+        }, [
+          React.createElement('line', { key: 'line1', x1: '1', y1: '1', x2: '23', y2: '23' }),
+          React.createElement('path', { key: 'path1', d: 'M16.72 11.06A10.94 10.94 0 0 1 19 12.55' }),
+          React.createElement('path', { key: 'path2', d: 'M5 12.55a10.94 10.94 0 0 1 5.17-2.39' }),
+          React.createElement('line', { key: 'line2', x1: '10.71', y1: '5.05', x2: '16', y2: '12.95' }),
+          React.createElement('path', { key: 'path3', d: 'M16.24 16.24a6 6 0 0 1-8.49-8.49' }),
+          React.createElement('path', { key: 'path4', d: 'M12 20h.01' })
+        ]);
         break;
-      case 'alert-triangle':
-        iconComponent = React.createElement(AlertTriangle, { 
-          key: 'alert-triangle',
-          className: `w-4 h-4 ${config.iconColor} flex-shrink-0` 
-        });
+      case 'signal':
+        iconComponent = React.createElement('svg', {
+          key: 'signal',
+          className: iconClass,
+          xmlns: 'http://www.w3.org/2000/svg',
+          width: '24',
+          height: '24',
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          strokeWidth: '2',
+          strokeLinecap: 'round',
+          strokeLinejoin: 'round',
+          'aria-hidden': 'true'
+        }, [
+          React.createElement('path', { key: 'bar1', d: 'M2 20h.01' }),
+          React.createElement('path', { key: 'bar2', d: 'M7 20h.01' }),
+          React.createElement('path', { key: 'bar3', d: 'M12 20h.01' }),
+          React.createElement('path', { key: 'bar4', d: 'M17 20h.01' }),
+          React.createElement('path', { key: 'bar3-connector', d: 'M12 15v5' }),
+          React.createElement('path', { key: 'bar4-connector', d: 'M17 10v10' }),
+          React.createElement('path', { key: 'bar2-connector', d: 'M7 15v5' }),
+          React.createElement('path', { key: 'bar1-connector', d: 'M2 10v10' })
+        ]);
         break;
       default:
         iconComponent = React.createElement(CheckCircle, { 
           key: 'default-check',
-          className: 'w-4 h-4 text-green-500 flex-shrink-0' 
+          className: iconClass,
+          'aria-hidden': 'true'
         });
     }
 
     const toastContent = (
-      <div className="flex items-start gap-3 p-4">
+      <div className="flex items-center gap-3 px-4 py-2">
         <div className="flex-shrink-0">
-          {iconComponent}
+          <div className="relative">
+            {config.animation === 'animate-ping' && (
+              <span className={`absolute inline-flex h-full w-full rounded-full ${config.iconColor} opacity-75`}></span>
+            )}
+            {iconComponent}
+          </div>
         </div>
-        <div className="grid gap-1">
-          <p className="text-sm font-medium">{config.title}</p>
-          <p className="text-sm text-muted-foreground">
-            {config.message}
-          </p>
+        <div>
+          <p className="text-sm font-medium leading-tight">{config.title}</p>
+          <p className="text-xs text-muted-foreground">{config.message}</p>
         </div>
       </div>
     );
