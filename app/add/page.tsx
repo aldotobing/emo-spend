@@ -143,12 +143,39 @@ export default function AddExpensePage() {
   useEffect(() => {
     if (submitStatus.status === 'success') {
       // Show success message
-      toast.success('Pengeluaran berhasil ditambahkan!', {
-        description: `Berhasil menambahkan pengeluaran sebesar ${formatToIDR(submitStatus.amount || 0)}`,
+      toast.custom((t) => (
+        <div className="bg-background border border-border rounded-lg p-4 shadow-lg flex items-start space-x-3 max-w-[320px] w-full">
+          <div className="h-5 w-5 flex-shrink-0 text-green-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-foreground">Pengeluaran berhasil ditambahkan!</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Berhasil menambahkan pengeluaran sebesar {formatToIDR(submitStatus.amount || 0)}
+            </p>
+            <div className="mt-2">
+              <button
+                onClick={() => router.push('/')}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                Lihat
+              </button>
+            </div>
+          </div>
+        </div>
+      ), {
         duration: 4000,
-        action: {
-          label: 'Lihat',
-          onClick: () => router.push('/')
+        className: '!bg-transparent !border-0 !shadow-none !p-0',
+        style: {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+          margin: 0,
+          width: 'auto',
+          maxWidth: '90%',
         }
       });
 
@@ -160,12 +187,31 @@ export default function AddExpensePage() {
       return () => clearTimeout(timer);
     } else if (submitStatus.status === 'error') {
       // Show error message
-      toast.error('Gagal menambahkan pengeluaran', {
-        description: submitStatus.error || 'Terjadi kesalahan. Silakan coba lagi.',
+      toast.custom((t) => (
+        <div className="bg-background border border-border rounded-lg p-4 shadow-lg flex items-start space-x-3 max-w-[320px] w-full">
+          <div className="h-5 w-5 flex-shrink-0 text-destructive">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <p className="font-medium text-foreground">Gagal menambahkan pengeluaran</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {submitStatus.error || 'Terjadi kesalahan. Silakan coba lagi.'}
+            </p>
+          </div>
+        </div>
+      ), {
         duration: 5000,
-        action: {
-          label: 'Coba Lagi',
-          onClick: () => {}
+        className: '!bg-transparent !border-0 !shadow-none !p-0',
+        style: {
+          background: 'transparent',
+          border: 'none',
+          boxShadow: 'none',
+          padding: 0,
+          margin: 0,
+          width: 'auto',
+          maxWidth: '90%',
         }
       });
     }

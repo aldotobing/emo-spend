@@ -131,32 +131,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Toast options
   const toastOptions = {
-    duration: 3000,
-    className: styles.toastWrapper,
+    className: '!bg-background !text-foreground !border-border',
     style: {
-      background: 'transparent',
-      boxShadow: 'none',
-      border: 'none',
       padding: 0,
       margin: 0,
       pointerEvents: 'auto' as const,
     },
+    position: 'top-center' as const,
     icon: undefined,
   };
 
   const showSyncToast = () => {
     return toast.custom((t) => (
-      <div className={styles.toastContent}>
-        <SyncIcon className="h-5 w-5 text-primary" />
-        <div>
+      <div className={`${styles.toastContent}`}>
+        <SyncIcon className="h-5 w-5 text-primary flex-shrink-0" />
+        <div className="text-left">
           <p className="font-medium text-foreground">Menyinkronkan Data</p>
           <p className="text-sm text-muted-foreground">Harap tunggu sebentar...</p>
         </div>
       </div>
     ), {
-      ...toastOptions,
       duration: Infinity,
-      className: `${styles.toastWrapper} ${toastOptions.className}`
+      className: styles.toast,
+      style: {
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        padding: 0,
+        margin: 0,
+        width: 'auto',
+        maxWidth: '90%',
+      }
     });
   };
 
@@ -180,8 +185,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     ), {
-      ...toastOptions,
-      duration: 3000
+      duration: 3000,
+      className: styles.toast,
+      style: {
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        padding: 0,
+        margin: 0,
+        width: 'auto',
+        maxWidth: '90%',
+      }
     });
   };
 
@@ -190,7 +204,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await delay(1000);
     
     // Use the new error toast component with retry functionality
-    showSyncErrorToast(error || 'Gagal menyinkronkan data', retryFn || (() => {
+    const toastOptions = {
+      className: styles.toast,
+      style: {
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        padding: 0,
+        margin: 0,
+        width: 'auto',
+        maxWidth: '90%',
+      }
+    };
+    
+    showErrorToast(error || 'Gagal menyinkronkan data', retryFn || (() => {
       // Default retry behavior if no retry function is provided
       if (user) {
         performPostLoginSync();

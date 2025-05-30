@@ -12,22 +12,22 @@
 
 /* Base toast styles */
 .toast {
-  background: var(--normal-bg);
-  border: 1px solid var(--normal-border);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-radius: 12px;
-  padding: 10px 14px;
-  margin: 0.5rem auto;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
   pointer-events: auto;
   max-width: 90%;
   width: 280px;
-  text-align: center;
   position: fixed;
   left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 /* For larger screens */
@@ -120,19 +120,20 @@
 
 /* Toast content styling */
 .toastContent {
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  background: var(--normal-bg);
+  border: 1px solid var(--normal-border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   width: 100%;
   box-sizing: border-box;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   background-color: rgba(var(--background-rgb), 0.97);
+  min-width: 280px;
 }
 
 /* Text styles */
