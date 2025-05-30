@@ -15,8 +15,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SyncManager } from "@/components/sync-manager";
 import styles from "@/styles/toast.module.css";
 import NetworkMonitor from '@/components/NetworkMonitor';
-
-
+import { BottomNavProvider } from '@/context/bottom-nav-context';
 
 const inter = Inter({
   subsets: ["latin"],
@@ -284,6 +283,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <SyncManager />
+        <BottomNavProvider>
         <AuthProvider>
           <ThemeProvider
             attribute="class"
@@ -301,9 +301,9 @@ export default function RootLayout({
                       role="main"
                     >
                       {children}
-                      <NetworkMonitor />
                     </main>
                     <ConditionalBottomNavigation />
+                    <NetworkMonitor />
                   </div>
                   
                   <SonnerToaster
@@ -334,6 +334,7 @@ export default function RootLayout({
             </SyncStatusProvider>
           </ThemeProvider>
         </AuthProvider>
+        </BottomNavProvider>
       </body>
     </html>
   );

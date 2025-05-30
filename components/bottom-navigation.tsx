@@ -4,37 +4,40 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PlusCircle, Home, BarChart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useBottomNav } from "@/context/bottom-nav-context";
 
 export function BottomNavigation() {
   const pathname = usePathname();
-  const [isVisible, setIsVisible] = useState(true);
+  const { setIsVisible, isVisible } = useBottomNav();
   const [lastScrollY, setLastScrollY] = useState(0);
-
+  
   const navItems = [
     { href: "/", icon: Home, label: "", id: "dashboard" },
     ...(pathname === "/" ? [{ href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true }] : []),
     { href: "/insights", icon: BarChart, label: "", id: "insights" },
   ];
-
+  
+  // Handle scroll to show/hide bottom nav
+  const handleScroll = useCallback(() => {
+    const currentScrollY = window.scrollY;
+    
+    // Always show when at the top of the page
+    if (currentScrollY <= 10) {
+      setIsVisible(true);
+    }
+    // Hide when scrolling down, show when scrolling up
+    else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+      setIsVisible(false);
+    } else if (currentScrollY < lastScrollY) {
+      setIsVisible(true);
+    }
+    
+    setLastScrollY(currentScrollY);
+  }, [lastScrollY, setIsVisible]);
+  
+  // Set up scroll listener
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Show navigation when at the top of the page
-      if (currentScrollY <= 10) {
-        setIsVisible(true);
-      }
-      // Hide when scrolling down, show when scrolling up
-      else if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } else if (currentScrollY < lastScrollY) {
-        setIsVisible(true);
-      }
-      
-      setLastScrollY(currentScrollY);
-    };
-
     // Throttle scroll events for better performance
     let timeoutId: NodeJS.Timeout;
     const throttledHandleScroll = () => {
@@ -47,7 +50,7 @@ export function BottomNavigation() {
       window.removeEventListener("scroll", throttledHandleScroll);
       clearTimeout(timeoutId);
     };
-  }, [lastScrollY]);
+  }, [handleScroll]);
 
   return (
     <AnimatePresence mode="wait">

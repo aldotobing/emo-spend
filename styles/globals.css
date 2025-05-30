@@ -6,6 +6,39 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Mobile styles */
+@media (max-width: 640px) {
+  :global(.sonner-toast) {
+    top: auto !important;
+    bottom: 2rem !important;
+    left: 1rem !important;
+    right: 1rem !important;
+    transform: none !important;
+    width: auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 1rem !important;
+  }
+  
+  :global(.sonner-toast .toast) {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0.5rem 1rem !important;
+    transform: none !important;
+  }
+  
+  .toast[data-visible='true'] {
+    transform: none !important;
+  }
+  
+  .toastContent {
+    max-width: 100% !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
