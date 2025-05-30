@@ -17,20 +17,22 @@ interface SyncOptions {
 }
 
 export function useSync() {
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useRef(false);
   const isSyncingRef = useRef(false);
   const lastSyncTimeRef = useRef<number>(0);
   const SYNC_COOLDOWN_MS = 30000; // 30 seconds cooldown between syncs
 
   useEffect(() => {
-    setIsMounted(true);
-    return () => setIsMounted(false);
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   const sync = useCallback(
     async (options: SyncOptions = {}): Promise<SyncResult> => {
-      // Skip if we're not in the browser yet
-      if (!isMounted) {
+      // Skip if we're not in the browser
+      if (typeof window === 'undefined') {
         return {
           success: false,
           message: "Sync skipped - not in browser environment",
@@ -110,5 +112,9 @@ export function useSync() {
     []
   );
 
-  return { sync, isSyncing: isSyncingRef.current, isMounted };
+  return {
+    sync,
+    isSyncing: isSyncingRef.current,
+    isMounted: isMounted.current,
+  };
 }

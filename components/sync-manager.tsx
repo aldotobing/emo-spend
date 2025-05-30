@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSync, type SyncResult } from "@/hooks/use-sync";
 import { Button } from "./ui/button";
-import { RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { RefreshCw, Wifi, WifiOff, Check, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { debounce } from 'lodash';
+
+// Debounce time in milliseconds
+const SYNC_DEBOUNCE_TIME = 1000;
 
 interface SyncStats {
   syncedLocal: number;
@@ -22,6 +26,8 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
   const { sync, isSyncing, isMounted } = useSync();
   const [lastSync, setLastSync] = useState<Date | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [syncMessage, setSyncMessage] = useState<string>('');
   const [isOnline, setIsOnline] = useState(
     typeof window !== "undefined" ? navigator.onLine : true
   );
@@ -35,32 +41,46 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
   const router = useRouter();
 
   const performSync = async (manual = false): Promise<SyncResult> => {
+    setSyncStatus('syncing');
+    setSyncMessage(manual ? 'Syncing your data...' : 'Syncing in background...');
+    
     try {
       const result = await sync({ force: manual });
 
       if (result.success) {
         setLastSync(new Date());
         setLastError(null);
+        setSyncStatus('success');
+        setSyncMessage('Sync completed successfully!');
 
         // Update stats if we have them
         if (
           result.syncedExpenses !== undefined ||
           result.syncedIncomes !== undefined
         ) {
+          const syncedItems = (result.syncedExpenses ?? 0) + (result.syncedIncomes ?? 0);
           setStats((prev) => ({
             ...prev,
-            syncedLocal: (result.syncedExpenses ?? 0) + (result.syncedIncomes ?? 0),
+            syncedLocal: syncedItems,
             syncedRemote: 0, // This might need adjustment based on your sync logic
             skipped: result.skipped ?? 0,
           }));
+          
+          if (syncedItems > 0) {
+            setSyncMessage(`Synced ${syncedItems} item${syncedItems !== 1 ? 's' : ''}`);
+          }
         }
 
         // Refresh the page data after successful sync
         router.refresh();
       } else if (result.error) {
         setLastError(result.error);
+        setSyncStatus('error');
+        setSyncMessage('Sync failed. Tap to retry.');
       } else if (result.message) {
         console.log("[Sync]", result.message);
+        setSyncStatus('idle');
+        setSyncMessage('');
       }
 
       return result;
@@ -68,23 +88,63 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       setLastError(errorMessage);
+      setSyncStatus('error');
+      setSyncMessage('Sync failed. Tap to retry.');
       return { success: false, error: errorMessage };
+    } finally {
+      // Reset status after a delay if not already changed
+      if (syncStatus !== 'error') {
+        setTimeout(() => {
+          setSyncStatus('idle');
+          setSyncMessage('');
+        }, 3000);
+      }
     }
   };
 
+  // Use ref to track if initial sync has been performed
+  const initialSyncDone = useRef(false);
+  const syncInProgress = useRef(false);
+
+  // Debounced sync function
+  const debouncedSync = useCallback(
+    debounce(async (manual = false) => {
+      if (syncInProgress.current) return;
+      syncInProgress.current = true;
+      try {
+        await performSync(manual);
+      } finally {
+        syncInProgress.current = false;
+      }
+    }, SYNC_DEBOUNCE_TIME),
+    []
+  );
+
   // Initial sync on mount
   useEffect(() => {
-    performSync();
-  }, []);
+    if (!initialSyncDone.current) {
+      initialSyncDone.current = true;
+      debouncedSync();
+    }
+    // Cleanup function
+    return () => {
+      debouncedSync.cancel();
+    };
+  }, [debouncedSync]);
 
   // Set up periodic sync (every 5 minutes)
   useEffect(() => {
     const interval = setInterval(() => {
-      performSync();
+      if (!syncInProgress.current) {
+        debouncedSync();
+      }
     }, 5 * 60 * 1000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearInterval(interval);
+      debouncedSync.cancel();
+    };
+  }, [debouncedSync]);
 
   // Get pending sync count when component mounts and after syncs
   useEffect(() => {
@@ -147,6 +207,12 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     };
   }, [lastSync]);
 
+  const handleManualSync = useCallback(() => {
+    if (!syncInProgress.current) {
+      debouncedSync(true);
+    }
+  }, [debouncedSync]);
+
   // Listen for online/offline events to trigger sync when connection is restored
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -154,7 +220,7 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
     const handleOnline = () => {
       console.log("[Sync] Connection restored, syncing...");
       setIsOnline(true);
-      performSync();
+      handleManualSync();
     };
 
     const handleOffline = () => {
@@ -198,17 +264,41 @@ export function SyncManager({ showUI = false }: SyncManagerProps = {}) {
             size="sm"
             onClick={() => performSync(true)}
             disabled={isSyncing || !isMounted}
-            className="gap-2"
+            className={`gap-2 transition-all duration-300 ${
+              syncStatus === 'success' ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 
+              syncStatus === 'error' ? 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100' : ''
+            }`}
           >
-            <RefreshCw
-              className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
-            />
-            {isSyncing ? "Syncing..." : "Sync Now"}
+            {syncStatus === 'syncing' ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : syncStatus === 'success' ? (
+              <Check className="h-4 w-4" />
+            ) : syncStatus === 'error' ? (
+              <AlertCircle className="h-4 w-4" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            <span className="min-w-[60px] text-left">
+              {syncStatus === 'syncing' ? 'Syncing...' : 
+               syncStatus === 'success' ? 'Done' : 
+               syncStatus === 'error' ? 'Error' : 'Sync Now'}
+            </span>
           </Button>
         </div>
 
         <div className="text-sm space-y-1 text-muted-foreground">
-          {lastSync && <div>Last sync: {formatTimeAgo(lastSync)}</div>}
+          <div className="min-h-[20px]">
+            {syncMessage ? (
+              <span className={`text-xs ${
+                syncStatus === 'success' ? 'text-green-600' : 
+                syncStatus === 'error' ? 'text-red-600' : 'text-muted-foreground'
+              }`}>
+                {syncMessage}
+              </span>
+            ) : lastSync ? (
+              <span>Last sync: {formatTimeAgo(lastSync)}</span>
+            ) : null}
+          </div>
 
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
