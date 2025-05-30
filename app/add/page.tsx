@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/auth-context";
+import { useSyncStatus } from "@/context/sync-context";
+import { toast, Toaster } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { CalendarIcon, Sparkles, PiggyBank, ArrowRight } from "lucide-react";
+import { CalendarIcon, Sparkles, PiggyBank, ArrowRight, Loader2, CheckCircle, XCircle, AlertCircle, Info } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { motion } from "framer-motion";
@@ -74,18 +77,20 @@ const parseIDRNumber = (value: string): number => {
 
 export default function AddExpensePage() {
   const router = useRouter();
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [displayValue, setDisplayValue] = useState("");
+  // Using sync context for status only
+  const syncContext = useSyncStatus();
   const { sync } = useSync();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: "" as any,
+      amount: 0, // Initialize with 0 instead of empty string
       category: "",
-      mood: "neutral",
+      mood: "happy", // Set a default mood that's not empty
       moodReason: "",
-      date: new Date(new Date().setHours(0, 0, 0, 0)), // Set time to start of day to avoid timezone issues
+      date: new Date(new Date().setHours(0, 0, 0, 0)),
       notes: "",
     },
   });
@@ -101,47 +106,160 @@ export default function AddExpensePage() {
     }
   }
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsSubmitting(true);
+  // Function to scroll to the first error field
+  const scrollToError = (errors: any) => {
+    const firstError = Object.keys(errors)[0];
+    if (firstError) {
+      const element = document.getElementById(firstError);
+      if (element) {
+        // Calculate position with offset for header
+        const headerOffset = 100;
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+
+        // Add visual feedback
+        element.focus();
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Add a temporary highlight class
+        element.classList.add('ring-2', 'ring-offset-2', 'ring-primary');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-offset-2', 'ring-primary');
+        }, 3000);
+      }
+    }
+  };
+
+  const [submitStatus, setSubmitStatus] = useState<{
+    status: 'idle' | 'loading' | 'success' | 'error';
+    error?: string;
+    amount?: number;
+  }>({ status: 'idle' });
+
+  // Handle side effects after state updates
+  useEffect(() => {
+    if (submitStatus.status === 'success') {
+      // Show success message
+      toast.success('Pengeluaran berhasil ditambahkan!', {
+        description: `Berhasil menambahkan pengeluaran sebesar ${formatToIDR(submitStatus.amount || 0)}`,
+        icon: <CheckCircle className="h-5 w-5 text-green-500" />,
+        duration: 4000,
+        className: 'border-green-200 bg-green-50',
+        descriptionClassName: 'text-green-700',
+        action: {
+          label: 'Lihat',
+          onClick: () => router.push('/')
+        }
+      });
+
+      // Navigate to home after a short delay
+      const timer = setTimeout(() => {
+        router.push('/');
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    } else if (submitStatus.status === 'error') {
+      // Show error message
+      toast.error('Gagal menambahkan pengeluaran', {
+        description: submitStatus.error || 'Terjadi kesalahan. Silakan coba lagi.',
+        icon: <XCircle className="h-5 w-5 text-red-500" />,
+        duration: 5000,
+        className: 'border-red-200 bg-red-50',
+        descriptionClassName: 'text-red-700',
+        action: {
+          label: 'Coba Lagi',
+          onClick: () => {}
+        }
+      });
+    }
+  }, [submitStatus]);
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    let loadingToast: string | number = '';
+    
+    // Parse amount to number if it's a string
+    let amount: number;
     try {
+      const amountStr = String(values.amount || '').trim();
+      amount = amountStr.includes('.') || amountStr.includes(',') 
+        ? parseIDRNumber(amountStr)
+        : Number(amountStr.replace(/\D/g, ''));
+        
+      // Validate amount
+      if (isNaN(amount) || amount <= 0) {
+        form.setError('amount', { type: 'validate', message: 'Mohon masukkan jumlah yang valid' });
+        return;
+      }
+    } catch (error) {
+      console.error('Error parsing amount:', error);
+      setSubmitStatus({
+        status: 'error',
+        error: 'Format jumlah tidak valid. Contoh: 50.000'
+      });
+      return;
+    }
+    
+    setSubmitStatus({ status: 'loading' });
+    setIsSubmitting(true);
+    
+    try {
+      
+      console.log('4. Processing form data');
+      
       // Ensure amount is within database limits
-      const safeAmount = Math.min(values.amount, 99999999.99);
+      let safeAmount: number;
+      try {
+        safeAmount = Math.min(amount, 99999999.99);
+      } catch (error) {
+        console.error('Error calculating safe amount:', error);
+        throw new Error('Jumlah tidak valid. Mohon periksa kembali.');
+      }
       
-      // Format the date to YYYY-MM-DD to avoid timezone issues
-      const formattedDate = format(values.date, 'yyyy-MM-dd');
-      
-      // Add the expense
-      const expenseId = await addExpense({
+      const expenseData = {
         amount: safeAmount,
         category: values.category,
         mood: values.mood as MoodType,
-        moodReason: values.moodReason,
-        date: formattedDate, // Use formatted date string instead of ISO string
-        notes: values.notes,
-      });
+        date: values.date.toISOString(),
+        notes: values.notes || '',
+        moodReason: values.moodReason || '',
+      };
+      
+      console.log('5. Saving expense:', expenseData);
 
-      if (!expenseId) {
-        throw new Error("Failed to add expense");
-      }
-
-      // Then sync
+      console.log('10. Saving expense:', expenseData);
+      
+      // Update loading message
+      console.log('11. Updating loading message');
+      toast.loading('Menyimpan pengeluaran...', { id: loadingToast });
+      
+      // Add expense
+      console.log('12. Calling addExpense');
+      await addExpense(expenseData);
+      console.log('13. Expense saved, syncing...');
+      
+      // Sync data
+      console.log('14. Starting post-submit sync');
       await performPostSubmitSync();
-      await new Promise(resolve => setTimeout(resolve, 300)); // Small delay to ensure sync completes
-
-      toast({
-        title: "Pengeluaran ditambahkan! ",
-        description: "Pengeluaranmu berhasil dicatat dan sedang disinkronisasi.",
-        variant: "default",
+      
+      // Dismiss loading toast first
+      toast.dismiss(loadingToast);
+      
+      // Update status to success
+      setSubmitStatus({
+        status: 'success',
+        amount: safeAmount
       });
-
-      router.push('/');
-      router.refresh();
+      
     } catch (error) {
-      console.error("Error adding expense:", error);
-      toast({
-        title: "Ups! Terjadi kesalahan ",
-        description: "Gagal menambahkan pengeluaran. Silakan coba lagi.",
-        variant: "destructive",
+      console.error('Error in form submission:', error);
+      setSubmitStatus({
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Terjadi kesalahan. Silakan coba lagi.'
       });
     } finally {
       setIsSubmitting(false);
@@ -150,13 +268,25 @@ export default function AddExpensePage() {
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center py-4 lg:py-6 xl:py-8 bg-gradient-to-b from-background to-primary/5 px-4 mb-8 sm:mb-0">
+      <Toaster 
+        position="top-center" 
+        theme="light"
+        toastOptions={{
+          classNames: {
+            toast: 'group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border group-[.toaster]:shadow-lg rounded-lg',
+            description: 'group-[.toast]:text-muted-foreground text-sm',
+            actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground',
+            cancelButton: 'group-[.toast]:bg-muted group-[.toast]:text-muted-foreground',
+          },
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-sm lg:max-w-md xl:max-w-lg"
+        className="w-full max-w-2xl mx-auto"
       >
-        <div className="bg-card rounded-2xl lg:rounded-2xl overflow-hidden shadow-lg border border-primary/20">
+        <div className="bg-card rounded-2xl shadow-xl overflow-hidden border border-border/50">
           {/* Header Section - More compact on desktop */}
           <div className="bg-primary/10 p-3 lg:p-4 xl:p-5 text-center relative overflow-hidden">
             <motion.div
@@ -184,11 +314,65 @@ export default function AddExpensePage() {
           </div>
 
           {/* Form Section - Tighter spacing on desktop */}
-          <div className="p-4 lg:p-5 xl:p-6">
+          <div className="p-6 lg:p-8">
+            
             <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-3 lg:space-y-4 xl:space-y-5"
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  
+                  // Prevent multiple submissions
+                  if (isSubmitting) return;
+                  
+                  const values = form.getValues();
+                  
+                  // Client-side validation before submission
+                  const amount = String(values.amount || '').trim();
+                  const category = values.category?.trim();
+                  
+                  // Check required fields
+                  if (!amount || amount === '0') {
+                    form.setError('amount', { type: 'required', message: 'Mohon isi jumlah' });
+                    
+                    if (!category) {
+                      form.setError('category', { type: 'required', message: 'Pilih kategori' });
+                      toast.error('Perhatian', {
+                        description: 'Mohon lengkapi form terlebih dahulu',
+                        icon: <AlertCircle className="h-5 w-5 text-amber-500" />,
+                        className: 'border-amber-200 bg-amber-50',
+                        duration: 4000
+                      });
+                    } else {
+                      toast.error('Perhatian', {
+                        description: 'Mohon isi jumlah pengeluaran',
+                        icon: <AlertCircle className="h-5 w-5 text-amber-500" />,
+                        className: 'border-amber-200 bg-amber-50',
+                        duration: 4000
+                      });
+                    }
+                    return;
+                  }
+                  
+                  if (!category) {
+                    form.setError('category', { type: 'required', message: 'Pilih kategori' });
+                    toast.error('Perhatian', {
+                      description: 'Mohon pilih kategori pengeluaran',
+                      icon: <AlertCircle className="h-5 w-5 text-amber-500" />,
+                      className: 'border-amber-200 bg-amber-50',
+                      duration: 4000
+                    });
+                    return;
+                  }
+                  
+                  try {
+                    await onSubmit(values);
+                  } catch (error) {
+                    // Errors are already handled in the onSubmit function
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className="space-y-6"
               >
                 {/* Two-column layout for amount and category on larger screens */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
@@ -224,6 +408,7 @@ export default function AddExpensePage() {
                             <FormControl>
                               <div className="relative">
                                 <Input
+                                  id="amount"
                                   placeholder="0"
                                   value={displayValue}
                                   onChange={(e) => {
@@ -239,7 +424,10 @@ export default function AddExpensePage() {
                                       field.onChange(numericValue);
                                     }
                                   }}
-                                  className="pl-10 lg:pl-9 rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 font-semibold text-sm lg:text-base h-10 lg:h-9 xl:h-10"
+                                  className={cn(
+                                    "pl-10 lg:pl-9 rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 font-semibold text-sm lg:text-base h-10 lg:h-9 xl:h-10",
+                                    form.formState.errors.amount && "border-red-500"
+                                  )}
                                   inputMode="numeric"
                                   autoComplete="off"
                                 />
@@ -275,7 +463,13 @@ export default function AddExpensePage() {
                             defaultValue={field.value}
                           >
                             <FormControl>
-                              <SelectTrigger className="rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10 lg:h-9 xl:h-10">
+                              <SelectTrigger 
+                                id="category"
+                                className={cn(
+                                  "rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10 lg:h-9 xl:h-10",
+                                  form.formState.errors.category && "border-red-500"
+                                )}
+                              >
                                 <SelectValue placeholder="Pilih kategori" />
                               </SelectTrigger>
                             </FormControl>
@@ -320,17 +514,18 @@ export default function AddExpensePage() {
                                 <Button
                                   variant={"outline"}
                                   className={cn(
-                                    "w-full pl-3 text-left font-normal rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10 lg:h-9 xl:h-10",
+                                    "w-full pl-3 text-left font-normal rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10 lg:h-9 xl:h-10 flex items-center justify-between",
                                     !field.value && "text-muted-foreground"
                                   )}
                                   onClick={() => setIsCalendarOpen(true)}
+                                  type="button"
                                 >
                                   {field.value ? (
                                     format(field.value, "PPPP", { locale: id })
                                   ) : (
                                     <span>Pilih tanggal</span>
                                   )}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  <CalendarIcon className="ml-2 h-4 w-4 opacity-50" />
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
@@ -406,13 +601,15 @@ export default function AddExpensePage() {
                           Bagaimana perasaanmu?
                         </FormLabel>
                         <FormControl>
-                          <FunMoodSelector
-                            value={field.value as MoodType}
-                            onChange={(mood, reason) => {
-                              field.onChange(mood);
-                              form.setValue("moodReason", reason || "");
-                            }}
-                          />
+                          <div id="mood">
+                            <FunMoodSelector
+                              value={field.value as MoodType}
+                              onChange={(mood, reason) => {
+                                field.onChange(mood);
+                                form.setValue("moodReason", reason || "");
+                              }}
+                            />
+                          </div>
                         </FormControl>
                         <FormMessage className="text-xs" />
                       </FormItem>

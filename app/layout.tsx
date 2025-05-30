@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "sonner";
 import { SyncProvider } from "./providers";
+import { TestToastButton } from "@/components/test-toast-button";
 import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
@@ -297,12 +298,12 @@ export default function RootLayout({
                       role="main"
                     >
                       {children}
-                      <Analytics />
-                      <SpeedInsights />
                     </main>
                     <ConditionalBottomNavigation />
                   </div>
-                  <Toaster />
+                  <SonnerToaster position="top-center" richColors closeButton />
+                  <Analytics />
+                  <SpeedInsights />
                 </AuthGuard>
               </SyncProvider>
             </SyncStatusProvider>

@@ -1,3 +1,6 @@
+/* Sonner Toast Styles */
+@import "sonner";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
