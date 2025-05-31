@@ -251,11 +251,14 @@ export default function AddExpensePage() {
         throw new Error('Jumlah tidak valid. Mohon periksa kembali.');
       }
       
+      // Format date as YYYY-MM-DD to avoid timezone issues
+      const formattedDate = `${values.date.getFullYear()}-${String(values.date.getMonth() + 1).padStart(2, '0')}-${String(values.date.getDate()).padStart(2, '0')}`;
+      
       const expenseData = {
         amount: safeAmount,
         category: values.category,
         mood: values.mood as MoodType,
-        date: values.date.toISOString(),
+        date: formattedDate,
         notes: values.notes || '',
         moodReason: values.moodReason || '',
       };
