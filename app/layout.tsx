@@ -9,14 +9,13 @@ import { SyncProvider } from "./providers";
 import { SyncStatusProvider } from "@/context/sync-context";
 import { AuthProvider } from "@/context/auth-context";
 import { AuthGuard } from "@/components/auth-guard";
-import { ConditionalBottomNavigation } from "@/components/conditional-bottom-navigation";
+import { BottomNavProvider } from "@/context/bottom-nav-context";
+import { BottomNavigation } from "@/components/bottom-navigation";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SyncManager } from "@/components/sync-manager";
 import styles from "@/styles/toast.module.css";
 import NetworkMonitor from '@/components/NetworkMonitor';
-import { BottomNavProvider } from '@/context/bottom-nav-context';
-
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",
@@ -282,59 +281,58 @@ export default function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <SyncManager />
-        <BottomNavProvider>
         <AuthProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <SyncStatusProvider>
-              <SyncProvider>
-                <AuthGuard>
-                  <div className="flex min-h-screen flex-col">
-                    <Navbar />
-                    <main
-                      className="flex-1 container mx-auto px-4 py-6"
-                      role="main"
-                    >
-                      {children}
-                    </main>
-                    <ConditionalBottomNavigation />
-                    <NetworkMonitor />
-                  </div>
-                  
-                  <SonnerToaster
-                    position="top-center"
-                    toastOptions={{
-                      unstyled: true,
-                      classNames: {
-                        toast: styles.toast,
-                        title: styles.toastTitle,
-                        description: styles.toastDescription,
-                        content: styles.toastContent,
-                        icon: styles.toastIcon,
-                      },
-                    }}
-                    visibleToasts={3}
-                    expand={false}
-                    containerAriaLabel="Notifications"
-                    offset="1rem"
-                    gap={12}
-                    theme="light"
-                    className={styles.toastWrapper}
-                  />
-                  
-                  <Analytics />
-                  <SpeedInsights />
-                </AuthGuard>
-              </SyncProvider>
-            </SyncStatusProvider>
-          </ThemeProvider>
+          <BottomNavProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="system"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <SyncStatusProvider>
+                <SyncProvider>
+                  <AuthGuard>
+                    <div className="flex min-h-screen flex-col">
+                      <Navbar />
+                      <main
+                        className="flex-1 container mx-auto px-4 py-6"
+                        role="main"
+                      >
+                        {children}
+                      </main>
+                        <NetworkMonitor />
+                      <BottomNavigation />
+                    </div>
+                    <SonnerToaster
+                      position="top-center"
+                      toastOptions={{
+                        unstyled: true,
+                        classNames: {
+                          toast: styles.toast,
+                          title: styles.toastTitle,
+                          description: styles.toastDescription,
+                          content: styles.toastContent,
+                          icon: styles.toastIcon,
+                        },
+                      }}
+                      visibleToasts={3}
+                      expand={false}
+                      containerAriaLabel="Notifications"
+                      offset="1rem"
+                      gap={12}
+                      theme="light"
+                      className={styles.toastWrapper}
+                    />
+                    
+                    <Analytics />
+                    <SpeedInsights />
+                    <SyncManager />
+                  </AuthGuard>
+                </SyncProvider>
+              </SyncStatusProvider>
+            </ThemeProvider>
+          </BottomNavProvider>
         </AuthProvider>
-        </BottomNavProvider>
       </body>
     </html>
   );

@@ -7,14 +7,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { useBottomNav } from "@/context/bottom-nav-context";
 
-export function BottomNavigation() {
+function BottomNavigationContent() {
   const pathname = usePathname();
   const { setIsVisible, isVisible } = useBottomNav();
   const [lastScrollY, setLastScrollY] = useState(0);
   
   const navItems = [
     { href: "/", icon: Home, label: "", id: "dashboard" },
-    ...(pathname === "/" ? [{ href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true }] : []),
+    ...(pathname.startsWith("/dashboard") ? 
+      [{ href: "/add", icon: PlusCircle, label: "", id: "add", isCenter: true }] : []),
     { href: "/insights", icon: BarChart, label: "", id: "insights" },
   ];
   
@@ -51,7 +52,7 @@ export function BottomNavigation() {
       clearTimeout(timeoutId);
     };
   }, [handleScroll]);
-
+  
   return (
     <AnimatePresence mode="wait">
       {isVisible && (
@@ -91,7 +92,7 @@ export function BottomNavigation() {
           <div className="relative flex justify-center items-center px-8 h-16">
             {/* Navigation items container with improved spacing */}
             <div className="flex justify-between items-center w-full max-w-xs px-2">
-              {navItems.map((item, index) => {
+              {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
 
@@ -99,100 +100,18 @@ export function BottomNavigation() {
                   return (
                     <motion.div
                       key={item.id}
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ 
-                        scale: 1, 
-                        opacity: 1,
-                        transition: { delay: index * 0.1 }
-                      }}
-                      className="relative"
+                      className="relative -mt-8 flex-shrink-0"
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 10 }}
                     >
-                      <Link href={pathname === '/add' ? '/' : '/add'} className="relative">
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="relative"
-                        >
-                          {/* Enhanced floating add button */}
-                          <div className="relative -top-6">
-                            <motion.div
-                              animate={isActive ? { 
-                                rotate: 45, 
-                                scale: 1.1,
-                                boxShadow: '0 10px 30px -5px var(--tw-shadow-color), 0 0 15px -5px var(--tw-shadow-color)' 
-                              } : { 
-                                rotate: 0, 
-                                scale: 1,
-                                boxShadow: '0 4px 15px -3px var(--tw-shadow-color)' 
-                              }}
-                              transition={{
-                                type: "spring",
-                                stiffness: 400,
-                                damping: 25,
-                              }}
-                              className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground flex items-center justify-center border-2 border-white/20 relative overflow-hidden backdrop-blur-sm shadow-lg shadow-primary/30"
-                            >
-                              {/* Enhanced animated background effect */}
-                              <motion.div
-                                animate={
-                                  isActive
-                                    ? { scale: 1.2, opacity: 0.4 }
-                                    : { scale: 1, opacity: 0 }
-                                }
-                                transition={{ duration: 0.3 }}
-                                className="absolute inset-0 bg-gradient-to-br from-white/30 to-white/10 rounded-full"
-                              />
-                              
-                              {/* Subtle inner glow */}
-                              <div className="absolute inset-1 rounded-full bg-gradient-to-br from-white/20 to-transparent" />
-                              
-                              <Icon className="h-8 w-8 relative z-10 drop-shadow-sm" />
-                            </motion.div>
-
-                            {/* Enhanced ripple effect */}
-                            <AnimatePresence>
-                              {isActive && (
-                                <>
-                                  <motion.div
-                                    initial={{ scale: 0.8, opacity: 0.6 }}
-                                    animate={{ scale: 2.2, opacity: 0 }}
-                                    exit={{ scale: 2.5, opacity: 0 }}
-                                    transition={{ 
-                                      duration: 1.5, 
-                                      repeat: Infinity,
-                                      ease: "easeOut"
-                                    }}
-                                    className="absolute inset-0 -top-6 w-16 h-16 rounded-full border-2 border-primary/20"
-                                  />
-                                  <motion.div
-                                    initial={{ scale: 0.8, opacity: 0.4 }}
-                                    animate={{ scale: 1.8, opacity: 0 }}
-                                    exit={{ scale: 2, opacity: 0 }}
-                                    transition={{ 
-                                      duration: 1.2, 
-                                      repeat: Infinity,
-                                      delay: 0.3,
-                                      ease: "easeOut"
-                                    }}
-                                    className="absolute inset-0 -top-6 w-16 h-16 rounded-full border border-primary/30"
-                                  />
-                                </>
-                              )}
-                            </AnimatePresence>
-                          </div>
-
-                          {/* Enhanced label with backdrop */}
-                          <motion.div
-                            animate={
-                              isActive 
-                                ? { opacity: 1, y: 0, scale: 1 } 
-                                : { opacity: 0.8, y: 2, scale: 0.95 }
-                            }
-                            className="absolute -bottom-4 left-1/2 -translate-x-1/2"
-                          >
-
-                          </motion.div>
-                        </motion.div>
+                      <Link
+                        href={item.href}
+                        className={`flex items-center justify-center w-16 h-16 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90 transition-colors ${
+                          isActive ? "ring-2 ring-offset-2 ring-ring" : ""
+                        }`}
+                        aria-label={item.id}
+                      >
+                        <Icon className="w-6 h-6" aria-hidden="true" />
                       </Link>
                     </motion.div>
                   );
@@ -201,88 +120,18 @@ export function BottomNavigation() {
                 return (
                   <motion.div
                     key={item.id}
-                    initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                    animate={{ 
-                      scale: 1, 
-                      opacity: 1, 
-                      y: 0,
-                      transition: { delay: index * 0.1 }
-                    }}
+                    className="relative flex-1 flex justify-center"
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
                   >
-                    <Link href={item.href} className="relative">
-                      <motion.div
-                        whileHover={{ scale: 1.1, y: -2 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex flex-col items-center gap-0.5 py-1.5 px-2 relative"
-                      >
-                        {/* Enhanced icon background */}
-                        <motion.div
-                          animate={isActive ? { 
-                            scale: 1.1,
-                            y: -2,
-                            backgroundColor: 'rgba(var(--primary)/0.1)',
-                            boxShadow: '0 4px 15px -3px rgba(var(--primary)/0.2)'
-                          } : { 
-                            scale: 1,
-                            y: 0,
-                            backgroundColor: 'transparent',
-                            boxShadow: 'none'
-                          }}
-                          transition={{
-                            type: "spring",
-                            stiffness: 500,
-                            damping: 30,
-                          }}
-                          className={`p-3 rounded-xl transition-all duration-300 relative overflow-hidden ${
-                            isActive
-                              ? "text-primary"
-                              : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          {/* Active state glow */}
-                          {isActive && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="absolute inset-0 bg-primary/5 rounded-2xl"
-                            />
-                          )}
-                          
-                          <Icon className="h-7 w-7 relative z-10" />
-                        </motion.div>
-
-                        {/* Enhanced label with animated underline */}
-                        <div className="relative">
-                          <motion.span
-                            animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0.7, y: 1 }}
-                            className="text-xs font-medium transition-all duration-200"
-                          >
-                            {item.label}
-                          </motion.span>
-
-                          {/* Enhanced active indicator */}
-                          <motion.div
-                            animate={
-                              isActive
-                                ? { scaleX: 1, opacity: 1 }
-                                : { scaleX: 0, opacity: 0 }
-                            }
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50 rounded-full origin-center"
-                          />
-                          
-                          {/* Subtle dot indicator */}
-                          <motion.div
-                            animate={
-                              isActive
-                                ? { scale: 1, opacity: 1 }
-                                : { scale: 0, opacity: 0 }
-                            }
-                            transition={{ duration: 0.2, delay: 0.1 }}
-                            className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
-                          />
-                        </div>
-                      </motion.div>
+                    <Link
+                      href={item.href}
+                      className={`flex flex-col items-center justify-center w-full py-2 text-sm font-medium transition-colors ${
+                        isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      aria-label={item.id}
+                    >
+                      <Icon className="w-6 h-6 mb-1" aria-hidden="true" />
                     </Link>
                   </motion.div>
                 );
@@ -294,3 +143,16 @@ export function BottomNavigation() {
     </AnimatePresence>
   );
 }
+
+export function BottomNavigation() {
+  const pathname = usePathname();
+  
+  // Hide on home and auth pages
+  if (pathname === '/' || pathname === '/auth/login' || pathname === '/auth/register') {
+    return null;
+  }
+
+  return <BottomNavigationContent />;
+}
+
+export default BottomNavigation;

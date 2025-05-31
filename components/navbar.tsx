@@ -43,8 +43,8 @@ export default function Navbar() {
     { href: "/settings", label: "Settings", icon: Settings },
   ]
 
-  // Don't show the main nav items on auth pages
-  const isAuthPage = pathname?.startsWith("/auth")
+  // Don't show the main nav items on auth pages or login page
+  const isAuthPage = pathname?.startsWith("/auth") || pathname === "/"
 
   // Get user avatar URL from metadata
   const avatarUrl = user?.user_metadata?.avatar_url || null
@@ -72,9 +72,6 @@ export default function Navbar() {
                   alt="EmoSpend Logo"
                   className="h-8 w-auto object-contain"
                 />
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/70">
-                  EmoSpend
-                </span>
               </motion.div>
             </Link>
           </div>
