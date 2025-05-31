@@ -41,6 +41,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -88,52 +89,52 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-b from-background to-primary/5">
+    <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center bg-gradient-to-b from-background to-primary/5 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md px-8"
+        className="w-full max-w-sm"
       >
-        <div className="bg-card rounded-3xl overflow-hidden shadow-lg border border-primary/20">
-          <div className="bg-primary/10 p-6 text-center relative overflow-hidden">
+        <div className="bg-card rounded-2xl overflow-hidden shadow-xl border border-primary/20 backdrop-blur-sm">
+          {/* Compact Header */}
+          <div className="bg-primary/10 px-6 py-4 text-center relative overflow-hidden">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 100 }}
-              className="absolute top-4 right-4"
+              className="absolute top-3 right-3"
             >
-              <Sparkles className="h-6 w-6 text-primary" />
+              <Sparkles className="h-4 w-4 text-primary" />
             </motion.div>
 
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
-              className="h-20 w-20 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4"
+              className="h-12 w-12 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-2"
             >
-              <UserPlus className="h-10 w-10 text-primary" />
+              <UserPlus className="h-6 w-6 text-primary" />
             </motion.div>
 
-            <h1 className="text-2xl font-bold mb-1">Join EmoSpend!</h1>
-            <p className="text-muted-foreground">
-              Create an account to start tracking your emotional spending
+            <h1 className="text-xl font-bold mb-1">Join EmoSpend!</h1>
+            <p className="text-sm text-muted-foreground">
+              Start tracking your emotional spending
             </p>
           </div>
 
-          <div className="p-6">
+          <div className="p-6 space-y-4">
             {/* Google Sign-in Button */}
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="mb-6"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
             >
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleGoogleSignIn}
                 disabled={isGoogleLoading}
-                className="w-full rounded-xl py-6 text-base font-medium border-primary/20 hover:bg-primary/5 relative"
+                className="w-full rounded-xl py-3 text-sm font-medium border-primary/20 hover:bg-primary/5 relative"
               >
                 {isGoogleLoading ? (
                   <motion.div
@@ -145,10 +146,10 @@ export default function RegisterPage() {
                     }}
                     className="mr-2"
                   >
-                    <Sparkles className="h-5 w-5" />
+                    <Sparkles className="h-4 w-4" />
                   </motion.div>
                 ) : (
-                  <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                     <path
                       d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                       fill="#4285F4"
@@ -171,38 +172,40 @@ export default function RegisterPage() {
               </Button>
             </motion.div>
 
-            <div className="relative my-6">
+            {/* Divider */}
+            <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-primary/10" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">
-                  Or register with email
+                <span className="bg-card px-3 text-muted-foreground">
+                  Or with email
                 </span>
               </div>
             </div>
 
+            {/* Form */}
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
+                className="space-y-3"
               >
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">
+                      <FormLabel className="text-sm text-foreground/80">
                         Email
                       </FormLabel>
                       <FormControl>
                         <Input
                           placeholder="your.email@example.com"
                           {...field}
-                          className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50"
+                          className="rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
@@ -211,7 +214,7 @@ export default function RegisterPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground/80">
+                      <FormLabel className="text-sm text-foreground/80">
                         Password
                       </FormLabel>
                       <FormControl>
@@ -219,42 +222,62 @@ export default function RegisterPage() {
                           type="password"
                           placeholder="••••••••"
                           {...field}
-                          className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            if (e.target.value.length > 0 && !showConfirmPassword) {
+                              setShowConfirmPassword(true);
+                            } else if (e.target.value.length === 0) {
+                              setShowConfirmPassword(false);
+                              form.setValue('confirmPassword', '');
+                            }
+                          }}
+                          className="rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10"
                         />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-foreground/80">
-                        Confirm Password
-                      </FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          placeholder="••••••••"
-                          {...field}
-                          className="rounded-xl border-primary/20 focus-visible:ring-primary/30 bg-background/50"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                
+                {showConfirmPassword && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="overflow-hidden"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-sm text-foreground/80">
+                            Confirm Password
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="••••••••"
+                              {...field}
+                              className="rounded-lg border-primary/20 focus-visible:ring-primary/30 bg-background/50 h-10"
+                            />
+                          </FormControl>
+                          <FormMessage className="text-xs" />
+                        </FormItem>
+                      )}
+                    />
+                  </motion.div>
+                )}
 
                 <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
                   className="pt-2"
                 >
                   <Button
                     type="submit"
-                    className="w-full rounded-xl py-6 text-base font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
+                    className="w-full rounded-xl py-3 text-sm font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary"
                     disabled={isLoading}
                   >
                     {isLoading ? (
@@ -267,28 +290,29 @@ export default function RegisterPage() {
                         }}
                         className="mr-2"
                       >
-                        <Sparkles className="h-5 w-5" />
+                        <Sparkles className="h-4 w-4" />
                       </motion.div>
                     ) : (
-                      <ArrowRight className="mr-2 h-5 w-5" />
+                      <ArrowRight className="mr-2 h-4 w-4" />
                     )}
                     {isLoading ? "Creating Account..." : "Create Account"}
                   </Button>
                 </motion.div>
               </form>
             </Form>
+          </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-muted-foreground">
-                Already have an account?{" "}
-                <Link
-                  href="/auth/login"
-                  className="text-primary hover:underline font-medium"
-                >
-                  Sign in
-                </Link>
-              </p>
-            </div>
+          {/* Bottom Link - Moved inside card for better positioning */}
+          <div className="px-6 pb-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link
+                href="/auth/login"
+                className="text-primary hover:underline font-medium"
+              >
+                Sign in
+              </Link>
+            </p>
           </div>
         </div>
       </motion.div>
