@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Heart, TrendingUp, Brain, Sparkles } from 'lucide-react';
@@ -169,9 +170,40 @@ const PulsingOrb = ({ delay, size = "w-32 h-32", position }: PulsingOrbProps) =>
   />
 );
 
-export function LoginHero() {
+interface LoginHeroProps {
+  onLoginClick?: () => void;
+}
+
+export function LoginHero({ onLoginClick }: LoginHeroProps) {
   const [currentTagline, setCurrentTagline] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
+  const [exitDirection, setExitDirection] = useState<'left' | 'right'>('left');
+  const router = useRouter();
+
+  const handleLoginClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setExitDirection('left');
+    setIsExiting(true);
+    // Wait for exit animation to complete before navigating
+    setTimeout(() => {
+      if (onLoginClick) {
+        onLoginClick();
+      } else {
+        router.push('/auth/login');
+      }
+    }, 600); // Match this with the exit animation duration
+  };
+
+  const handleGetStartedClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    setExitDirection('right');
+    setIsExiting(true);
+    // Wait for exit animation to complete before navigating
+    setTimeout(() => {
+      router.push('/auth/register');
+    }, 600); // Match this with the exit animation duration
+  };
 
   useEffect(() => {
     setIsVisible(true);
@@ -204,9 +236,19 @@ export function LoginHero() {
 
       <motion.div 
         className="max-w-4xl mx-auto relative z-10"
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: isVisible ? 1 : 0, y: isVisible ? 0 : 50 }}
-        transition={{ duration: 1, ease: "easeOut" }}
+        initial={{ opacity: 0, y: 50, x: 0 }}
+        animate={{ 
+          opacity: isVisible ? (isExiting ? 0 : 1) : 0, 
+          y: isVisible ? (isExiting ? -50 : 0) : 50,
+          x: isExiting ? -100 : 0,
+          scale: isExiting ? 0.9 : 1
+        }}
+        transition={{ 
+          duration: isExiting ? 0.6 : 1, 
+          ease: isExiting ? [0.4, 0, 0.2, 1] : "easeOut",
+          opacity: { duration: isExiting ? 0.4 : 0.8 },
+          x: { duration: isExiting ? 0.6 : 0 }
+        }}
       >
         <AnimatedTitle text="Welcome to EmoSpend" />
         
@@ -261,38 +303,68 @@ export function LoginHero() {
           transition={{ duration: 0.8, delay: 1 }}
         >
           <motion.div
-            whileHover={{ 
-              scale: 1.05, 
-              boxShadow: "0 20px 40px rgba(var(--primary-rgb), 0.3)"
+            initial={{ y: 0 }}
+            animate={{
+              y: [0, -5, 0],
             }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 20px 40px rgba(var(--primary-rgb), 0.4)",
+              transition: { type: "spring", stiffness: 400, damping: 15 }
+            }}
+            whileTap={{ 
+              scale: 0.97,
+              boxShadow: "0 10px 20px rgba(var(--primary-rgb), 0.2)"
+            }}
           >
             <Button 
               asChild 
               size="lg" 
-              className="text-base md:text-lg px-6 md:px-8 py-3 md:py-4 shadow-xl border-0 relative overflow-hidden group w-full sm:w-auto"
+              className="text-base md:text-lg px-8 md:px-10 py-3 md:py-5 shadow-2xl border-0 relative overflow-hidden group w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300"
             >
               <Link href="/auth/register">
                 <motion.span
-                  className="relative z-10 flex items-center"
+                  className="relative z-10 flex items-center font-semibold tracking-wide"
                   initial={{ x: 0 }}
-                  whileHover={{ x: 2 }}
+                  whileHover={{ x: 3 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
                 >
                   Get Started 
                   <motion.div
-                    animate={{ x: [0, 3, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    className="ml-2"
+                    className="ml-2 flex items-center justify-center"
+                    initial={{ x: 0 }}
+                    whileHover={{ x: 4 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
                   >
-                    <ArrowRight className="h-5 w-5" />
+                    <motion.div
+                      className="absolute inset-0 bg-white/30 rounded-full scale-0 group-hover:scale-100 transition-transform duration-500"
+                      style={{ filter: 'blur(8px)' }}
+                    />
+                    <ArrowRight className="h-5 w-5 relative z-10" />
                   </motion.div>
                 </motion.span>
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent"
-                  initial={{ x: "-100%" }}
-                  whileHover={{ x: "100%" }}
+                  className="absolute inset-0 bg-gradient-to-r from-white/20 via-white/40 to-transparent"
+                  initial={{ x: "-100%", opacity: 0.8 }}
+                  whileHover={{ x: "100%", opacity: 0.4 }}
+                  transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+                />
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0"
+                  initial={{ opacity: 0 }}
+                  whileHover={{ opacity: 1 }}
                   transition={{ duration: 0.6 }}
+                />
+                <motion.div 
+                  className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/20 to-primary/0"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileHover={{ opacity: 0.6, scale: 1.1 }}
+                  transition={{ duration: 0.8, repeat: Infinity, repeatType: "reverse" }}
                 />
               </Link>
             </Button>
@@ -312,7 +384,7 @@ export function LoginHero() {
               asChild 
               className="text-base md:text-lg px-6 md:px-8 py-3 md:py-4 border-2 border-primary/20 hover:border-primary/40 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm relative overflow-hidden group w-full sm:w-auto"
             >
-              <Link href="/auth/login">
+              <Link href="/auth/login" onClick={handleLoginClick}>
                 <span className="relative z-10 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent font-semibold">
                   Sign In
                 </span>
