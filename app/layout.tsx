@@ -15,7 +15,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SyncManager } from "@/components/sync-manager";
 import styles from "@/styles/toast.module.css";
-import NetworkMonitor from '@/components/NetworkMonitor';
+import { NetworkMonitor } from '@/components/NetworkMonitor';
 const inter = Inter({
   subsets: ["latin"],
   display: "swap",

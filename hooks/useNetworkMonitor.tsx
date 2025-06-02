@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
-import React from 'react';
+import { CheckCircle, WifiOff, AlertTriangle } from 'lucide-react';
 
 // Network Information API types
 type EffectiveConnectionType = 'slow-2g' | '2g' | '3g' | '4g' | '5g';
-type ConnectionType = 'wifi' | 'cellular' | 'ethernet' | 'none' | 'unknown';
+type ConnectionType = 'wifi' | 'cellular' | 'ethernet' | 'bluetooth' | 'wimax' | 'none' | 'unknown';
 type NetworkType = 'bluetooth' | 'cellular' | 'ethernet' | 'none' | 'wifi' | 'wimax' | 'other' | 'unknown';
 
 interface NetworkInformation extends EventTarget {
@@ -28,365 +27,385 @@ declare global {
   }
 }
 
-export interface NetworkStatus {
+interface NetworkStatus {
   isOnline: boolean;
   isSlow: boolean;
   type: ConnectionType | string;
+  effectiveType?: EffectiveConnectionType;
   message: string;
   downlink?: number;
   rtt?: number;
+  lastUpdated: number;
+  saveData: boolean;
+  confidence: 'high' | 'medium' | 'low';
 }
 
-// Constants
-const SLOW_CONNECTION_THRESHOLD_RTT = 200; // ms
-const SLOW_CONNECTION_THRESHOLD_DOWNLINK = 1; // Mbps
-const CHECK_INTERVAL = 15000; // 15 seconds
-const OFFLINE_CHECK_INTERVAL = 5000; // 5 seconds when offline
+interface NetworkCheckResult {
+  isOnline: boolean;
+  latency?: number;
+  timestamp: number;
+  method: 'navigator' | 'ping' | 'head'; // 'ping' is a placeholder, actual is 'head'
+  error?: string;
+  endpoint?: string;
+}
 
-// Default messages
-const MESSAGES = {
-  checking: 'Memeriksa koneksi...',
-  online: 'Terhubung ke internet',
-  offline: 'Tidak ada koneksi internet',
-  slow: (speed = '') => `Koneksi internet Anda lambat${speed ? ` (${speed})` : ''}`,
-  error: 'Gagal memeriksa koneksi'
+const DEFAULT_OPTIONS = {
+  checkInterval: 15000, // ms, when online
+  offlineCheckInterval: 5000, // ms, when offline
+  slowRTTThreshold: 300, // ms
+  slowDownlinkThreshold: 1.5, // Mbps
+  enableToast: true,
+  testMode: false, // Bypasses actual network checks, useful for testing UI
+  endpointsToCheck: [ // Small, fast, cache-busted HEAD requests
+    'https://www.google.com/favicon.ico',
+    'https://www.gstatic.com/generate_204',
+    'https://connectivitycheck.gstatic.com/generate_204'
+  ],
+  requiredSuccessfulChecks: 2, // Number of successful HEAD checks to confirm online status
+  checkTimeout: 3000, // ms, timeout per HEAD check
 };
 
-// Helper function to get connection info
-const getConnectionInfo = (): NetworkInformation | null => {
-  if (typeof navigator === 'undefined') return null;
-  
-  const connection = (navigator as any).connection || 
-                   (navigator as any).mozConnection || 
-                   (navigator as any).webkitConnection;
-  
-  return connection || null;
-};
+export default function useNetworkMonitor(options: Partial<typeof DEFAULT_OPTIONS> = {}) {
+  const config = { ...DEFAULT_OPTIONS, ...options };
 
-// Helper function to check if connection is slow
-const isConnectionSlow = (connection: NetworkInformation | null): boolean => {
-  if (!connection) return false;
-  
-  const isSlowByRtt = connection.rtt && connection.rtt > SLOW_CONNECTION_THRESHOLD_RTT;
-  const isSlowByDownlink = connection.downlink && connection.downlink < SLOW_CONNECTION_THRESHOLD_DOWNLINK;
-  
-  return Boolean(isSlowByRtt || isSlowByDownlink);
-};
-
-// Helper function to get connection message
-const getConnectionMessage = (connection: NetworkInformation | null, isOnline: boolean): string => {
-  if (!isOnline) return MESSAGES.offline;
-  if (!connection) return MESSAGES.online;
-  
-  const speed = connection.downlink ? `${connection.downlink.toFixed(1)} Mbps` : '';
-  
-  if (isConnectionSlow(connection)) {
-    return MESSAGES.slow(speed);
-  }
-  
-  return MESSAGES.online;
-};
-
-export default function useNetworkMonitor() {
   const [status, setStatus] = useState<NetworkStatus>(() => ({
     isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
     isSlow: false,
     type: 'unknown',
-    message: MESSAGES.checking,
+    message: 'Initializing network check...',
+    lastUpdated: Date.now(),
+    saveData: false,
+    confidence: 'low' // Initial confidence is low until checks run
   }));
 
-  // Refs
-  const lastToastRef = useRef<{ type: string; timestamp: number } | null>(null);
-  const prevStatusRef = useRef<NetworkStatus | null>(null);
-  const prevOnlineStatusRef = useRef<boolean | null>(null);
   const isCheckingRef = useRef(false);
-  const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const connectionRef = useRef<NetworkInformation | null>(null);
+  const intervalTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef(true);
-  const retryCountRef = useRef(0);
-  const statusRef = useRef<NetworkStatus>(status);
-  const showToastRef = useRef<((type: 'online' | 'offline' | 'slow' | 'recovered') => void)>(() => {});
-  const checkNetworkStatusRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  const statusRef = useRef(status); // Ref to current status for use in closures
 
-  // Memoize toast configurations to prevent recreation on every render
-  const toastConfigs = React.useMemo(() => ({
-    online: {
-      title: MESSAGES.online,
-      message: status.isSlow ? MESSAGES.slow() : 'Koneksi internet tersedia',
-      icon: 'check-circle',
-      iconColor: 'text-green-500',
-      animation: 'animate-pulse',
-      duration: 3000, // 3 seconds
-    },
-    offline: {
-      title: MESSAGES.offline,
-      message: 'Tidak dapat terhubung ke internet',
-      icon: 'wifi-off',
-      iconColor: 'text-red-500',
-      animation: 'animate-pulse',
-      duration: 10000, // 10 seconds
-    },
-    slow: {
-      title: MESSAGES.slow(),
-      message: 'Kecepatan internet Anda lambat',
-      icon: 'signal',
-      iconColor: 'text-amber-500',
-      animation: 'animate-ping',
-      duration: 5000, // 5 seconds
-    },
-    recovered: {
-      title: MESSAGES.online,
-      message: 'Koneksi kembali normal',
-      icon: 'check-circle',
-      iconColor: 'text-green-500',
-      animation: 'animate-bounce',
-      duration: 3000, // 3 seconds
-    },
-  }), [status.isSlow]);
+  // Refs for tracking previous state for toasts
+  const prevIsOnlineRef = useRef<boolean | undefined>(status.isOnline);
+  const prevIsSlowRef = useRef<boolean | undefined>(status.isSlow);
 
-  // Show toast notification - defined outside of useCallback to avoid dependency issues
-  const showToast = (type: 'online' | 'offline' | 'slow' | 'recovered') => {
-    const now = Date.now();
-    const lastToast = lastToastRef.current;
-    
-    // Prevent duplicate toasts within 3 seconds
-    if (lastToast && lastToast.type === type && now - lastToast.timestamp < 3000) {
-      return;
-    }
-    
-    lastToastRef.current = { type, timestamp: now };
-    const config = toastConfigs[type];
-    
-    // Create the appropriate icon component
-    let iconComponent;
-    const iconClass = `w-5 h-5 ${config.iconColor} flex-shrink-0 ${config.animation || ''}`;
-    
-    switch (config.icon) {
-      case 'check-circle':
-        iconComponent = React.createElement(CheckCircle, { 
-          key: 'check-circle',
-          className: iconClass,
-          'aria-hidden': 'true'
-        });
-        break;
-      case 'wifi-off':
-        iconComponent = React.createElement('svg', {
-          key: 'wifi-off',
-          className: iconClass,
-          xmlns: 'http://www.w3.org/2000/svg',
-          width: '24',
-          height: '24',
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          strokeWidth: '2',
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
-          'aria-hidden': 'true'
-        }, [
-          React.createElement('line', { key: 'line1', x1: '1', y1: '1', x2: '23', y2: '23' }),
-          React.createElement('path', { key: 'path1', d: 'M16.72 11.06A10.94 10.94 0 0 1 19 12.55' }),
-          React.createElement('path', { key: 'path2', d: 'M5 12.55a10.94 10.94 0 0 1 5.17-2.39' }),
-          React.createElement('line', { key: 'line2', x1: '10.71', y1: '5.05', x2: '16', y2: '12.95' }),
-          React.createElement('path', { key: 'path3', d: 'M16.24 16.24a6 6 0 0 1-8.49-8.49' }),
-          React.createElement('path', { key: 'path4', d: 'M12 20h.01' })
-        ]);
-        break;
-      case 'signal':
-        iconComponent = React.createElement('svg', {
-          key: 'signal',
-          className: iconClass,
-          xmlns: 'http://www.w3.org/2000/svg',
-          width: '24',
-          height: '24',
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          strokeWidth: '2',
-          strokeLinecap: 'round',
-          strokeLinejoin: 'round',
-          'aria-hidden': 'true'
-        }, [
-          React.createElement('path', { key: 'bar1', d: 'M2 20h.01' }),
-          React.createElement('path', { key: 'bar2', d: 'M7 20h.01' }),
-          React.createElement('path', { key: 'bar3', d: 'M12 20h.01' }),
-          React.createElement('path', { key: 'bar4', d: 'M17 20h.01' }),
-          React.createElement('path', { key: 'bar3-connector', d: 'M12 15v5' }),
-          React.createElement('path', { key: 'bar4-connector', d: 'M17 10v10' }),
-          React.createElement('path', { key: 'bar2-connector', d: 'M7 15v5' }),
-          React.createElement('path', { key: 'bar1-connector', d: 'M2 10v10' })
-        ]);
-        break;
-      default:
-        iconComponent = React.createElement(CheckCircle, { 
-          key: 'default-check',
-          className: iconClass,
-          'aria-hidden': 'true'
-        });
-    }
-
-    const toastContent = (
-      <div className="flex items-center gap-3 px-4 py-2">
-        <div className="flex-shrink-0">
-          <div className="relative">
-            {config.animation === 'animate-ping' && (
-              <span className={`absolute inline-flex h-full w-full rounded-full ${config.iconColor} opacity-75`}></span>
-            )}
-            {iconComponent}
-          </div>
-        </div>
-        <div>
-          <p className="text-sm font-medium leading-tight">{config.title}</p>
-          <p className="text-xs text-muted-foreground">{config.message}</p>
-        </div>
-      </div>
-    );
-    
-    // Dismiss any existing toasts first
-    toast.dismiss();
-    
-    // Show the toast with stable configuration
-    toast(toastContent, {
-      duration: config.duration,
-      className: '!bg-background !border-border !shadow-lg !p-0 !m-0 !rounded-lg !max-w-[calc(100%-1rem)]',
-      style: {
-        padding: 0,
-        margin: 0,
-        width: 'auto',
-      }
-    });
-  };
-
-  // Check network status - non-hook version for event listeners
-  const checkNetworkStatusImpl = async () => {
-    if (isCheckingRef.current) return;
-    
-    isCheckingRef.current = true;
-    const wasOnline = statusRef.current?.isOnline ?? true;
-    const wasSlow = statusRef.current?.isSlow ?? false;
-    const connection = getConnectionInfo();
-    connectionRef.current = connection;
-
-    try {
-      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
-      const isSlow = isConnectionSlow(connection);
-      const message = getConnectionMessage(connection, isOnline);
-
-      const newStatus: NetworkStatus = {
-        isOnline,
-        isSlow,
-        type: connection?.effectiveType || 'unknown',
-        message,
-        downlink: connection?.downlink,
-        rtt: connection?.rtt,
-      };
-
-      // Store previous status before updating
-      const prevStatus = { ...statusRef.current };
-      
-      // Update the ref with new status
-      statusRef.current = newStatus;
-      
-      // Determine what changed
-      const cameOnline = !prevStatus.isOnline && isOnline;
-      const wentOffline = prevStatus.isOnline && !isOnline;
-      const becameSlow = !prevStatus.isSlow && isSlow;
-      const recoveredFromSlow = prevStatus.isSlow && !isSlow;
-      
-      // Show toasts based on what changed
-      if (cameOnline) {
-        showToast('online');
-      } else if (wentOffline) {
-        showToast('offline');
-      } else if (becameSlow) {
-        showToast('slow');
-      } else if (recoveredFromSlow && isOnline) {
-        // Only show recovered if we're still online
-        showToast('recovered');
-      }
-
-      // Update React state
-      setStatus(newStatus);
-      retryCountRef.current = 0;
-    } catch (error) {
-      console.error('Error checking network status:', error);
-      retryCountRef.current += 1;
-      
-      if (retryCountRef.current <= 3) {
-        // Retry after a delay
-        setTimeout(checkNetworkStatusRef?.current || (() => {}), 5000);
-      }
-    } finally {
-      isCheckingRef.current = false;
-    }
-  };
-
-  // Keep refs updated with the latest functions
   useEffect(() => {
     statusRef.current = status;
-    showToastRef.current = showToast;
-    checkNetworkStatusRef.current = checkNetworkStatusImpl;
-  }, [status, showToast, checkNetworkStatusImpl]);
+    // Update previous state refs *after* status has been processed for the current render
+    // This ensures toasts compare against the truly previous render's state
+    prevIsOnlineRef.current = status.isOnline;
+    prevIsSlowRef.current = status.isSlow;
+  }, [status]);
 
-  // Effect to set up event listeners
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  const getNetworkInfo = useCallback((): NetworkInformation | null => {
+    if (config.testMode || typeof navigator === 'undefined') return null;
+    return navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+  }, [config.testMode]);
 
-    // Event handlers that use refs to get the latest functions
-    const handleOnline = () => {
-      if (checkNetworkStatusRef.current) {
-        checkNetworkStatusRef.current();
-      }
-    };
+  const checkConnectionReliability = useCallback(async (): Promise<boolean> => {
+    if (config.testMode) return true;
+    if (typeof navigator === 'undefined' || !navigator.onLine) return false;
+
+    const checkPromises = config.endpointsToCheck.map(endpoint => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), config.checkTimeout);
+      const startTime = performance.now();
+
+      return fetch(`${endpoint}?t=${Date.now()}`, { // Cache-busting query param
+        method: 'HEAD',
+        cache: 'no-cache',
+        mode: 'no-cors', // Allows requests to succeed even if server lacks CORS for HEAD
+        signal: controller.signal,
+        referrerPolicy: 'no-referrer'
+      })
+        .then(() => ({ // For 'no-cors', a resolved promise means a request was made.
+          isOnline: true,
+          latency: performance.now() - startTime,
+          timestamp: Date.now(),
+          method: 'head' as const,
+          endpoint
+        }))
+        .catch((err) => ({
+          isOnline: false,
+          latency: performance.now() - startTime,
+          timestamp: Date.now(),
+          method: 'head' as const,
+          endpoint,
+          error: err.name === 'AbortError' ? 'timeout' : 'fetch_failed'
+        }))
+        .finally(() => clearTimeout(timeoutId));
+    });
+
+    const results = await Promise.all(checkPromises);
+    const successfulChecks = results.filter(r => r.isOnline).length;
+    return successfulChecks >= config.requiredSuccessfulChecks;
+  }, [config.endpointsToCheck, config.requiredSuccessfulChecks, config.checkTimeout, config.testMode]);
+
+  const isConnectionSlow = useCallback((connection: NetworkInformation | null): boolean => {
+    if (!connection || config.testMode) return false;
     
-    const handleOffline = () => {
-      if (checkNetworkStatusRef.current) {
-        checkNetworkStatusRef.current();
-      }
-    };
+    const isSlowByRtt = connection.rtt != null && connection.rtt > config.slowRTTThreshold;
+    const isSlowByDownlink = connection.downlink != null && connection.downlink < config.slowDownlinkThreshold;
+    const isSlowByType = connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g';
     
-    const handleConnectionChange = () => {
-      if (checkNetworkStatusRef.current) {
-        checkNetworkStatusRef.current();
-      }
-    };
+    return Boolean(isSlowByRtt || isSlowByDownlink || isSlowByType);
+  }, [config.slowRTTThreshold, config.slowDownlinkThreshold, config.testMode]);
 
-    // Initial check
-    checkNetworkStatusRef.current();
-
-    // Set up interval for periodic checks
-    const interval = setInterval(
-      () => checkNetworkStatusRef.current(),
-      status.isOnline ? CHECK_INTERVAL : OFFLINE_CHECK_INTERVAL
-    );
-
-    // Add event listeners
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    const connection = getConnectionInfo();
-    if (connection) {
-      connection.addEventListener('change', handleConnectionChange);
+  const updateNetworkStatus = useCallback(async (
+    currentNavigatorOnline: boolean
+  ): Promise<NetworkStatus> => {
+    if (!mountedRef.current) {
+      // Should ideally not happen if cleanup is correct, but as a safeguard
+      return statusRef.current; // Return last known status
     }
 
-    // Clean up
+    const connection = getNetworkInfo();
+    // Only perform reliability check if navigator.onLine is true
+    const isReliable = currentNavigatorOnline ? await checkConnectionReliability() : false;
+    
+    const actualOnlineStatus = currentNavigatorOnline && isReliable;
+    const currentIsSlow = actualOnlineStatus ? isConnectionSlow(connection) : false;
+    const saveData = connection?.saveData ?? false;
+
+    let confidence: NetworkStatus['confidence'] = 'low';
+    if (actualOnlineStatus) {
+        confidence = 'high'; // Online and reliability checks passed
+    } else {
+        if (currentNavigatorOnline) { // navigator.onLine true, but reliability checks failed
+            confidence = 'medium';
+        } else { // navigator.onLine false
+            confidence = 'high';
+        }
+    }
+
+    const newStatus: NetworkStatus = {
+      isOnline: actualOnlineStatus,
+      isSlow: currentIsSlow,
+      type: connection?.type || 'unknown',
+      effectiveType: connection?.effectiveType,
+      downlink: connection?.downlink,
+      rtt: connection?.rtt,
+      saveData,
+      message: actualOnlineStatus 
+        ? (currentIsSlow ? 'Connected (slow connection)' : 'Connected')
+        : 'No internet connection',
+      lastUpdated: Date.now(),
+      confidence,
+    };
+
+    setStatus(prev => {
+      // Shallow compare to prevent unnecessary re-renders if status hasn't changed
+      if (
+        prev.isOnline !== newStatus.isOnline ||
+        prev.isSlow !== newStatus.isSlow ||
+        prev.type !== newStatus.type ||
+        prev.effectiveType !== newStatus.effectiveType ||
+        prev.message !== newStatus.message || // Message can change even if online status is same (e.g. slow)
+        prev.confidence !== newStatus.confidence
+      ) {
+        return newStatus;
+      }
+      return prev;
+    });
+    return newStatus;
+  }, [getNetworkInfo, checkConnectionReliability, isConnectionSlow, config.testMode]); // Added config.testMode
+
+  const performCheck = useCallback(async (): Promise<boolean> => {
+    if (isCheckingRef.current || !mountedRef.current || typeof navigator === 'undefined') {
+      return statusRef.current.isOnline;
+    }
+    isCheckingRef.current = true;
+
+    try {
+      // Use the current navigator.onLine state as the basis
+      const newStatus = await updateNetworkStatus(navigator.onLine);
+      return newStatus.isOnline;
+    } catch (error) {
+      console.error('Network check failed:', error);
+      // Assume offline on error during the check process itself
+      if (mountedRef.current) {
+        setStatus(prev => ({
+          ...prev,
+          isOnline: false,
+          isSlow: false,
+          message: 'Error checking connection',
+          confidence: 'low',
+          lastUpdated: Date.now(),
+        }));
+      }
+      return false;
+    } finally {
+      if (mountedRef.current) {
+        isCheckingRef.current = false;
+      }
+    }
+  }, [updateNetworkStatus]); // Removed config.testMode from here, it's handled in updateNetworkStatus
+
+  const handleVisibilityChange = useCallback(() => {
+    if (document.visibilityState === 'visible' && mountedRef.current) {
+      performCheck();
+    }
+  }, [performCheck]);
+
+  // Effect for event listeners and periodic checks
+  useEffect(() => {
+    if (config.testMode || typeof window === 'undefined') return;
+
+    mountedRef.current = true;
+    performCheck(); // Initial check
+
+    const handleOnline = () => performCheck();
+    const handleOffline = () => performCheck(); // navigator.onLine changed, re-evaluate
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const connection = getNetworkInfo();
+    if (connection) {
+      connection.addEventListener('change', handleOnline); // 'change' implies re-checking
+    }
+
+    // Periodic checking
+    const setupInterval = () => {
+      if (intervalTimeoutRef.current) clearTimeout(intervalTimeoutRef.current);
+      const intervalDuration = statusRef.current.isOnline 
+        ? config.checkInterval 
+        : config.offlineCheckInterval;
+      
+      intervalTimeoutRef.current = setTimeout(() => {
+        if (mountedRef.current) {
+          performCheck().finally(() => {
+            if(mountedRef.current) setupInterval(); // Schedule next check only after current one finishes
+          });
+        }
+      }, intervalDuration);
+    };
+
+    setupInterval();
+
     return () => {
+      mountedRef.current = false;
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (connection) {
-        connection.removeEventListener('change', handleConnectionChange);
+        connection.removeEventListener('change', handleOnline);
       }
-      
-      if (checkTimeoutRef.current) {
-        clearTimeout(checkTimeoutRef.current);
-        checkTimeoutRef.current = null;
+      if (intervalTimeoutRef.current) {
+        clearTimeout(intervalTimeoutRef.current);
       }
-      
-      clearInterval(interval);
-      mountedRef.current = false;
     };
-  }, [status.isOnline]);
+  }, [
+    performCheck, 
+    handleVisibilityChange, // Added
+    getNetworkInfo, 
+    config.checkInterval, 
+    config.offlineCheckInterval, 
+    config.testMode
+  ]);
 
-  return status;
+  // Track last toast times for each type
+  const lastToastTimeRef = useRef({
+    offline: 0,
+    slow: 0
+  });
+  
+  // Toast intervals in milliseconds (5 minutes for offline, 2 minutes for slow)
+  const TOAST_INTERVALS = {
+    OFFLINE: 5 * 60 * 1000,  // 5 minutes
+    SLOW: 2 * 60 * 1000      // 2 minutes
+  };
+
+  // Effect for toast notifications
+  useEffect(() => {
+    if (!config.enableToast || config.testMode || !mountedRef.current) {
+      return;
+    }
+
+    const currentTime = Date.now();
+    const { isOnline, isSlow } = statusRef.current;
+    const { offline, slow } = lastToastTimeRef.current;
+
+    // Show offline toast if offline and either:
+    // 1. Just went offline, or
+    // 2. Last toast was shown more than TOAST_INTERVALS.OFFLINE ms ago
+    if (!isOnline && (offline === 0 || (currentTime - offline) > TOAST_INTERVALS.OFFLINE)) {
+      toast('Connection lost', {
+        description: 'Some features may be available',
+        icon: <WifiOff className="w-4 h-4 text-red-500" />,
+        className: '!bg-background/90 !border-border/50 !top-4 md:!bottom-4 md:!top-auto',
+        duration: 5000,
+        position: 'top-center' as const,
+        style: { margin: '0 auto' },
+        id: 'network-status-offline',
+        dismissible: false
+      });
+      lastToastTimeRef.current.offline = currentTime;
+    } 
+    // Show slow connection toast if online but slow and either:
+    // 1. Just became slow, or
+    // 2. Last toast was shown more than TOAST_INTERVALS.SLOW ms ago
+    else if (isOnline && isSlow && (slow === 0 || (currentTime - slow) > TOAST_INTERVALS.SLOW)) {
+      toast('Slow connection', {
+        description: 'Your connection is slower than usual',
+        icon: <AlertTriangle className="w-4 h-4 text-amber-500" />,
+        className: '!bg-background/90 !border-border/50 !top-4 md:!bottom-4 md:!top-auto',
+        duration: 5000,
+        position: 'top-center' as const,
+        style: { margin: '0 auto' },
+        id: 'network-status-slow',
+        dismissible: false
+      });
+      lastToastTimeRef.current.slow = currentTime;
+    }
+    // Show online toast when connection is restored
+    else if (isOnline && prevIsOnlineRef.current === false) {
+      // Dismiss any existing network status toasts first
+      toast.dismiss('network-status-offline');
+      toast.dismiss('network-status-slow');
+      
+      toast('Back online', {
+        description: 'Your connection has been restored',
+        icon: <CheckCircle className="w-4 h-4 text-green-500" />,
+        className: '!bg-background/90 !border-border/50 !top-4 md:!bottom-4 md:!top-auto',
+        duration: 3000,
+        position: 'top-center' as const,
+        style: { margin: '0 auto' },
+        id: 'network-status-online',
+        dismissible: false
+      });
+      // Reset timers when coming back online
+      lastToastTimeRef.current = { offline: 0, slow: 0 };
+    }
+  }, [status.isOnline, status.isSlow, config.enableToast, config.testMode]);
+
+  const refresh = useCallback(() => {
+    // Clear any pending interval and check immediately
+    if (intervalTimeoutRef.current) clearTimeout(intervalTimeoutRef.current);
+    return performCheck().finally(() => {
+        if (mountedRef.current && !config.testMode) {
+          // Reschedule interval after manual refresh
+          const setupInterval = () => { // Duplicated from above, consider refactoring if larger
+            if (intervalTimeoutRef.current) clearTimeout(intervalTimeoutRef.current);
+            const intervalDuration = statusRef.current.isOnline 
+              ? config.checkInterval 
+              : config.offlineCheckInterval;
+            
+            intervalTimeoutRef.current = setTimeout(() => {
+              if (mountedRef.current) {
+                performCheck().finally(() => {
+                  if(mountedRef.current) setupInterval();
+                });
+              }
+            }, intervalDuration);
+          };
+          setupInterval();
+        }
+    });
+  }, [performCheck, config.checkInterval, config.offlineCheckInterval, config.testMode]);
+
+  return {
+    ...status, // current network status
+    refresh, // Manual trigger to check network
+    isChecking: isCheckingRef.current, // Whether a check is currently in progress
+  };
 }

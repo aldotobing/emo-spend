@@ -151,8 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         <div className={`${styles.toastContent}`}>
           <SyncIcon className="h-5 w-5 text-primary flex-shrink-0" />
           <div className="text-left">
-            <p className="font-medium text-foreground">Menyinkronkan Data</p>
-            <p className="text-sm text-muted-foreground">Harap tunggu sebentar...</p>
+            <p className="font-medium text-foreground">Syncing</p>
           </div>
         </div>
       ), {
@@ -191,10 +190,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 6L9 17l-5-5" />
             </svg>
-          </div>
-          <div>
-            <p className="font-medium">Sinkronisasi Berhasil</p>
-            <p className="text-sm text-muted-foreground">Data Anda sudah diperbarui</p>
           </div>
         </div>
       ), {
@@ -251,7 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       // Show sync toast only when starting to sync
-      loadingToast = await showSyncToast();
+      //loadingToast = await showSyncToast();
       
       // console.log('[Auth] Starting post-login sync...');
       
@@ -274,12 +269,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // console.log('[Sync] Post-login sync completed successfully');
       
       // Dismiss the loading toast and show success
-      if (loadingToast) {
+      //if (loadingToast) {
         await new Promise(resolve => setTimeout(resolve, 100)); // Small delay to ensure toast is shown
         toast.dismiss(loadingToast);
         await new Promise(resolve => setTimeout(resolve, 100)); // Small delay before showing next toast
-      }
-      await showSuccessToast();
+      //}
+      //await showSuccessToast();
       
       return {
         success: true,
@@ -297,7 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         toast.dismiss(loadingToast);
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      await showSyncErrorToast();
+      //await showSyncErrorToast();
       
       return false;
     }
