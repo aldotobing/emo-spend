@@ -8,12 +8,12 @@ import { ArrowRight, Heart, TrendingUp, Brain, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 const taglines = [
-  "Understand your spending habits with emotional intelligence",
-  "Track expenses, understand feelings, make better choices",
-  "Discover the emotions behind your spending patterns",
-  "Your financial wellness journey starts with awareness",
-  "Turn emotional spending into mindful decisions",
-  "See beyond the numbers - understand the 'why'"
+  { text: "Understand your spending habits with emotional intelligence", emoji: "🧠" },
+  { text: "Track expenses, understand feelings, make better choices", emoji: "📊" },
+  { text: "Discover the emotions behind your spending patterns", emoji: "🔍" },
+  { text: "Your financial wellness journey starts with awareness", emoji: "✨" },
+  { text: "Turn emotional spending into mindful decisions", emoji: "💡" },
+  { text: "See beyond the numbers - understand the 'why'", emoji: "🔮" }
 ];
 
 const floatingIcons = [
@@ -215,10 +215,10 @@ export function LoginHero({ onLoginClick }: LoginHeroProps) {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-[calc(100vh-120px)] md:min-h-[calc(100vh-200px)] px-4 text-center overflow-hidden">
-      {/* Animated background orbs - hidden on mobile for cleaner look */}
-      <PulsingOrb delay={0} position="top-20 left-20 hidden md:block" />
-      <PulsingOrb delay={1} size="w-48 h-48" position="bottom-32 right-20 hidden md:block" />
-      <PulsingOrb delay={2} size="w-24 h-24" position="top-1/3 right-32 hidden md:block" />
+      {/* Static background orbs - hidden on mobile for cleaner look */}
+      <div className="absolute w-32 h-32 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 blur-xl top-20 left-20 hidden md:block" />
+      <div className="absolute w-48 h-48 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 blur-xl bottom-32 right-20 hidden md:block" />
+      <div className="absolute w-24 h-24 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 blur-xl top-1/3 right-32 hidden md:block" />
       
       {/* Floating icons - reduced on mobile */}
       <div className="absolute inset-0 pointer-events-none">
@@ -259,180 +259,66 @@ export function LoginHero({ onLoginClick }: LoginHeroProps) {
           transition={{ duration: 0.8, delay: 0.5 }}
           className="mb-4 md:mb-8"
         >
-          <motion.p
-            className="text-base md:text-xl text-primary font-semibold mb-2"
-            animate={{ 
-              textShadow: [
-                "0 0 0px rgba(var(--primary-rgb), 0)",
-                "0 0 10px rgba(var(--primary-rgb), 0.3)",
-                "0 0 0px rgba(var(--primary-rgb), 0)"
-              ]
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
+          <h2 className="text-2xl md:text-4xl font-bold text-foreground mb-4 tracking-tight">
             Smart Financial Wellness Platform
-          </motion.p>
+          </h2>
         </motion.div>
         
         {/* Dynamic tagline with responsive height */}
-        <div className="h-20 sm:h-24 md:h-32 flex items-center justify-center mb-8 md:mb-12">
+        <div className="h-24 sm:h-28 md:h-36 flex flex-col items-center justify-center mb-8 md:mb-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentTagline}
-              initial={{ opacity: 0, y: 30, rotateX: -90 }}
-              animate={{ opacity: 1, y: 0, rotateX: 0 }}
-              exit={{ opacity: 0, y: -30, rotateX: 90 }}
-              transition={{ 
-                duration: 0.6,
-                type: "spring",
-                stiffness: 100,
-                damping: 15
-              }}
-              style={{ transformPerspective: 1000 }}
+              className="flex flex-col items-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
             >
-              <AnimatedTagline text={taglines[currentTagline]} />
+              <span className="text-3xl mb-2 block">
+                {taglines[currentTagline].emoji}
+              </span>
+              <AnimatedTagline text={taglines[currentTagline].text} />
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Animated buttons - more compact on mobile */}
-        <motion.div 
-          className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center px-4 sm:px-0"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 1 }}
-        >
+        {/* Buttons container */}
+        <div className="flex flex-col sm:flex-row gap-4 md:gap-8 justify-center px-4 sm:px-0 w-full max-w-md mx-auto">
           <motion.div
-            initial={{ y: 0 }}
-            animate={{
-              y: [0, -5, 0],
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            whileHover={{
-              scale: 1.05,
-              boxShadow: "0 20px 40px rgba(var(--primary-rgb), 0.4)",
-              transition: { type: "spring", stiffness: 400, damping: 15 }
-            }}
-            whileTap={{ 
-              scale: 0.97,
-              boxShadow: "0 10px 20px rgba(var(--primary-rgb), 0.2)"
-            }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
             <Button 
               asChild 
               size="lg" 
-              className="text-base md:text-lg px-8 md:px-10 py-3 md:py-5 shadow-2xl border-0 relative overflow-hidden group w-full sm:w-auto bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300"
+              className="text-base md:text-lg px-10 py-6 rounded-full shadow-lg border-0 w-full sm:w-auto bg-gradient-to-br from-primary to-primary/90"
             >
-              <Link href="/auth/register">
-                <motion.span
-                  className="relative z-10 flex items-center font-semibold tracking-wide"
-                  initial={{ x: 0 }}
-                  whileHover={{ x: 3 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                >
-                  Get Started 
-                  <motion.div
-                    className="ml-2 flex items-center justify-center"
-                    initial={{ x: 0 }}
-                    whileHover={{ x: 4 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
-                  >
-                    <motion.div
-                      className="absolute inset-0 bg-white/30 rounded-full scale-0 group-hover:scale-100 transition-transform duration-500"
-                      style={{ filter: 'blur(8px)' }}
-                    />
-                    <ArrowRight className="h-5 w-5 relative z-10" />
-                  </motion.div>
-                </motion.span>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-white/20 via-white/40 to-transparent"
-                  initial={{ x: "-100%", opacity: 0.8 }}
-                  whileHover={{ x: "100%", opacity: 0.4 }}
-                  transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-                />
-                <motion.div 
-                  className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/10 to-primary/0"
-                  initial={{ opacity: 0 }}
-                  whileHover={{ opacity: 1 }}
-                  transition={{ duration: 0.6 }}
-                />
-                <motion.div 
-                  className="absolute inset-0 bg-gradient-to-r from-primary/0 via-white/20 to-primary/0"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileHover={{ opacity: 0.6, scale: 1.1 }}
-                  transition={{ duration: 0.8, repeat: Infinity, repeatType: "reverse" }}
-                />
+              <Link href="/auth/login" className="flex items-center justify-center">
+                <span className="font-semibold text-white">Get Started</span>
+                <ArrowRight className="ml-3 h-5 w-5" />
               </Link>
             </Button>
           </motion.div>
-          
-          <motion.div
-            whileHover={{ 
-              scale: 1.05,
-              boxShadow: "0 10px 30px rgba(var(--primary-rgb), 0.2)"
-            }}
-            whileTap={{ scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 400, damping: 17 }}
-          >
-            <Button 
-              variant="outline" 
-              size="lg" 
-              asChild 
-              className="text-base md:text-lg px-6 md:px-8 py-3 md:py-4 border-2 border-primary/20 hover:border-primary/40 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm relative overflow-hidden group w-full sm:w-auto"
-            >
-              <Link href="/auth/login" onClick={handleLoginClick}>
-                <span className="relative z-10 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent font-semibold">
-                  Sign In
-                </span>
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-primary/5 to-primary/10"
-                  initial={{ opacity: 0 }}
-                  whileHover={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                />
-              </Link>
-            </Button>
-          </motion.div>
-        </motion.div>
+        </div>
 
-        {/* Feature highlights - simplified for mobile */}
-        <motion.div
-          className="mt-8 md:mt-16 grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6 text-xs sm:text-sm text-slate-500 dark:text-slate-400 px-2 sm:px-0"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 1.5 }}
-        >
+        {/* Feature highlights */}
+        <div className="mt-12 md:mt-20 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8 text-sm sm:text-base text-slate-600 dark:text-slate-300 px-2 sm:px-0 max-w-5xl mx-auto">
           {[
             { icon: "🧠", text: "AI-Powered Insights" },
             { icon: "💡", text: "Behavioral Analytics" },
             { icon: "🎯", text: "Personalized Goals" }
           ].map((feature, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 1.8 + index * 0.2 }}
               className="flex items-center justify-center space-x-2 p-2 sm:p-4 rounded-lg md:rounded-xl bg-white/30 dark:bg-slate-800/30 backdrop-blur-sm border border-primary/10"
-              whileHover={{ 
-                scale: 1.05,
-                backgroundColor: "rgba(var(--primary-rgb), 0.1)"
-              }}
             >
-              <motion.span
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity, delay: index * 0.5 }}
-                className="text-lg sm:text-2xl"
-              >
-                {feature.icon}
-              </motion.span>
-              <span className="font-medium text-center">{feature.text}</span>
-            </motion.div>
+              <span className="text-lg sm:text-2xl">{feature.icon}</span>
+              <span>{feature.text}</span>
+            </div>
           ))}
-        </motion.div>
+        </div>
       </motion.div>
     </div>
   );

@@ -89,7 +89,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex items-center justify-center p-2 md:p-4 bg-gradient-to-br from-background via-primary/5 to-primary/10 overflow-hidden">
+    <div className="h-screen flex items-center justify-center p-2 bg-background">
       <motion.div
         initial={{ opacity: 0, x: 100 }}
         animate={{ 
@@ -126,9 +126,9 @@ export default function LoginPage() {
           className="w-full max-w-sm md:max-w-md relative z-10"
         >
           {/* Desktop: Enhanced card with backdrop blur */}
-          <div className="bg-card/80 backdrop-blur-xl rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl border border-primary/20 md:border-primary/30">
+          <div className="bg-background rounded-2xl overflow-hidden shadow-2xl border border-border/50 max-h-[90vh] overflow-y-auto">
             {/* Header section - more compact on mobile */}
-            <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 md:p-5 text-center relative overflow-hidden">
+            <div className="bg-background p-3 text-center relative overflow-hidden border-b border-border/50 sticky top-0">
               {/* Floating sparkles animation */}
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
@@ -186,19 +186,19 @@ export default function LoginPage() {
             </div>
 
             {/* Form section */}
-            <div className="p-3 md:p-5">
+            <div className="p-4 sm:p-6 space-y-4">
               {/* Google Sign-in Button */}
               <motion.div
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                className="mb-3 md:mb-5"
+                className="mb-2"
               >
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleGoogleSignIn}
                   disabled={isGoogleLoading}
-                  className="w-full rounded-xl py-4 md:py-5 text-sm md:text-base font-medium border-primary/20 hover:bg-primary/5 hover:border-primary/30 relative transition-all duration-200 shadow-sm hover:shadow-md"
+                  className="w-full py-2 px-4 rounded-xl flex items-center justify-center gap-2"
                 >
                   {isGoogleLoading ? (
                     <motion.div
@@ -229,7 +229,7 @@ export default function LoginPage() {
               </motion.div>
 
               {/* Divider */}
-              <div className="relative my-4 md:my-6">
+              <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300/50 dark:border-gray-700/50"></div>
                 </div>
@@ -247,14 +247,14 @@ export default function LoginPage() {
                     control={form.control}
                     name="email"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-1 mb-2">
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input
                             placeholder="you@example.com"
                             type="email"
                             {...field}
-                            className="py-5 px-4 text-base rounded-xl border-primary/20 focus-visible:ring-primary/50"
+                            className="py-3 px-4 text-base rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 transition-colors"
                           />
                         </FormControl>
                         <FormMessage className="text-xs" />
@@ -266,7 +266,7 @@ export default function LoginPage() {
                     control={form.control}
                     name="password"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-1 mb-2">
                         <div className="flex items-center justify-between">
                           <FormLabel>Password</FormLabel>
                           <Link
@@ -282,7 +282,7 @@ export default function LoginPage() {
                               placeholder="••••••••"
                               type={showPassword ? "text" : "password"}
                               {...field}
-                              className="py-5 px-4 pr-12 text-base rounded-xl border-primary/20 focus-visible:ring-primary/50"
+                              className="py-3 px-4 text-base rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1 pr-10 transition-colors"
                             />
                             <button
                               type="button"
@@ -310,7 +310,7 @@ export default function LoginPage() {
                     <Button
                       type="submit"
                       disabled={isLoading}
-                      className="w-full py-5 text-base font-medium rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-200 shadow-md hover:shadow-lg"
+                      className="w-full py-3 text-base font-medium rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors duration-200 shadow-sm hover:shadow-md"
                     >
                       {isLoading ? (
                         <motion.div
