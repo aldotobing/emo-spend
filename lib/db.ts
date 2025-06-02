@@ -253,9 +253,23 @@ export async function addExpense(
     const user = await getCurrentUser();
     if (user && navigator.onLine) {
       try {
-        const { synced, category, mood, moodReason, createdAt, ...baseData } = localExpense;
+        const { synced, category, mood, moodReason, createdAt, date, ...baseData } = localExpense;
+        
+        // Ensure date is in YYYY-MM-DD format for Supabase
+        const formatDateForSupabase = (dateStr: string): string => {
+          try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr; // Return as-is if invalid
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+          } catch (e) {
+            console.warn('[DB] Error formatting date for Supabase:', e);
+            return dateStr;
+          }
+        };
+
         const expenseToSync = {
           ...baseData,
+          date: formatDateForSupabase(date), // Ensure proper date format
           category_id: category,
           mood_id: mood,
           mood_reason: moodReason,
@@ -339,41 +353,34 @@ export async function getExpensesByDateRange(
 ): Promise<SyncedExpense[]> {
   const db = getDb();
   try {
-    // Parse dates and set to start/end of day in local timezone
+    // Parse input dates (they should be in YYYY-MM-DD format)
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0); // Start of day
     
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999); // End of day
     
-    // Convert to ISO strings for comparison
-    const startISO = start.toISOString();
-    const endISO = end.toISOString();
+    // Format dates as YYYY-MM-DD for comparison with stored dates
+    const formatDate = (date: Date) => {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+    
+    const startDateStr = formatDate(start);
+    const endDateStr = formatDate(end);
     
     // First, try to use an indexed query if possible
     const expenses = await db.expenses
-      .where('date')
-      .between(
-        startISO, 
-        endISO, 
-        true,  // include lower bound
-        true   // include upper bound
-      )
-      .toArray();
-    
-    // If no results, try the old method as fallback
-    if (!expenses.length) {
-      const allExpenses = await db.expenses.toArray();
-      return allExpenses.filter(expense => {
+      .toCollection()
+      .filter(expense => {
         try {
-          const expenseDate = new Date(expense.date);
-          return expenseDate >= start && expenseDate <= end;
+          // Direct string comparison since we're storing dates as YYYY-MM-DD
+          return expense.date >= startDateStr && expense.date <= endDateStr;
         } catch (e) {
-          console.error('Error parsing expense date:', expense.date, e);
+          console.error('Error comparing expense date:', expense.date, e);
           return false;
         }
-      });
-    }
+      })
+      .toArray();
     
     return expenses;
   } catch (error: any) {
@@ -383,7 +390,7 @@ export async function getExpensesByDateRange(
       error.stack
     );
     
-    // If there's an error with the indexed query, fall back to client-side filtering
+    // Fallback to client-side filtering with date objects if string comparison fails
     try {
       const allExpenses = await db.expenses.toArray();
       const start = new Date(startDate);
@@ -846,6 +853,18 @@ async function processPageData(data: any[]) {
         continue;
       }
 
+      // Format date to YYYY-MM-DD if it's not already in that format
+      const formatDate = (dateStr: string): string => {
+        try {
+          const date = new Date(dateStr);
+          if (isNaN(date.getTime())) return dateStr; // Return as-is if invalid date
+          return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        } catch (e) {
+          console.warn(`[DB] Error formatting date ${dateStr}:`, e);
+          return dateStr;
+        }
+      };
+
       // Convert remote format to local format
       const expense: SyncedExpense = {
         id: remote.id,
@@ -853,7 +872,7 @@ async function processPageData(data: any[]) {
         category: remote.category_id,
         mood: remote.mood_id,
         moodReason: remote.mood_reason,
-        date: remote.date,
+        date: formatDate(remote.date),
         notes: remote.notes || '',
         createdAt: remote.created_at,
         updatedAt: remote.updated_at || new Date().toISOString(),

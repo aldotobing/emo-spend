@@ -136,15 +136,23 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
     
     // console.log(`[getIncomesByDateRange] Found ${userIncomes.length} incomes for current user`);
     
-    // Parse the input dates once
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Parse the input dates and format as YYYY-MM-DD
+    const formatDate = (dateStr: string): string => {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) {
+        // If date is invalid, return an empty string which will fail comparison
+        return '';
+      }
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
     
-    // Set time to beginning and end of day for proper date comparison
-    start.setHours(0, 0, 0, 0);
-    end.setHours(23, 59, 59, 999);
+    const startDateStr = formatDate(startDate);
+    const endDateStr = formatDate(endDate);
     
-    // console.log(`[getIncomesByDateRange] Filtering for date range: ${start.toISOString()} to ${end.toISOString()}`);
+    if (!startDateStr || !endDateStr) {
+      console.warn(`[Income] Invalid date range: ${startDate} to ${endDate}`);
+      return [];
+    }
     
     // Filter incomes by date range
     const filteredIncomes = userIncomes.filter(income => {
@@ -157,13 +165,15 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
           return false;
         }
         
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) {
+        // Format the income date as YYYY-MM-DD for comparison
+        const incomeDateStr = formatDate(dateStr);
+        if (!incomeDateStr) {
           console.warn(`[Income] Invalid date format for income ${income.id}:`, dateStr);
           return false;
         }
         
-        const isInRange = date >= start && date <= end;
+        // Compare dates as YYYY-MM-DD strings
+        const isInRange = incomeDateStr >= startDateStr && incomeDateStr <= endDateStr;
         
         if (isInRange) {
           // console.log(`[Income] Including income - ID: ${income.id}, Date: ${date.toISOString()}, Amount: ${income.amount}, Source: ${income.source}, UserID: ${income.user_id || (income as any).userId}`);
@@ -190,13 +200,16 @@ export async function getIncomesByDateRange(startDate: string, endDate: string):
         const updatedAt = income.updatedAt || (income as any).updated_at || new Date().toISOString();
         const userId = (income as any).user_id || (income as any).userId || '';
         
-        // Format the date properly
+        // Format the date as YYYY-MM-DD
         let formattedDate: string;
         if (dateValue) {
           const date = new Date(dateValue);
-          formattedDate = isNaN(date.getTime()) ? new Date().toISOString().split('T')[0] : date.toISOString().split('T')[0];
+          formattedDate = isNaN(date.getTime()) ? 
+            new Date().toISOString().split('T')[0] : 
+            `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         } else {
-          formattedDate = new Date(createdAt).toISOString().split('T')[0];
+          const fallbackDate = new Date(createdAt);
+          formattedDate = `${fallbackDate.getFullYear()}-${String(fallbackDate.getMonth() + 1).padStart(2, '0')}-${String(fallbackDate.getDate()).padStart(2, '0')}`;
           console.warn('Income missing date field, using created date as fallback:', {
             incomeId: income.id,
             date: formattedDate,

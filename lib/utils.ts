@@ -14,13 +14,58 @@ export function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-export function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return new Intl.DateTimeFormat("id-ID", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date)
+export function formatDate(dateString: string, includeTime: boolean = false): string {
+  try {
+    // Create date object from the ISO string
+    let date = new Date(dateString);
+    
+    // If the date is invalid, try to parse it as a local date string
+    if (isNaN(date.getTime())) {
+      // Try to parse as local date string (YYYY-MM-DD)
+      const parts = dateString.split('-');
+      if (parts.length === 3) {
+        // Create date in local timezone
+        date = new Date(
+          parseInt(parts[0]),
+          parseInt(parts[1]) - 1, // months are 0-indexed
+          parseInt(parts[2])
+        );
+      }
+      
+      // If still invalid, return placeholder
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return 'Tanggal tidak valid';
+      }
+    }
+    
+    // Always use the user's local timezone
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    };
+    
+    if (includeTime) {
+      // For time display, include hours and minutes
+      options.hour = '2-digit';
+      options.minute = '2-digit';
+      options.hour12 = false; // Use 24-hour format
+      
+      // Only include timezone if it's a full datetime
+      if (dateString.includes('T')) {
+        options.timeZoneName = 'short';
+      }
+    }
+    
+    // Format the date according to Indonesian locale
+    return new Intl.DateTimeFormat('id-ID', options).format(date);
+  } catch (error) {
+    console.error('Error formatting date:', error, 'Input:', dateString);
+    // Fallback to simple string representation
+    return new Date(dateString).toLocaleString('id-ID');
+  }
 }
 
 export function getDateRangeForPeriod(period: "day" | "week" | "month" | "year"): { start: string; end: string } {
@@ -50,10 +95,14 @@ export function getDateRangeForPeriod(period: "day" | "week" | "month" | "year")
       break;
   }
 
-  // Convert to ISO string for database query
+  // Format as YYYY-MM-DD strings for consistent date handling
+  const formatDate = (date: Date): string => {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+
   return {
-    start: start.toISOString().split('T')[0] + 'T00:00:00.000Z',
-    end: now.toISOString()
+    start: formatDate(start),
+    end: formatDate(now)
   };
 }
 

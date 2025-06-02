@@ -60,7 +60,7 @@ export function ExpenseList({ expenses, onDelete }: ExpenseListProps) {
                   {category ? category.name : "Unknown"}
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  {formatDate(expense.date)}
+                  {formatDate(expense.createdAt, true)}
                 </div>
               </div>
             </div>

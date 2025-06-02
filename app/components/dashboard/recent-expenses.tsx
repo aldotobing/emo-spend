@@ -20,7 +20,12 @@ import {
     onExpenseDeleted,
   }: RecentExpensesProps) {
     const recent = [...expenses]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => {
+        // First sort by date, then by creation time for same dates
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
       .slice(0, 5);
   
     const handleDeleteExpense = async (id: string) => {

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { addIncome } from '@/lib/income';
+import { Income } from '@/types/expense';
 import { getSupabaseBrowserClient } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { useSync } from '@/hooks/use-sync';
@@ -37,7 +38,7 @@ const INCOME_SOURCES = [
 ];
 
 interface IncomeFormProps {
-  onSuccess?: () => void;
+  onSuccess?: (newIncome?: Income) => void;
   initialData?: {
     amount?: number;
     source?: string;
@@ -149,11 +150,23 @@ export function IncomeForm({ onSuccess, initialData }: IncomeFormProps) {
         setDate(new Date());
       }
 
-      // Call onSuccess callback if provided
-      onSuccess?.();
+      // Create the new income object with the correct types
+      const newIncome: Income = {
+        id: result, // The addIncome function returns the ID as a string
+        user_id: user.id,
+        amount: incomeData.amount,
+        source: incomeData.source,
+        description: incomeData.description,
+        date: incomeData.date,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        synced: true // Since we just synced it
+      };
       
-      // Refresh the page to reflect changes
-      router.refresh();
+      // Call onSuccess with the new income
+      onSuccess?.(newIncome);
+      
+      // No need to refresh the page since we're updating the state directly
     } catch (err) {
       console.error('Error adding income:', err);
       setError('Gagal menambahkan pendapatan. Silakan coba lagi.');
