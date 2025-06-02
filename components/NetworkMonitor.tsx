@@ -46,16 +46,7 @@ const NetworkMonitorComponent = memo(({ onManualCheck }: NetworkMonitorProps) =>
       
       // Show toast for slow connection if we just detected it
       if (isSlow && wasOnline) {
-        toast.warning(
-          <div className="flex flex-col">
-            <span className="font-medium">⚠️ Slow Connection</span>
-            <span className="text-sm opacity-80">Your internet connection is slower than usual. Some features may be limited.</span>
-          </div>,
-          {
-            duration: 4000,
-            className: 'border border-amber-200 bg-amber-50',
-          }
-        );
+        
       }
     } 
     // Handle connection restored
